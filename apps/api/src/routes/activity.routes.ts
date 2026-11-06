@@ -30,3 +30,4 @@ activityRouter.put(
   updateActivityController
 );
 activityRouter.delete("/:id", deleteActivityController);
+

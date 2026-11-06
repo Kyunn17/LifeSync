@@ -51,3 +51,4 @@ waterRouter.post("/", validateBody(waterLogSchema), addWaterController);
 export const tipsRouter = Router();
 tipsRouter.use(requireAuth);
 tipsRouter.get("/", getTipsController);
+

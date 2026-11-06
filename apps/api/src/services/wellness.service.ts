@@ -351,3 +351,4 @@ export async function listActiveWellnessTips() {
     .where(eq(healthTips.isActive, true))
     .orderBy(desc(healthTips.createdAt));
 }
+

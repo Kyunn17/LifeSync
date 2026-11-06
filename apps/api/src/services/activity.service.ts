@@ -145,3 +145,4 @@ export async function deleteCategory(
 
   return { data: { id: categoryId, deleted: true } };
 }
+

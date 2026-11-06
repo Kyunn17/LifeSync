@@ -456,3 +456,4 @@ export async function deleteScheduleBlock(scheduleId: string, userId: string) {
 
   return { data: { id: scheduleId, deleted: true } };
 }
+

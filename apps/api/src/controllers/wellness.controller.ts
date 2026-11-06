@@ -216,3 +216,4 @@ export async function getTipsController(
     next(err);
   }
 }
+

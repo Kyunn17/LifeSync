@@ -131,3 +131,4 @@ export async function deleteActivityController(
     next(err);
   }
 }
+

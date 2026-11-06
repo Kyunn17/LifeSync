@@ -106,3 +106,4 @@ export async function updateUserProfile(
 
   return getUserWithProfile(userId);
 }
+

@@ -16,3 +16,4 @@ userRouter.get("/me", getMeController);
 userRouter.patch("/me", validateBody(updateProfileSchema), updateMeController);
 userRouter.put("/me", validateBody(updateProfileSchema), updateMeController);
 userRouter.get("/:id", getUserByIdController);
+
