@@ -11,6 +11,7 @@ import {
   tipsRouter,
 } from "./wellness.routes";
 import { analyticsRouter } from "./analytics.routes";
+import { adminRouter } from "./admin.routes";
 
 export const apiRouter = Router();
 
@@ -31,3 +32,4 @@ apiRouter.use("/checkins", checkinRouter);
 apiRouter.use("/water", waterRouter);
 apiRouter.use("/tips", tipsRouter);
 apiRouter.use("/analytics", analyticsRouter);
+apiRouter.use("/admin", adminRouter);

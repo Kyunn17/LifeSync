@@ -190,6 +190,27 @@ export const updateProfileSchema = z.object({
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
+export const adminUpdateUserSchema = z.object({
+  role: z.enum(USER_ROLES).optional(),
+  banned: z.boolean().optional(),
+});
+
+export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
+
+export const wellnessTipSchema = z.object({
+  title: z.string().min(3, "Tip title is required").max(160),
+  category: z.string().min(2, "Category is required").max(80),
+  content: z.string().min(10, "Tip content is required").max(1000),
+  actionLabel: z.string().max(120).optional().nullable(),
+  icon: z.string().min(1).max(64).default("lightbulb"),
+  isActive: z.boolean().default(true),
+});
+
+export type WellnessTipInput = z.infer<typeof wellnessTipSchema>;
+
+export const updateWellnessTipSchema = wellnessTipSchema.partial();
+export type UpdateWellnessTipInput = z.infer<typeof updateWellnessTipSchema>;
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
