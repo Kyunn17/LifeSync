@@ -11,6 +11,7 @@ import {
 } from "@lifesync/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface CategoryItem {
   id: string;
@@ -106,16 +107,20 @@ function formatMinutesToHHMM(totalMinutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-function formatDateBanner(dateStr: string): string {
+function formatDateBanner(
+  dateStr: string,
+  locale = "en-US",
+  todayWord = "Today"
+): string {
   const today = getTodayIsoDate();
   const [y, m, d] = dateStr.split("-").map(Number);
   const dt = new Date(y ?? 2026, (m ?? 1) - 1, d ?? 1);
-  const formatted = new Intl.DateTimeFormat("en-US", {
+  const formatted = new Intl.DateTimeFormat(locale, {
     weekday: "short",
     month: "short",
     day: "numeric",
   }).format(dt);
-  return dateStr === today ? `Today, ${formatted}` : formatted;
+  return dateStr === today ? `${todayWord}, ${formatted}` : formatted;
 }
 
 interface RibbonSegment {
@@ -128,6 +133,7 @@ interface RibbonSegment {
 }
 
 export default function DailySchedulePage() {
+  const { t, locale, translateCategory } = useLanguage();
   const [selectedDate, setSelectedDate] = useState<string>(getTodayIsoDate);
   const [scheduleData, setScheduleData] = useState<DailyScheduleSummary | null>(
     null
@@ -546,7 +552,11 @@ export default function DailySchedulePage() {
   return (
     <AppShell
       onQuickLogClick={() => openAddModal()}
-      selectedDateLabel={formatDateBanner(selectedDate)}
+      selectedDateLabel={formatDateBanner(
+        selectedDate,
+        locale,
+        t("Today", "Hari Ini")
+      )}
       balanceScore={circadianHarmonyScore}
     >
       <div className="flex flex-col w-full">
@@ -559,7 +569,7 @@ export default function DailySchedulePage() {
                 type="button"
                 onClick={() => setSelectedDate((d) => shiftIsoDate(d, -1))}
                 className="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors"
-                title="Previous Day"
+                title={t("Previous Day", "Hari Sebelumnya")}
               >
                 <span className="material-symbols-outlined text-[18px]">
                   chevron_left
@@ -567,7 +577,13 @@ export default function DailySchedulePage() {
               </button>
 
               <label className="relative px-4 py-1.5 font-label-lg text-label-lg text-on-surface hover:bg-surface-container-low rounded-lg transition-colors flex items-center gap-2 cursor-pointer">
-                <span>{formatDateBanner(selectedDate)}</span>
+                <span>
+                  {formatDateBanner(
+                    selectedDate,
+                    locale,
+                    t("Today", "Hari Ini")
+                  )}
+                </span>
                 {isTodaySelected && (
                   <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 )}
@@ -585,7 +601,7 @@ export default function DailySchedulePage() {
                 type="button"
                 onClick={() => setSelectedDate((d) => shiftIsoDate(d, 1))}
                 className="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors"
-                title="Next Day"
+                title={t("Next Day", "Hari Berikutnya")}
               >
                 <span className="material-symbols-outlined text-[18px]">
                   chevron_right
@@ -598,7 +614,7 @@ export default function DailySchedulePage() {
                   onClick={() => setSelectedDate(getTodayIsoDate())}
                   className="ml-1 px-2.5 py-1 rounded-lg bg-secondary-container/60 text-primary font-label-sm text-label-sm font-semibold hover:bg-secondary-container transition-colors"
                 >
-                  Today
+                  {t("Today", "Hari Ini")}
                 </button>
               )}
             </div>
@@ -619,7 +635,7 @@ export default function DailySchedulePage() {
               <span className="w-1 h-1 rounded-full bg-outline-variant" />
               <span className="font-label-sm text-label-sm text-primary font-medium bg-secondary-container/40 px-2 py-0.5 rounded-md">
                 {formatDurationMinutes(scheduleData?.remainingMinutes ?? 1440)}{" "}
-                free space
+                {t("free space", "waktu luang")}
               </span>
             </div>
 
@@ -647,9 +663,11 @@ export default function DailySchedulePage() {
                 </span>
                 <span>
                   {selectedCategoryId === "ALL"
-                    ? "Filter Categories"
-                    : categories.find((c) => c.id === selectedCategoryId)
-                        ?.name || "Filtered"}
+                    ? t("Filter Categories", "Filter Kategori")
+                    : translateCategory(
+                        categories.find((c) => c.id === selectedCategoryId)
+                          ?.name || t("Filtered", "Terfilter")
+                      )}
                 </span>
                 <span className="material-symbols-outlined text-[16px] text-outline">
                   expand_more
@@ -670,7 +688,7 @@ export default function DailySchedulePage() {
                         : "text-on-surface hover:bg-surface-container-low"
                     }`}
                   >
-                    <span>All Categories</span>
+                    <span>{t("All Categories", "Semua Kategori")}</span>
                     <span className="text-xs text-outline">
                       {scheduleData?.blocks.length ?? 0}
                     </span>
@@ -696,7 +714,7 @@ export default function DailySchedulePage() {
                             className="w-2.5 h-2.5 rounded-full"
                             style={{ backgroundColor: cat.color }}
                           />
-                          <span>{cat.name}</span>
+                          <span>{translateCategory(cat.name)}</span>
                         </span>
                       </button>
                     ))}
@@ -713,7 +731,9 @@ export default function DailySchedulePage() {
                     <span className="material-symbols-outlined text-[16px]">
                       add_circle
                     </span>
-                    <span>New Custom Category</span>
+                    <span>
+                      {t("New Custom Category", "Kategori Kustom Baru")}
+                    </span>
                   </button>
                 </div>
               )}
@@ -724,12 +744,15 @@ export default function DailySchedulePage() {
               type="button"
               onClick={handleFillNextBuffer}
               className="flex items-center gap-2 px-3.5 py-2 bg-secondary-container hover:bg-secondary-fixed text-on-secondary-container font-label-md text-label-md rounded-xl transition-all shadow-sm"
-              title="Schedule into next available unallocated window"
+              title={t(
+                "Schedule into next available unallocated window",
+                "Jadwalkan pada jendela waktu kosong berikutnya"
+              )}
             >
               <span className="material-symbols-outlined text-[18px] text-primary">
                 auto_fix_high
               </span>
-              <span>Auto-balance Day</span>
+              <span>{t("Auto-balance Day", "Seimbangkan Hari")}</span>
             </button>
 
             {/* Primary Add Block */}
@@ -739,7 +762,7 @@ export default function DailySchedulePage() {
               className="flex items-center gap-2 px-4 py-2 bg-primary-container text-on-primary hover:opacity-95 active:scale-98 rounded-xl font-label-lg text-label-lg shadow-[0_4px_14px_rgba(13,122,83,0.18)] transition-all"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
-              <span>Add Block</span>
+              <span>{t("Add Block", "Tambah Blok")}</span>
             </button>
           </div>
         </section>
@@ -750,17 +773,18 @@ export default function DailySchedulePage() {
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-3">
                 <span className="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-tight">
-                  24-Hour Circadian Ribbon
+                  {t("24-Hour Circadian Ribbon", "Pita Sirkadian 24 Jam")}
                 </span>
                 <span className="font-label-sm text-label-sm px-2.5 py-0.5 bg-surface-container-low text-secondary font-semibold uppercase tracking-wider rounded-full">
-                  {scheduleData?.allocatedPercentage ?? 0}% Allocated
+                  {scheduleData?.allocatedPercentage ?? 0}%{" "}
+                  {t("Allocated", "Terjadwal")}
                 </span>
               </div>
 
               <div className="flex items-center gap-2 font-label-md text-label-md text-on-surface-variant">
                 <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" />
                 <span>
-                  Live Indicator:{" "}
+                  {t("Live Indicator", "Indikator Waktu")}:{" "}
                   <strong>{formatMinutesToHHMM(nowMinutes)}</strong>
                 </span>
               </div>
@@ -772,25 +796,25 @@ export default function DailySchedulePage() {
                 <span className="material-symbols-outlined text-[16px]">
                   bedtime
                 </span>{" "}
-                Night (00:00 - 06:00)
+                {t("Night (00:00 - 06:00)", "Malam (00:00 - 06:00)")}
               </div>
               <div className="flex items-center gap-1.5 justify-start sm:pl-4 text-primary">
                 <span className="material-symbols-outlined text-[16px]">
                   wb_twilight
                 </span>{" "}
-                Morning (06:00 - 12:00)
+                {t("Morning (06:00 - 12:00)", "Pagi (06:00 - 12:00)")}
               </div>
               <div className="flex items-center gap-1.5 justify-start sm:pl-4 text-secondary">
                 <span className="material-symbols-outlined text-[16px]">
                   wb_sunny
                 </span>{" "}
-                Afternoon (12:00 - 18:00)
+                {t("Afternoon (12:00 - 18:00)", "Siang (12:00 - 18:00)")}
               </div>
               <div className="flex items-center gap-1.5 justify-end pr-1 text-on-surface-variant">
                 <span className="material-symbols-outlined text-[16px]">
                   nights_stay
                 </span>{" "}
-                Evening (18:00 - 24:00)
+                {t("Evening (18:00 - 24:00)", "Petang (18:00 - 24:00)")}
               </div>
             </div>
 
@@ -883,11 +907,13 @@ export default function DailySchedulePage() {
             <div className="flex items-center justify-between mb-2 px-1">
               <div className="flex items-center gap-2">
                 <span className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-                  Scheduled Sequence
+                  {t("Scheduled Sequence", "Urutan Terjadwal")}
                 </span>
                 <span className="font-label-md text-label-md px-2.5 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-medium">
                   {filteredBlocks.length}{" "}
-                  {filteredBlocks.length === 1 ? "block" : "blocks"}
+                  {filteredBlocks.length === 1
+                    ? t("block", "blok")
+                    : t("blocks", "blok")}
                 </span>
               </div>
 
@@ -903,7 +929,9 @@ export default function DailySchedulePage() {
                     swap_vert
                   </span>
                   <span>
-                    {sortOrder === "asc" ? "Earliest First" : "Latest First"}
+                    {sortOrder === "asc"
+                      ? t("Earliest First", "Paling Awal")
+                      : t("Latest First", "Paling Akhir")}
                   </span>
                 </button>
                 <button
@@ -915,7 +943,9 @@ export default function DailySchedulePage() {
                     {expandDescriptions ? "unfold_less" : "expand"}
                   </span>
                   <span>
-                    {expandDescriptions ? "Compact View" : "Expand All"}
+                    {expandDescriptions
+                      ? t("Compact View", "Tampilan Ringkas")
+                      : t("Expand All", "Perluas Semua")}
                   </span>
                 </button>
               </div>
@@ -946,17 +976,22 @@ export default function DailySchedulePage() {
                   </span>
                 </div>
                 <h3 className="font-headline-sm text-headline-sm font-semibold text-on-surface">
-                  No Scheduled Activities for This Window
+                  {t(
+                    "No Scheduled Activities for This Window",
+                    "Belum Ada Aktivitas Terjadwal untuk Hari Ini"
+                  )}
                 </h3>
                 <p className="font-body-sm text-body-sm text-on-surface-variant max-w-md">
-                  Your 24-hour canvas has{" "}
+                  {t("Your 24-hour canvas has", "Kanvas 24 jam Anda memiliki")}{" "}
                   <strong>
                     {formatDurationMinutes(
                       scheduleData?.remainingMinutes ?? 1440
                     )}
                   </strong>{" "}
-                  of unallocated space. Organize your sleep, deep work,
-                  exercise, meals, and restorative buffers without overlaps.
+                  {t(
+                    "of unallocated space. Organize your sleep, deep work, exercise, meals, and restorative buffers without overlaps.",
+                    "waktu luang. Atur tidur, kerja fokus, olahraga, makan, dan istirahat Anda tanpa tumpang tindih."
+                  )}
                 </p>
                 <div className="flex items-center gap-3 mt-2">
                   <button
@@ -967,7 +1002,9 @@ export default function DailySchedulePage() {
                     <span className="material-symbols-outlined text-[18px]">
                       add
                     </span>
-                    <span>Schedule First Block</span>
+                    <span>
+                      {t("Schedule First Block", "Jadwalkan Blok Pertama")}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1013,16 +1050,16 @@ export default function DailySchedulePage() {
                               color: block.category.color,
                             }}
                           >
-                            {block.category.name}
+                            {translateCategory(block.category.name)}
                           </span>
                           {isCurrentBlock && (
                             <span className="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-semibold animate-pulse">
-                              In Progress
+                              {t("In Progress", "Sedang Berlangsung")}
                             </span>
                           )}
                           {block.crossesMidnight && (
                             <span className="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container-high text-secondary font-medium">
-                              Crosses Midnight
+                              {t("Crosses Midnight", "Melewati Tengah Malam")}
                             </span>
                           )}
                         </div>
@@ -1052,7 +1089,7 @@ export default function DailySchedulePage() {
                         type="button"
                         onClick={() => handleSplitBlock(block)}
                         className="p-2 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors"
-                        title="Split Block in Half"
+                        title={t("Split Block in Half", "Bagi Blok Menjadi Dua")}
                       >
                         <span className="material-symbols-outlined text-[18px]">
                           vertical_split
@@ -1062,7 +1099,7 @@ export default function DailySchedulePage() {
                         type="button"
                         onClick={() => openEditModal(block)}
                         className="p-2 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors"
-                        title="Edit Block"
+                        title={t("Edit Block", "Ubah Blok")}
                       >
                         <span className="material-symbols-outlined text-[18px]">
                           edit
@@ -1072,7 +1109,7 @@ export default function DailySchedulePage() {
                         type="button"
                         onClick={() => handleDeleteBlock(block)}
                         className="p-2 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/40 transition-colors"
-                        title="Delete Block"
+                        title={t("Delete Block", "Hapus Blok")}
                       >
                         <span className="material-symbols-outlined text-[18px]">
                           delete
@@ -1091,10 +1128,13 @@ export default function DailySchedulePage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-                    Category Goals
+                    {t("Category Goals", "Target Kategori")}
                   </h2>
                   <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
-                    Daily target pace for optimal vitality
+                    {t(
+                      "Daily target pace for optimal vitality",
+                      "Target harian untuk vitalitas optimal"
+                    )}
                   </p>
                 </div>
                 <span className="material-symbols-outlined text-primary text-[24px]">
@@ -1128,7 +1168,7 @@ export default function DailySchedulePage() {
                               className="w-2.5 h-2.5 rounded-full"
                               style={{ backgroundColor: cat.color }}
                             />
-                            <span>{cat.name}</span>
+                            <span>{translateCategory(cat.name)}</span>
                           </span>
                           <span className="text-on-surface-variant font-medium">
                             {formatDurationMinutes(cat.allocatedMinutes)}{" "}
@@ -1148,8 +1188,12 @@ export default function DailySchedulePage() {
                         </div>
                         <span className="font-label-sm text-label-sm text-on-surface-variant font-medium mt-1 inline-block">
                           {diff >= 0
-                            ? `${diff === 0 ? "100% on target limit" : `+${formatDurationMinutes(diff)} allocated`}`
-                            : `${formatDurationMinutes(Math.abs(diff))} remaining to target`}
+                            ? `${
+                                diff === 0
+                                  ? t("100% on target limit", "100% sesuai target")
+                                  : `+${formatDurationMinutes(diff)} ${t("allocated", "teralokasi")}`
+                              }`
+                            : `${formatDurationMinutes(Math.abs(diff))} ${t("remaining to target", "menuju target")}`}
                         </span>
                       </div>
                     );
@@ -1160,7 +1204,7 @@ export default function DailySchedulePage() {
               <div className="mt-6 p-4 rounded-xl bg-surface-container-low flex items-center justify-between">
                 <div>
                   <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-bold">
-                    Circadian Harmony
+                    {t("Circadian Harmony", "Harmoni Sirkadian")}
                   </span>
                   <div className="font-headline-sm text-headline-sm font-bold text-on-surface mt-0.5">
                     {circadianHarmonyScore} / 100
@@ -1196,7 +1240,8 @@ export default function DailySchedulePage() {
                       className="font-label-sm text-label-sm text-primary font-bold hover:underline inline-flex items-center gap-1"
                     >
                       <span>
-                        {activeTip.actionLabel || "Schedule buffer block"}
+                        {activeTip.actionLabel ||
+                          t("Schedule buffer block", "Jadwalkan blok jeda")}
                       </span>
                       <span className="material-symbols-outlined text-[14px]">
                         arrow_forward
@@ -1211,7 +1256,7 @@ export default function DailySchedulePage() {
             <div className="relative w-full h-36 rounded-xl overflow-hidden shadow-sm bg-gradient-to-br from-primary via-primary-container to-secondary p-5 flex flex-col justify-between text-on-primary">
               <div className="flex items-center justify-between">
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary-fixed font-semibold">
-                  Environment Sync
+                  {t("Environment Sync", "Sinkronisasi Lingkungan")}
                 </span>
                 <span className="material-symbols-outlined text-[20px] text-primary-fixed">
                   wb_twilight
@@ -1219,11 +1264,14 @@ export default function DailySchedulePage() {
               </div>
               <div>
                 <div className="font-label-lg text-label-lg font-bold">
-                  Natural Daylight Rhythms
+                  {t("Natural Daylight Rhythms", "Ritme Cahaya Siang Alami")}
                 </div>
                 <p className="font-body-sm text-body-sm text-on-primary/80 mt-0.5">
                   {formatDurationMinutes(scheduleData?.remainingMinutes ?? 1440)}{" "}
-                  open recovery buffer remaining today
+                  {t(
+                    "open recovery buffer remaining today",
+                    "waktu pemulihan luang tersisa hari ini"
+                  )}
                 </p>
               </div>
             </div>
@@ -1245,11 +1293,14 @@ export default function DailySchedulePage() {
                 <div>
                   <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
                     {editingBlock
-                      ? "Edit Activity Block"
-                      : "Schedule Activity Block"}
+                      ? t("Edit Activity Block", "Ubah Blok Aktivitas")
+                      : t("Schedule Activity Block", "Jadwalkan Blok Aktivitas")}
                   </h3>
                   <p className="font-body-sm text-body-sm text-on-surface-variant">
-                    Non-overlapping 24-hour time allocation
+                    {t(
+                      "Non-overlapping 24-hour time allocation",
+                      "Alokasi waktu 24 jam tanpa tumpang tindih"
+                    )}
                   </p>
                 </div>
               </div>
@@ -1277,11 +1328,14 @@ export default function DailySchedulePage() {
             >
               <div>
                 <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                  Activity Title
+                  {t("Activity Title", "Judul Aktivitas")}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g., Deep Work & Architecture Sprint"
+                  placeholder={t(
+                    "e.g., Deep Work & Architecture Sprint",
+                    "mis., Kerja Fokus & Perencanaan Sistem"
+                  )}
                   {...register("title")}
                   className="w-full rounded-xl bg-surface-container-low px-4 py-2.5 font-body-md text-body-md text-on-surface outline-none border border-transparent focus:border-primary transition-all"
                 />
@@ -1295,16 +1349,18 @@ export default function DailySchedulePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                    Category
+                    {t("Category", "Kategori")}
                   </label>
                   <select
                     {...register("activityId")}
                     className="w-full rounded-xl bg-surface-container-low px-3.5 py-2.5 font-body-md text-body-md text-on-surface outline-none border border-transparent focus:border-primary transition-all"
                   >
-                    <option value="">Select category...</option>
+                    <option value="">
+                      {t("Select category...", "Pilih kategori...")}
+                    </option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
-                        {cat.name}
+                        {translateCategory(cat.name)}
                       </option>
                     ))}
                   </select>
@@ -1317,7 +1373,7 @@ export default function DailySchedulePage() {
 
                 <div>
                   <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                    Date
+                    {t("Date", "Tanggal")}
                   </label>
                   <input
                     type="date"
@@ -1335,7 +1391,7 @@ export default function DailySchedulePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                    Start Time (24h)
+                    {t("Start Time (24h)", "Waktu Mulai (24j)")}
                   </label>
                   <input
                     type="time"
@@ -1351,7 +1407,7 @@ export default function DailySchedulePage() {
 
                 <div>
                   <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                    End Time (24h)
+                    {t("End Time (24h)", "Waktu Selesai (24j)")}
                   </label>
                   <input
                     type="time"
@@ -1368,7 +1424,9 @@ export default function DailySchedulePage() {
 
               {previewDuration && (
                 <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-secondary-container/40 text-on-secondary-container font-label-sm text-label-sm">
-                  <span>Calculated Block Duration</span>
+                  <span>
+                    {t("Calculated Block Duration", "Estimasi Durasi Blok")}
+                  </span>
                   <span className="font-bold text-primary">
                     {previewDuration}
                   </span>
@@ -1377,11 +1435,14 @@ export default function DailySchedulePage() {
 
               <div>
                 <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                  Notes / Intention (Optional)
+                  {t("Notes / Intention (Optional)", "Catatan / Intensi (Opsional)")}
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="e.g., Zero-screen outdoor walk, Zone 2 heart rate, or key deliverable..."
+                  placeholder={t(
+                    "e.g., Zero-screen outdoor walk, Zone 2 heart rate, or key deliverable...",
+                    "mis., Jalan kaki tanpa layar, detak jantung Zona 2, atau target kerja utama..."
+                  )}
                   {...register("description")}
                   className="w-full rounded-xl bg-surface-container-low px-4 py-2.5 font-body-sm text-body-sm text-on-surface outline-none border border-transparent focus:border-primary transition-all resize-none"
                 />
@@ -1393,7 +1454,7 @@ export default function DailySchedulePage() {
                   onClick={() => setBlockModalOpen(false)}
                   className="px-4 py-2.5 rounded-xl font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors"
                 >
-                  Cancel
+                  {t("Cancel", "Batal")}
                 </button>
                 <button
                   type="submit"
@@ -1405,10 +1466,10 @@ export default function DailySchedulePage() {
                   </span>
                   <span>
                     {isSubmitting
-                      ? "Saving..."
+                      ? t("Saving...", "Menyimpan...")
                       : editingBlock
-                        ? "Update Block"
-                        : "Save Block"}
+                        ? t("Update Block", "Perbarui Blok")
+                        : t("Save Block", "Simpan Blok")}
                   </span>
                 </button>
               </div>
@@ -1423,7 +1484,7 @@ export default function DailySchedulePage() {
           <div className="w-full max-w-md rounded-3xl bg-surface-container-lowest p-7 shadow-2xl border border-surface-container-high">
             <div className="flex items-center justify-between pb-4 border-b border-surface-container-low">
               <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                New Activity Category
+                {t("New Activity Category", "Kategori Aktivitas Baru")}
               </h3>
               <button
                 type="button"
@@ -1446,11 +1507,14 @@ export default function DailySchedulePage() {
             >
               <div>
                 <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1">
-                  Category Name
+                  {t("Category Name", "Nama Kategori")}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g., Mindfulness & Breathwork"
+                  placeholder={t(
+                    "e.g., Mindfulness & Breathwork",
+                    "mis., Meditasi & Pernapasan"
+                  )}
                   {...registerCategory("name")}
                   className="w-full rounded-xl bg-surface-container-low px-4 py-2.5 font-body-md text-body-md text-on-surface outline-none"
                 />
@@ -1464,7 +1528,7 @@ export default function DailySchedulePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1">
-                    Accent Color
+                    {t("Accent Color", "Warna Aksen")}
                   </label>
                   <input
                     type="color"
@@ -1474,7 +1538,7 @@ export default function DailySchedulePage() {
                 </div>
                 <div>
                   <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1">
-                    Daily Goal (mins)
+                    {t("Daily Goal (mins)", "Target Harian (mnt)")}
                   </label>
                   <input
                     type="number"
@@ -1492,14 +1556,16 @@ export default function DailySchedulePage() {
                   onClick={() => setCategoryModalOpen(false)}
                   className="px-4 py-2 rounded-xl font-label-md text-label-md text-on-surface-variant"
                 >
-                  Cancel
+                  {t("Cancel", "Batal")}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingCategory}
                   className="px-5 py-2 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold"
                 >
-                  {isSubmittingCategory ? "Creating..." : "Create Category"}
+                  {isSubmittingCategory
+                    ? t("Creating...", "Membuat...")
+                    : t("Create Category", "Buat Kategori")}
                 </button>
               </div>
             </form>

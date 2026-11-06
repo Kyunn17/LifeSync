@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { MOOD_TYPES, type MoodType } from "@lifesync/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface HealthLogRecord {
   id: string;
@@ -111,6 +112,7 @@ function formatShortWeekday(dateStr: string): string {
 }
 
 export default function WellnessTrackingPage() {
+  const { t, translateMood } = useLanguage();
   const todayIso = useMemo(() => getTodayIsoDate(), []);
   const [periodDays, setPeriodDays] = useState<7 | 30>(7);
   const [logs, setLogs] = useState<HealthLogRecord[]>([]);
@@ -497,18 +499,21 @@ export default function WellnessTrackingPage() {
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm tracking-wider uppercase">
-                Biophilic Analytics
+                {t("Biophilic Analytics", "Analitik Biofilik")}
               </span>
               <span className="text-on-surface-variant font-label-sm text-label-sm">
-                • {logs.length} Recorded Biological Days
+                • {logs.length}{" "}
+                {t("Recorded Biological Days", "Hari Biologis Tercatat")}
               </span>
             </div>
             <h1 className="font-headline-lg text-headline-lg text-primary tracking-tight font-bold">
-              Wellness Tracking
+              {t("Wellness Tracking", "Pelacakan Kesehatan")}
             </h1>
             <p className="font-body-md text-body-md text-on-surface-variant max-w-2xl">
-              Monitor your physiological rhythm, habit equilibrium, and
-              restorative balance across dynamic biological timelines.
+              {t(
+                "Monitor your physiological rhythm, habit equilibrium, and restorative balance across dynamic biological timelines.",
+                "Pantau ritme fisiologis, keseimbangan kebiasaan, dan pemulihan Anda sepanjang garis waktu biologis dinamis."
+              )}
             </p>
           </div>
 
@@ -524,7 +529,7 @@ export default function WellnessTrackingPage() {
                     : "text-on-surface-variant hover:text-on-surface"
                 }`}
               >
-                Last 7 Days
+                {t("Last 7 Days", "7 Hari Terakhir")}
               </button>
               <button
                 type="button"
@@ -535,7 +540,7 @@ export default function WellnessTrackingPage() {
                     : "text-on-surface-variant hover:text-on-surface"
                 }`}
               >
-                Last 30 Days
+                {t("Last 30 Days", "30 Hari Terakhir")}
               </button>
             </div>
 
@@ -547,7 +552,7 @@ export default function WellnessTrackingPage() {
               <span className="material-symbols-outlined text-[18px]">
                 add_circle
               </span>
-              <span>Quick Log</span>
+              <span>{t("Quick Log", "Catat Cepat")}</span>
             </button>
           </div>
         </div>
@@ -565,7 +570,7 @@ export default function WellnessTrackingPage() {
               onClick={() => setStatusBanner(null)}
               className="text-xs text-secondary hover:underline"
             >
-              Dismiss
+              {t("Dismiss", "Tutup")}
             </button>
           </div>
         )}
@@ -581,19 +586,19 @@ export default function WellnessTrackingPage() {
                 </span>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-surface-container-low text-primary font-label-sm text-label-sm font-semibold">
-                High Consistency
+                {t("High Consistency", "Konsistensi Tinggi")}
               </span>
             </div>
             <div className="mt-4">
               <span className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-                Sleep Equilibrium
+                {t("Sleep Equilibrium", "Keseimbangan Tidur")}
               </span>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">
                   {summaryMetrics.avgSleepHours}
                 </span>
                 <span className="font-body-sm text-body-sm text-on-surface-variant">
-                  hrs avg
+                  {t("hrs avg", "jam rata-rata")}
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-surface-container-low">
@@ -604,7 +609,7 @@ export default function WellnessTrackingPage() {
                   <strong className="text-primary font-semibold">
                     {summaryMetrics.restorativeScore}%
                   </strong>{" "}
-                  restorative score
+                  {t("restorative score", "skor pemulihan")}
                 </span>
               </div>
             </div>
@@ -619,19 +624,19 @@ export default function WellnessTrackingPage() {
                 </span>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-secondary-container/50 text-secondary font-label-sm text-label-sm font-semibold">
-                Zone 2 Target
+                {t("Zone 2 Target", "Target Zona 2")}
               </span>
             </div>
             <div className="mt-4">
               <span className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-                Active Movement
+                {t("Active Movement", "Gerak Aktif")}
               </span>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">
                   {summaryMetrics.avgExerciseMins}
                 </span>
                 <span className="font-body-sm text-body-sm text-on-surface-variant">
-                  mins/day
+                  {t("mins/day", "mnt/hari")}
                 </span>
               </div>
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-surface-container-low font-body-sm text-body-sm text-on-surface-variant">
@@ -639,10 +644,10 @@ export default function WellnessTrackingPage() {
                   <strong>
                     {summaryMetrics.latestSteps.toLocaleString()}
                   </strong>{" "}
-                  steps
+                  {t("steps", "langkah")}
                 </span>
                 <span>
-                  <strong>{summaryMetrics.estimatedKcal}</strong> kcal
+                  <strong>{summaryMetrics.estimatedKcal}</strong> kkal
                 </span>
               </div>
             </div>
@@ -660,21 +665,21 @@ export default function WellnessTrackingPage() {
                 type="button"
                 onClick={() => handleQuickAddWater(250)}
                 className="px-2 py-0.5 rounded-full bg-secondary-container/70 hover:bg-secondary-container text-primary font-label-sm text-label-sm font-bold transition-colors"
-                title="Quick log +250ml water"
+                title={t("Quick log +250ml water", "Catat cepat +250ml air")}
               >
                 +250ml ({summaryMetrics.waterGoalPct}%)
               </button>
             </div>
             <div className="mt-4">
               <span className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-                Hydration Daily
+                {t("Hydration Daily", "Hidrasi Harian")}
               </span>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">
                   {summaryMetrics.todayWaterLiters}
                 </span>
                 <span className="font-body-sm text-body-sm text-on-surface-variant">
-                  L of 2.5L
+                  {t("L of 2.5L", "L dari 2.5L")}
                 </span>
               </div>
               <div className="w-full bg-surface-container-low rounded-full h-1.5 mt-3 overflow-hidden">
@@ -696,12 +701,12 @@ export default function WellnessTrackingPage() {
               </div>
               <span className="px-2 py-0.5 rounded-full bg-surface-container-low text-secondary font-label-sm text-label-sm font-semibold">
                 {MOOD_META[summaryMetrics.latestMood]?.emoji}{" "}
-                {summaryMetrics.latestMood}
+                {translateMood(summaryMetrics.latestMood)}
               </span>
             </div>
             <div className="mt-4">
               <span className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-                Clarity Index
+                {t("Clarity Index", "Indeks Kejernihan")}
               </span>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">
@@ -714,11 +719,15 @@ export default function WellnessTrackingPage() {
               <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-surface-container-low">
                 <span className="w-2 h-2 rounded-full bg-primary-container" />
                 <span className="font-label-md text-label-md text-on-surface-variant">
-                  Stress metric:{" "}
+                  {t("Stress metric", "Metrik stres")}:{" "}
                   <strong className="text-on-surface font-semibold">
                     {summaryMetrics.stressScore}/100
                   </strong>{" "}
-                  ({summaryMetrics.stressScore <= 30 ? "Low" : "Moderate"})
+                  (
+                  {summaryMetrics.stressScore <= 30
+                    ? t("Low", "Rendah")
+                    : t("Moderate", "Sedang")}
+                  )
                 </span>
               </div>
             </div>
@@ -733,12 +742,12 @@ export default function WellnessTrackingPage() {
                 </span>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-semibold">
-                Optimal
+                {t("Optimal", "Optimal")}
               </span>
             </div>
             <div className="mt-4">
               <span className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-                Resting HR
+                {t("Resting HR", "Detak Jantung Istirahat")}
               </span>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">
@@ -752,7 +761,7 @@ export default function WellnessTrackingPage() {
                 <span className="material-symbols-outlined text-[16px] text-primary">
                   verified
                 </span>
-                <span>Sympathetic calm</span>
+                <span>{t("Sympathetic calm", "Ketenangan simpatik")}</span>
               </div>
             </div>
           </div>
@@ -1082,10 +1091,13 @@ export default function WellnessTrackingPage() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex flex-col">
                   <span className="font-label-sm text-label-sm uppercase tracking-wider font-semibold text-secondary">
-                    Instant Registry
+                    {t("Instant Registry", "Pencatatan Instan")}
                   </span>
                   <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                    Log Today&apos;s Vital Metrics
+                    {t(
+                      "Log Today's Vital Metrics",
+                      "Catat Metrik Vital Hari Ini"
+                    )}
                   </h3>
                 </div>
                 <input
@@ -1103,7 +1115,7 @@ export default function WellnessTrackingPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3.5 rounded-2xl bg-surface-container-low/70 flex flex-col gap-1.5">
                     <span className="font-label-sm text-label-sm text-on-surface-variant font-medium">
-                      Sleep Duration
+                      {t("Sleep Duration", "Durasi Tidur")}
                     </span>
                     <div className="flex items-center justify-between mt-1">
                       <button
@@ -1122,7 +1134,7 @@ export default function WellnessTrackingPage() {
                           {sleepHours.toFixed(1)}
                         </span>
                         <span className="text-xs text-on-surface-variant font-label-sm">
-                          hrs
+                          {t("hrs", "jam")}
                         </span>
                       </div>
                       <button
@@ -1141,7 +1153,7 @@ export default function WellnessTrackingPage() {
 
                   <div className="p-3.5 rounded-2xl bg-surface-container-low/70 flex flex-col gap-1.5">
                     <span className="font-label-sm text-label-sm text-on-surface-variant font-medium">
-                      Hydration Intake
+                      {t("Hydration Intake", "Asupan Air")}
                     </span>
                     <div className="flex items-center justify-between mt-1">
                       <button
@@ -1182,7 +1194,7 @@ export default function WellnessTrackingPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-2xl bg-surface-container-low/70 flex flex-col gap-1">
                     <label className="font-label-sm text-label-sm text-on-surface-variant font-medium">
-                      Exercise (mins)
+                      {t("Exercise (mins)", "Olahraga (mnt)")}
                     </label>
                     <input
                       type="number"
@@ -1197,7 +1209,7 @@ export default function WellnessTrackingPage() {
                   </div>
                   <div className="p-3 rounded-2xl bg-surface-container-low/70 flex flex-col gap-1">
                     <label className="font-label-sm text-label-sm text-on-surface-variant font-medium">
-                      Daily Steps
+                      {t("Daily Steps", "Langkah Harian")}
                     </label>
                     <input
                       type="number"
@@ -1215,7 +1227,7 @@ export default function WellnessTrackingPage() {
                 {/* Step 2: Mental State Chips */}
                 <div className="flex flex-col gap-2 pt-1">
                   <label className="font-label-md text-label-md text-on-surface font-semibold">
-                    Mood &amp; Mental State
+                    {t("Mood & Mental State", "Suasana Hati & Pikiran")}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {MOOD_TYPES.map((mood) => {
@@ -1232,7 +1244,7 @@ export default function WellnessTrackingPage() {
                           }`}
                         >
                           <span>{MOOD_META[mood].emoji}</span>
-                          <span>{mood}</span>
+                          <span>{translateMood(mood)}</span>
                         </button>
                       );
                     })}
@@ -1243,7 +1255,10 @@ export default function WellnessTrackingPage() {
                 <div className="flex flex-col gap-1.5 pt-2">
                   <div className="flex justify-between items-center font-label-md text-label-md">
                     <span className="text-on-surface font-semibold">
-                      Perceived Energy Balance
+                      {t(
+                        "Perceived Energy Balance",
+                        "Keseimbangan Energi Harian"
+                      )}
                     </span>
                     <span className="font-bold text-primary">
                       {energyLevel} / 100
@@ -1258,9 +1273,9 @@ export default function WellnessTrackingPage() {
                     className="w-full accent-primary bg-surface-container-highest h-2 rounded-lg cursor-pointer"
                   />
                   <div className="flex justify-between text-[11px] font-label-sm text-outline">
-                    <span>Depleted</span>
-                    <span>Sustained</span>
-                    <span>Peak Vitality</span>
+                    <span>{t("Depleted", "Rendah")}</span>
+                    <span>{t("Sustained", "Stabil")}</span>
+                    <span>{t("Peak Vitality", "Vitalitas Puncak")}</span>
                   </div>
                 </div>
 
@@ -1274,8 +1289,11 @@ export default function WellnessTrackingPage() {
                   </span>
                   <span>
                     {submitting
-                      ? "Synchronizing..."
-                      : "Record Synchronized Habits"}
+                      ? t("Synchronizing...", "Menyinkronkan...")
+                      : t(
+                          "Record Synchronized Habits",
+                          "Simpan Catatan Kebiasaan"
+                        )}
                   </span>
                 </button>
               </form>
@@ -1288,10 +1306,10 @@ export default function WellnessTrackingPage() {
               <div className="flex items-center justify-between mb-5">
                 <div className="flex flex-col">
                   <span className="font-label-sm text-label-sm uppercase tracking-wider font-semibold text-secondary">
-                    Historical Audit
+                    {t("Historical Audit", "Riwayat Catatan")}
                   </span>
                   <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                    Recent Metric History
+                    {t("Recent Metric History", "Riwayat Metrik Terbaru")}
                   </h3>
                 </div>
                 <button
@@ -1300,7 +1318,7 @@ export default function WellnessTrackingPage() {
                   disabled={logs.length === 0}
                   className="text-secondary hover:text-primary disabled:opacity-40 font-label-md text-label-md flex items-center gap-1 font-semibold"
                 >
-                  <span>Export CSV</span>
+                  <span>{t("Export CSV", "Ekspor CSV")}</span>
                   <span className="material-symbols-outlined text-[16px]">
                     download
                   </span>
@@ -1319,11 +1337,16 @@ export default function WellnessTrackingPage() {
               ) : paginatedLogs.length === 0 ? (
                 <div className="py-12 text-center border border-dashed border-outline-variant/50 rounded-2xl">
                   <p className="font-label-lg text-label-lg text-on-surface font-semibold">
-                    No Vital Logs Recorded Yet
+                    {t(
+                      "No Vital Logs Recorded Yet",
+                      "Belum Ada Catatan Vital"
+                    )}
                   </p>
                   <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                    Use the Instant Registry form on the left to log your first
-                    daily sleep, hydration, movement, and mood record.
+                    {t(
+                      "Use the Instant Registry form on the left to log your first daily sleep, hydration, movement, and mood record.",
+                      "Gunakan formulir Pencatatan Instan di sebelah kiri untuk mencatat tidur, hidrasi, olahraga, dan suasana hati pertama Anda."
+                    )}
                   </p>
                 </div>
               ) : (
@@ -1331,13 +1354,23 @@ export default function WellnessTrackingPage() {
                   <table className="w-full text-left font-body-sm text-body-sm">
                     <thead>
                       <tr className="border-b border-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase">
-                        <th className="pb-3 font-semibold">Date</th>
-                        <th className="pb-3 font-semibold">Rest / Sleep</th>
-                        <th className="pb-3 font-semibold">Hydration</th>
-                        <th className="pb-3 font-semibold">Mental State</th>
-                        <th className="pb-3 font-semibold">Vitality</th>
+                        <th className="pb-3 font-semibold">
+                          {t("Date", "Tanggal")}
+                        </th>
+                        <th className="pb-3 font-semibold">
+                          {t("Rest / Sleep", "Istirahat / Tidur")}
+                        </th>
+                        <th className="pb-3 font-semibold">
+                          {t("Hydration", "Hidrasi")}
+                        </th>
+                        <th className="pb-3 font-semibold">
+                          {t("Mental State", "Suasana Hati")}
+                        </th>
+                        <th className="pb-3 font-semibold">
+                          {t("Vitality", "Vitalitas")}
+                        </th>
                         <th className="pb-3 text-right font-semibold">
-                          Status
+                          {t("Status", "Status")}
                         </th>
                       </tr>
                     </thead>

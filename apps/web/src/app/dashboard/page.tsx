@@ -7,6 +7,7 @@ import type { MoodType } from "@lifesync/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { useSession } from "@/lib/auth-client";
 import { apiFetch } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface CategoryDistItem {
   categoryId: string;
@@ -120,16 +121,10 @@ function formatDurationMinutes(mins: number): string {
   return `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
-function getGreetingByHour(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
-}
-
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { t, locale, translateCategory, translateMood } = useLanguage();
   const todayIso = useMemo(() => getTodayIsoDate(), []);
 
   const [analytics, setAnalytics] = useState<DailyAnalyticsResponse | null>(
@@ -150,6 +145,13 @@ export default function DashboardPage() {
   const [submittingCheckin, setSubmittingCheckin] = useState<boolean>(false);
   const [checkinSavedBanner, setCheckinSavedBanner] = useState<boolean>(false);
   const [telemetryToast, setTelemetryToast] = useState<string | null>(null);
+
+  const greetingText = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return t("Good morning", "Selamat pagi");
+    if (hour < 18) return t("Good afternoon", "Selamat siang");
+    return t("Good evening", "Selamat malam");
+  }, [t]);
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -279,11 +281,13 @@ export default function DashboardPage() {
   const stepsPct = Math.min(100, Math.round((stepsCount / stepsGoal) * 100));
 
   const vitalityPulse = analytics?.wellness.energyLevel ?? 82;
-  const mindStateLabel = analytics?.wellness.mood ?? "Calm & Focused";
+  const mindStateLabel = translateMood(
+    analytics?.wellness.mood ?? "Calm & Focused"
+  );
   const effectiveBalanceScore =
     analytics && analytics.hasAnyRecord ? analytics.balanceScore : 88;
 
-  const currentClockLabel = new Intl.DateTimeFormat("en-US", {
+  const currentClockLabel = new Intl.DateTimeFormat(locale, {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date());
@@ -299,23 +303,25 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <span className="font-label-sm text-label-sm uppercase tracking-widest text-primary font-bold">
-                Circadian Sync active
+                {t("Circadian Sync active", "Sinkronisasi Sirkadian Aktif")}
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
             </div>
             <h1 className="font-headline-xl text-headline-xl text-on-surface tracking-tight">
-              {getGreetingByHour()}, {firstName}
+              {greetingText}, {firstName}
             </h1>
             <p className="font-body-lg text-body-lg text-secondary">
-              You have{" "}
+              {t("You have", "Anda memiliki")}{" "}
               <span className="font-semibold text-primary">
                 {formatDurationMinutes(
                   analytics?.schedule.remainingMinutes ?? 1440
                 )}{" "}
-                unallocated
+                {t("unallocated", "waktu luang")}
               </span>{" "}
-              today. Your circadian cycle indicates optimum mental clarity
-              through early afternoon.
+              {t(
+                "today. Your circadian cycle indicates optimum mental clarity through early afternoon.",
+                "hari ini. Siklus sirkadian Anda menunjukkan kejernihan mental optimal hingga sore hari."
+              )}
             </p>
           </div>
 
@@ -329,12 +335,14 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="font-label-sm text-label-sm text-secondary uppercase font-semibold">
-                  Vitality Pulse
+                  {t("Vitality Pulse", "Denyut Vitalitas")}
                 </div>
                 <div className="font-headline-sm text-headline-sm text-on-surface">
                   {vitalityPulse}%{" "}
                   <span className="font-label-md text-label-md text-primary font-medium">
-                    {vitalityPulse >= 75 ? "Optimal" : "Steady"}
+                    {vitalityPulse >= 75
+                      ? t("Optimal", "Optimal")
+                      : t("Steady", "Stabil")}
                   </span>
                 </div>
               </div>
@@ -348,7 +356,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="font-label-sm text-label-sm text-secondary uppercase font-semibold">
-                  Mind State
+                  {t("Mind State", "Kondisi Pikiran")}
                 </div>
                 <div className="font-headline-sm text-headline-sm text-on-surface">
                   {mindStateLabel}
@@ -363,7 +371,10 @@ export default function DashboardPage() {
                   .getElementById("checkin-panel")
                   ?.scrollIntoView({ behavior: "smooth" });
               }}
-              title="Record Quick Mood Reflection"
+              title={t(
+                "Record Quick Mood Reflection",
+                "Catat Refleksi Suasana Hati Cepat"
+              )}
               className="p-3 rounded-xl bg-primary-container text-on-primary hover:opacity-95 transition-all shadow-sm flex items-center justify-center"
             >
               <span className="material-symbols-outlined text-[20px]">
@@ -384,17 +395,15 @@ export default function DashboardPage() {
             </div>
             <div>
               <span className="font-label-sm text-label-sm uppercase font-bold text-primary tracking-wider">
-                Insight of the Day
+                {t("Insight of the Day", "Wawasan Hari Ini")}
               </span>
               <p className="font-body-md text-body-md text-on-surface mt-0.5 font-medium">
                 {analytics?.tips[0]?.content ?? (
                   <>
-                    You register{" "}
-                    <span className="font-semibold text-primary">
-                      deeper REM &amp; Stage 3 restorative sleep
-                    </span>{" "}
-                    on consecutive days when evening meals conclude before 7:30
-                    PM.
+                    {t(
+                      "You register deeper REM & Stage 3 restorative sleep on consecutive days when evening meals conclude before 7:30 PM.",
+                      "Anda mencatat tidur restoratif REM & Tahap 3 yang lebih dalam saat makan malam selesai sebelum pukul 19:30."
+                    )}
                   </>
                 )}
               </p>
@@ -403,12 +412,16 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-2 self-end md:self-center shrink-0">
             <span className="font-label-md text-label-md text-secondary">
-              {analytics?.schedule.blocks.length ?? 0} blocks today
+              {analytics?.schedule.blocks.length ?? 0}{" "}
+              {t("blocks today", "blok hari ini")}
             </span>
             <Link
               href="/insights"
               className="w-8 h-8 rounded-lg hover:bg-surface-container-highest flex items-center justify-center text-secondary transition-colors"
-              title="Explore Insights & Patterns"
+              title={t(
+                "Explore Insights & Patterns",
+                "Jelajahi Wawasan & Pola"
+              )}
             >
               <span className="material-symbols-outlined text-[18px]">
                 chevron_right
@@ -424,10 +437,13 @@ export default function DashboardPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm uppercase font-bold tracking-wider text-secondary">
-                  Stewardship Architecture
+                  {t("Stewardship Architecture", "Arsitektur Manajemen Waktu")}
                 </span>
                 <h2 className="font-headline-md text-headline-md text-on-surface font-semibold tracking-tight">
-                  Today&apos;s 24-Hour Allocation
+                  {t(
+                    "Today's 24-Hour Allocation",
+                    "Alokasi 24 Jam Hari Ini"
+                  )}
                 </h2>
               </div>
               <div className="flex items-center gap-1.5 bg-surface-container-low p-1 rounded-xl">
@@ -440,7 +456,7 @@ export default function DashboardPage() {
                       : "text-secondary hover:text-on-surface"
                   }`}
                 >
-                  24h Donut
+                  {t("24h Donut", "Donat 24j")}
                 </button>
                 <button
                   type="button"
@@ -451,7 +467,7 @@ export default function DashboardPage() {
                       : "text-secondary hover:text-on-surface"
                   }`}
                 >
-                  Chronological
+                  {t("Chronological", "Kronologis")}
                 </button>
               </div>
             </div>
@@ -487,7 +503,7 @@ export default function DashboardPage() {
                           className="hover:opacity-90 cursor-pointer transition-all"
                         >
                           <title>
-                            {seg.name}:{" "}
+                            {translateCategory(seg.name)}:{" "}
                             {formatDurationMinutes(seg.allocatedMinutes)} (
                             {seg.percentageOfDay}%)
                           </title>
@@ -510,7 +526,7 @@ export default function DashboardPage() {
                     {/* Center Hub */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                       <span className="font-label-sm text-label-sm text-secondary font-bold uppercase tracking-wider">
-                        Assigned
+                        {t("Assigned", "Terjadwal")}
                       </span>
                       <span className="font-headline-lg text-headline-lg text-on-surface font-bold tracking-tight">
                         {formatDurationMinutes(
@@ -521,7 +537,7 @@ export default function DashboardPage() {
                         {formatDurationMinutes(
                           analytics?.schedule.remainingMinutes ?? 1440
                         )}{" "}
-                        Free
+                        {t("Free", "Kosong")}
                       </span>
                     </div>
                   </div>
@@ -542,7 +558,7 @@ export default function DashboardPage() {
                           />
                           <div>
                             <div className="font-label-md text-label-md font-semibold">
-                              {cat.name}
+                              {translateCategory(cat.name)}
                             </div>
                             <div className="font-body-sm text-body-sm text-secondary">
                               {formatDurationMinutes(cat.allocatedMinutes)}
@@ -563,14 +579,14 @@ export default function DashboardPage() {
                         hourglass_empty
                       </span>
                       <span className="font-label-md text-label-md text-on-surface font-semibold">
-                        Open Buffer Capacity
+                        {t("Open Buffer Capacity", "Kapasitas Waktu Luang")}
                       </span>
                     </div>
                     <span className="font-label-sm text-label-sm font-bold text-primary">
                       {formatDurationMinutes(
                         analytics?.schedule.remainingMinutes ?? 1440
                       )}{" "}
-                      Unallocated
+                      {t("Unallocated", "Belum Terjadwal")}
                     </span>
                   </div>
                 </div>
@@ -580,10 +596,16 @@ export default function DashboardPage() {
                 {(analytics?.schedule.blocks ?? []).length === 0 ? (
                   <div className="text-center py-8">
                     <p className="font-label-lg text-label-lg text-on-surface font-semibold">
-                      No blocks scheduled for today yet
+                      {t(
+                        "No blocks scheduled for today yet",
+                        "Belum ada blok terjadwal untuk hari ini"
+                      )}
                     </p>
                     <p className="font-body-sm text-body-sm text-secondary mt-1">
-                      Open the 24-Hour Schedule planner to allocate your time.
+                      {t(
+                        "Open the 24-Hour Schedule planner to allocate your time.",
+                        "Buka perencana Jadwal 24 Jam untuk mengalokasikan waktu Anda."
+                      )}
                     </p>
                   </div>
                 ) : (
@@ -602,7 +624,8 @@ export default function DashboardPage() {
                             {b.title}
                           </div>
                           <div className="font-body-sm text-body-sm text-secondary">
-                            {b.startTime} – {b.endTime} • {b.category.name}
+                            {b.startTime} – {b.endTime} •{" "}
+                            {translateCategory(b.category.name)}
                           </div>
                         </div>
                       </div>
@@ -618,17 +641,20 @@ export default function DashboardPage() {
             {/* Linear Timeline Scrubber */}
             <div className="flex flex-col gap-2 pt-2">
               <div className="flex justify-between items-center text-secondary font-label-sm text-label-sm">
-                <span>00:00 (Midnight)</span>
-                <span>06:00 (Wake)</span>
-                <span>12:00 (Noon)</span>
-                <span>18:00 (Evening)</span>
+                <span>{t("00:00 (Midnight)", "00:00 (Tengah Malam)")}</span>
+                <span>{t("06:00 (Wake)", "06:00 (Bangun)")}</span>
+                <span>{t("12:00 (Noon)", "12:00 (Siang)")}</span>
+                <span>{t("18:00 (Evening)", "18:00 (Petang)")}</span>
                 <span>23:59</span>
               </div>
 
               <div
                 onClick={() => router.push("/schedule")}
                 className="w-full h-4 rounded-full overflow-hidden flex bg-surface-container-highest cursor-pointer shadow-inner"
-                title="Click to adjust 24-hour schedule blocks"
+                title={t(
+                  "Click to adjust 24-hour schedule blocks",
+                  "Klik untuk mengatur blok jadwal 24 jam"
+                )}
               >
                 {(analytics?.schedule.blocks ?? []).length === 0 ? (
                   <div className="w-full h-full bg-surface-container-high" />
@@ -650,13 +676,16 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between text-secondary pt-1 font-body-sm text-body-sm">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  Current time marker at {currentClockLabel}
+                  {t(
+                    `Current time marker at ${currentClockLabel}`,
+                    `Penanda waktu saat ini pukul ${currentClockLabel}`
+                  )}
                 </span>
                 <Link
                   href="/schedule"
                   className="font-label-md text-label-md text-primary hover:underline font-semibold"
                 >
-                  Adjust Schedule Blocks →
+                  {t("Adjust Schedule Blocks →", "Atur Blok Jadwal →")}
                 </Link>
               </div>
             </div>
@@ -668,14 +697,14 @@ export default function DashboardPage() {
             <div className="bg-surface-container-lowest rounded-3xl overflow-hidden shadow-sm flex flex-col">
               <div className="relative h-44 w-full overflow-hidden bg-gradient-to-br from-primary via-primary-container to-secondary flex items-end p-6">
                 <div className="absolute top-4 left-4 bg-surface-container-lowest/90 backdrop-blur-md px-3 py-1 rounded-full text-primary font-label-sm text-label-sm font-bold shadow-xs">
-                  Natural Daylight Cycle
+                  {t("Natural Daylight Cycle", "Siklus Cahaya Alami")}
                 </div>
                 <div className="text-on-primary">
                   <span className="material-symbols-outlined text-[36px] text-primary-fixed">
                     wb_sunny
                   </span>
                   <p className="font-label-md text-label-md text-primary-fixed uppercase tracking-wider mt-1">
-                    Biophilic Equilibrium
+                    {t("Biophilic Equilibrium", "Keseimbangan Biofilik")}
                   </p>
                 </div>
               </div>
@@ -683,19 +712,21 @@ export default function DashboardPage() {
               <div className="p-6 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <span className="font-headline-sm text-headline-sm font-semibold text-on-surface">
-                    Circadian State
+                    {t("Circadian State", "Kondisi Sirkadian")}
                   </span>
                   <span className="px-2.5 py-1 rounded-full bg-secondary-container text-primary font-label-sm text-label-sm font-bold">
-                    Synchronized
+                    {t("Synchronized", "Tersinkronisasi")}
                   </span>
                 </div>
                 <p className="font-body-md text-body-md text-secondary">
-                  Scheduling a 15-minute outdoor daylight walk between deep
-                  focus blocks preserves evening melatonin onset.
+                  {t(
+                    "Scheduling a 15-minute outdoor daylight walk between deep focus blocks preserves evening melatonin onset.",
+                    "Menjadwalkan jalan kaki 15 menit di bawah sinar matahari di sela blok kerja fokus menjaga produksi melatonin malam hari."
+                  )}
                 </p>
                 <div className="pt-2 flex items-center justify-between border-t border-surface-container-low">
                   <span className="font-label-md text-label-md text-on-surface font-medium">
-                    Target Sleep Onset
+                    {t("Target Sleep Onset", "Target Waktu Tidur")}
                   </span>
                   <span className="font-label-md text-label-md text-primary font-bold">
                     {analytics?.goals.targetSleepTime || "22:30"}
@@ -708,7 +739,7 @@ export default function DashboardPage() {
             <div className="bg-surface-container-low rounded-3xl p-6 flex flex-col gap-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-                  Quick Telemetry
+                  {t("Quick Telemetry", "Telemetri Cepat")}
                 </h3>
                 <span className="material-symbols-outlined text-secondary">
                   sensors
@@ -725,7 +756,12 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setTelemetryToast("Caffeine cutoff reminder active (14:00)");
+                    setTelemetryToast(
+                      t(
+                        "Caffeine cutoff reminder active (14:00)",
+                        "Pengingat batas kafein aktif (14:00)"
+                      )
+                    );
                     setTimeout(() => setTelemetryToast(null), 3000);
                   }}
                   className="flex flex-col gap-1 p-3.5 bg-surface-container-lowest rounded-2xl hover:bg-surface-container-high transition-all text-left shadow-xs"
@@ -734,17 +770,22 @@ export default function DashboardPage() {
                     coffee
                   </span>
                   <span className="font-label-md text-label-md text-on-surface font-semibold mt-1">
-                    Caffeine
+                    {t("Caffeine", "Kafein")}
                   </span>
                   <span className="font-body-sm text-body-sm text-secondary">
-                    Cutoff: 2:00 PM
+                    {t("Cutoff: 2:00 PM", "Batas: 14:00")}
                   </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    setTelemetryToast("5-minute box breathing timer started");
+                    setTelemetryToast(
+                      t(
+                        "5-minute box breathing timer started",
+                        "Timer pernapasan 5 menit dimulai"
+                      )
+                    );
                     setTimeout(() => setTelemetryToast(null), 3000);
                   }}
                   className="flex flex-col gap-1 p-3.5 bg-surface-container-lowest rounded-2xl hover:bg-surface-container-high transition-all text-left shadow-xs"
@@ -753,10 +794,10 @@ export default function DashboardPage() {
                     self_improvement
                   </span>
                   <span className="font-label-md text-label-md text-on-surface font-semibold mt-1">
-                    Breathing
+                    {t("Breathing", "Pernapasan")}
                   </span>
                   <span className="font-body-sm text-body-sm text-secondary">
-                    5 min box cycle
+                    {t("5 min box cycle", "Siklus 5 menit")}
                   </span>
                 </button>
 
@@ -769,10 +810,11 @@ export default function DashboardPage() {
                     bedtime
                   </span>
                   <span className="font-label-md text-label-md text-on-surface font-semibold mt-1">
-                    Wind Down
+                    {t("Wind Down", "Relaksasi Malam")}
                   </span>
                   <span className="font-body-sm text-body-sm text-secondary">
-                    Set {analytics?.goals.targetSleepTime || "22:30"}
+                    {t("Set", "Pukul")}{" "}
+                    {analytics?.goals.targetSleepTime || "22:30"}
                   </span>
                 </button>
 
@@ -785,10 +827,11 @@ export default function DashboardPage() {
                     heart_check
                   </span>
                   <span className="font-label-md text-label-md text-on-surface font-semibold mt-1">
-                    HRV Sync
+                    {t("HRV Sync", "Sinkronisasi HRV")}
                   </span>
                   <span className="font-body-sm text-body-sm text-secondary">
-                    {analytics?.wellness.restingHeartRate ?? 58} bpm resting
+                    {analytics?.wellness.restingHeartRate ?? 58}{" "}
+                    {t("bpm resting", "bpm istirahat")}
                   </span>
                 </button>
               </div>
@@ -801,17 +844,17 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <span className="font-label-sm text-label-sm uppercase font-bold tracking-wider text-secondary">
-                Real-Time Telemetry
+                {t("Real-Time Telemetry", "Telemetri Waktu Nyata")}
               </span>
               <h2 className="font-headline-md text-headline-md text-on-surface font-semibold">
-                Core Biometrics
+                {t("Core Biometrics", "Biometrik Utama")}
               </h2>
             </div>
             <Link
               href="/wellness"
               className="font-label-md text-label-md text-primary font-semibold hover:underline flex items-center gap-1"
             >
-              <span>Detailed Vitals</span>
+              <span>{t("Detailed Vitals", "Detail Biometrik")}</span>
               <span className="material-symbols-outlined text-[16px]">
                 arrow_forward
               </span>
@@ -828,12 +871,13 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-bold">
-                  {analytics?.wellness.sleepQuality ?? 90}% Quality
+                  {analytics?.wellness.sleepQuality ?? 90}%{" "}
+                  {t("Quality", "Kualitas")}
                 </span>
               </div>
               <div>
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">
-                  Sleep Duration
+                  {t("Sleep Duration", "Durasi Tidur")}
                 </span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="font-headline-lg text-headline-lg font-bold text-on-surface">
@@ -844,7 +888,8 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <p className="font-body-sm text-body-sm text-secondary mt-1">
-                  Wake target {analytics?.goals.targetWakeTime || "06:30"}
+                  {t("Wake target", "Target bangun")}{" "}
+                  {analytics?.goals.targetWakeTime || "06:30"}
                 </p>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -855,7 +900,10 @@ export default function DashboardPage() {
                   />
                 </div>
                 <span className="font-label-sm text-label-sm text-primary font-semibold text-right">
-                  Target {sleepPct}% completed
+                  {t(
+                    `Target ${sleepPct}% completed`,
+                    `Target ${sleepPct}% tercapai`
+                  )}
                 </span>
               </div>
             </div>
@@ -869,23 +917,28 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-secondary-container text-primary font-label-sm text-label-sm font-bold">
-                  {exercisePct >= 100 ? "Met Target" : `${exercisePct}% Goal`}
+                  {exercisePct >= 100
+                    ? t("Met Target", "Target Tercapai")
+                    : `${exercisePct}% ${t("Goal", "Target")}`}
                 </span>
               </div>
               <div>
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">
-                  Physical Exertion
+                  {t("Physical Exertion", "Aktivitas Fisik")}
                 </span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="font-headline-lg text-headline-lg font-bold text-on-surface">
-                    {exerciseMins} min
+                    {exerciseMins} {t("min", "mnt")}
                   </span>
                   <span className="font-body-sm text-body-sm text-secondary">
-                    / {exerciseGoalMins}m goal
+                    / {exerciseGoalMins}m {t("goal", "target")}
                   </span>
                 </div>
                 <p className="font-body-sm text-body-sm text-secondary mt-1">
-                  Zone 2 aerobic &amp; mobility tracking
+                  {t(
+                    "Zone 2 aerobic & mobility tracking",
+                    "Pelacakan aerobik Zona 2 & mobilitas"
+                  )}
                 </p>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -896,7 +949,8 @@ export default function DashboardPage() {
                   />
                 </div>
                 <span className="font-label-sm text-label-sm text-primary font-semibold text-right">
-                  ~{Math.round(exerciseMins * 7.5)} active kcal burned
+                  ~{Math.round(exerciseMins * 7.5)}{" "}
+                  {t("active kcal burned", "kkal aktif terbakar")}
                 </span>
               </div>
             </div>
@@ -910,12 +964,12 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-surface-container-low text-secondary font-label-sm text-label-sm font-bold">
-                  {waterPct}% Goal
+                  {waterPct}% {t("Goal", "Target")}
                 </span>
               </div>
               <div>
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">
-                  Daily Hydration
+                  {t("Daily Hydration", "Hidrasi Harian")}
                 </span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="font-headline-lg text-headline-lg font-bold text-on-surface">
@@ -926,8 +980,8 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <p className="font-body-sm text-body-sm text-secondary mt-1">
-                  {Math.max(0, waterGoalMl - waterMl).toLocaleString()} ml
-                  remaining today
+                  {Math.max(0, waterGoalMl - waterMl).toLocaleString()} ml{" "}
+                  {t("remaining today", "tersisa hari ini")}
                 </p>
               </div>
               <div className="flex items-center justify-between gap-2">
@@ -940,7 +994,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={handleQuickWater}
-                  title="Log one cup (+250ml)"
+                  title={t("Log one cup (+250ml)", "Catat satu gelas (+250ml)")}
                   className="px-2.5 py-1 rounded-lg bg-surface-container-low hover:bg-secondary-container text-primary font-label-sm text-label-sm font-bold transition-all flex items-center gap-0.5"
                 >
                   <span className="material-symbols-outlined text-[14px]">
@@ -960,23 +1014,24 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-surface-container-low text-secondary font-label-sm text-label-sm font-bold">
-                  {stepsPct}% of Goal
+                  {stepsPct}% {t("of Goal", "dari Target")}
                 </span>
               </div>
               <div>
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">
-                  Active Footfall
+                  {t("Active Footfall", "Langkah Harian")}
                 </span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="font-headline-lg text-headline-lg font-bold text-on-surface">
                     {stepsCount.toLocaleString()}
                   </span>
                   <span className="font-body-sm text-body-sm text-secondary">
-                    / {stepsGoal.toLocaleString()} steps
+                    / {stepsGoal.toLocaleString()} {t("steps", "langkah")}
                   </span>
                 </div>
                 <p className="font-body-sm text-body-sm text-secondary mt-1">
-                  ~{(stepsCount * 0.0007).toFixed(1)} km covered today
+                  ~{(stepsCount * 0.0007).toFixed(1)}{" "}
+                  {t("km covered today", "km ditempuh hari ini")}
                 </p>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -987,8 +1042,8 @@ export default function DashboardPage() {
                   />
                 </div>
                 <span className="font-label-sm text-label-sm text-secondary font-semibold text-right">
-                  {Math.max(0, stepsGoal - stepsCount).toLocaleString()} steps
-                  to milestone
+                  {Math.max(0, stepsGoal - stepsCount).toLocaleString()}{" "}
+                  {t("steps to milestone", "langkah menuju target")}
                 </span>
               </div>
             </div>
@@ -1002,10 +1057,10 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-bold">
-                  Activity Journal
+                  {t("Activity Journal", "Jurnal Aktivitas")}
                 </span>
                 <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-                  Recent Logs Today
+                  {t("Recent Logs Today", "Catatan Terbaru Hari Ini")}
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -1014,10 +1069,12 @@ export default function DashboardPage() {
                   onChange={(e) => setJournalFilterSlug(e.target.value)}
                   className="px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-primary font-label-md text-label-md font-semibold transition-all outline-none"
                 >
-                  <option value="ALL">All Categories</option>
+                  <option value="ALL">
+                    {t("All Categories", "Semua Kategori")}
+                  </option>
                   {(analytics?.schedule.categoryDistribution ?? []).map((c) => (
                     <option key={c.categoryId} value={c.slug}>
-                      {c.name}
+                      {translateCategory(c.name)}
                     </option>
                   ))}
                 </select>
@@ -1039,17 +1096,22 @@ export default function DashboardPage() {
                   event_note
                 </span>
                 <p className="font-label-lg text-label-lg text-on-surface font-semibold">
-                  No Scheduled Activities Logged Today
+                  {t(
+                    "No Scheduled Activities Logged Today",
+                    "Belum Ada Aktivitas Terjadwal Hari Ini"
+                  )}
                 </p>
                 <p className="font-body-sm text-body-sm text-secondary max-w-md">
-                  Plan your 24-hour day into sleep, deep work, exercise, meals,
-                  and personal time to see your activity feed here.
+                  {t(
+                    "Plan your 24-hour day into sleep, deep work, exercise, meals, and personal time to see your activity feed here.",
+                    "Rencanakan 24 jam Anda ke dalam tidur, kerja fokus, olahraga, makan, dan waktu pribadi untuk melihat riwayat aktivitas di sini."
+                  )}
                 </p>
                 <Link
                   href="/schedule"
                   className="mt-2 px-4 py-2 rounded-xl bg-primary-container text-on-primary font-label-md text-label-md font-bold"
                 >
-                  Open Daily Schedule
+                  {t("Open Daily Schedule", "Buka Jadwal Harian")}
                 </Link>
               </div>
             ) : (
@@ -1075,7 +1137,7 @@ export default function DashboardPage() {
                           </span>
                           <span>•</span>
                           <span className="px-2 py-0.5 rounded-md bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-semibold">
-                            {item.category.name}
+                            {translateCategory(item.category.name)}
                           </span>
                         </div>
                       </div>
@@ -1097,10 +1159,10 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-bold">
-                  Mindful Rhythm
+                  {t("Mindful Rhythm", "Ritme Berkesadaran")}
                 </span>
                 <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-                  Evening Reflection
+                  {t("Evening Reflection", "Refleksi Harian")}
                 </h3>
               </div>
               <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-primary">
@@ -1111,15 +1173,16 @@ export default function DashboardPage() {
             </div>
 
             <p className="font-body-md text-body-md text-secondary">
-              Take 60 seconds to lock in your daily qualitative data. Regular
-              check-ins cultivate acute awareness of what fuels your cognitive
-              energy.
+              {t(
+                "Take 60 seconds to lock in your daily qualitative data. Regular check-ins cultivate acute awareness of what fuels your cognitive energy.",
+                "Luangkan 60 detik untuk mencatat refleksi harian Anda. Check-in rutin membangun kesadaran tentang apa yang mendukung energi kognitif Anda."
+              )}
             </p>
 
             <form onSubmit={handleSaveCheckin} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="font-label-md text-label-md font-semibold text-on-surface">
-                  Subjective Energy Today
+                  {t("Subjective Energy Today", "Energi Subjektif Hari Ini")}
                 </label>
                 <div className="grid grid-cols-4 gap-2">
                   {(
@@ -1137,7 +1200,7 @@ export default function DashboardPage() {
                             : "bg-surface-container-low text-secondary hover:bg-secondary-container hover:text-primary"
                         }`}
                       >
-                        {preset}
+                        {translateMood(preset)}
                       </button>
                     );
                   })}
@@ -1149,14 +1212,20 @@ export default function DashboardPage() {
                   htmlFor="mind-reflection"
                   className="font-label-md text-label-md font-semibold text-on-surface"
                 >
-                  What gave you the strongest flow?
+                  {t(
+                    "What gave you the strongest flow?",
+                    "Apa yang memberikan fokus terbaik hari ini?"
+                  )}
                 </label>
                 <textarea
                   id="mind-reflection"
                   rows={3}
                   value={reflectionText}
                   onChange={(e) => setReflectionText(e.target.value)}
-                  placeholder="Writing creative copy uninterrupted before lunch..."
+                  placeholder={t(
+                    "Writing creative copy uninterrupted before lunch...",
+                    "Menyelesaikan pekerjaan fokus tanpa gangguan sebelum makan siang..."
+                  )}
                   className="w-full p-3 rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-container/20 transition-all resize-none"
                 />
               </div>
@@ -1170,7 +1239,10 @@ export default function DashboardPage() {
                     className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary"
                   />
                   <span className="font-body-sm text-body-sm text-secondary">
-                    Sync with sleep prediction
+                    {t(
+                      "Sync with sleep prediction",
+                      "Sinkronkan dengan prediksi tidur"
+                    )}
                   </span>
                 </label>
                 <button
@@ -1178,7 +1250,9 @@ export default function DashboardPage() {
                   disabled={submittingCheckin}
                   className="px-5 py-2.5 rounded-xl bg-primary-container text-on-primary font-label-md text-label-md font-bold shadow-sm hover:opacity-95 disabled:opacity-50 transition-all"
                 >
-                  {submittingCheckin ? "Saving..." : "Save Entry"}
+                  {submittingCheckin
+                    ? t("Saving...", "Menyimpan...")
+                    : t("Save Entry", "Simpan Catatan")}
                 </button>
               </div>
 
@@ -1188,8 +1262,10 @@ export default function DashboardPage() {
                     check_circle
                   </span>
                   <span>
-                    Reflection synchronized. Your daily check-in and vitality
-                    pulse have been updated.
+                    {t(
+                      "Reflection synchronized. Your daily check-in and vitality pulse have been updated.",
+                      "Refleksi tersinkronisasi. Check-in harian dan denyut vitalitas Anda telah diperbarui."
+                    )}
                   </span>
                 </div>
               )}
@@ -1200,4 +1276,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-

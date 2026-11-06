@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface CategoryStatsItem {
   categoryId: string;
@@ -130,6 +131,7 @@ function formatSignedDelta(value: number, unit: string): string {
 
 export default function InsightsAndPatternsPage() {
   const router = useRouter();
+  const { t, translateCategory } = useLanguage();
   const todayIso = useMemo(() => getTodayIsoDate(), []);
 
   const [periodTab, setPeriodTab] = useState<"weekly" | "monthly">("weekly");
@@ -336,19 +338,27 @@ export default function InsightsAndPatternsPage() {
                 <span className="material-symbols-outlined text-[14px] text-primary">
                   auto_awesome
                 </span>
-                AI Health Companion
+                {t("AI Health Companion", "Pendamping Kesehatan AI")}
               </span>
               <span className="font-label-sm text-label-sm text-on-surface-variant font-medium tracking-wide">
-                Computed across {activeData?.loggedDaysCount ?? 0} logged days &amp;{" "}
-                {activeData?.scheduledBlocksCount ?? 0} scheduled blocks
+                {t("Computed across", "Dihitung dari")}{" "}
+                {activeData?.loggedDaysCount ?? 0}{" "}
+                {t("logged days &", "hari tercatat &")}{" "}
+                {activeData?.scheduledBlocksCount ?? 0}{" "}
+                {t("scheduled blocks", "blok terjadwal")}
               </span>
             </div>
             <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-bold">
-              Insights &amp; Biometric Patterns
+              {t(
+                "Insights & Biometric Patterns",
+                "Wawasan & Pola Biometrik"
+              )}
             </h1>
             <p className="font-body-md text-body-md text-on-surface-variant">
-              Deep observations derived from continuous 24-hour time allocation,
-              ambient biometric signals, and lifestyle markers.
+              {t(
+                "Deep observations derived from continuous 24-hour time allocation, ambient biometric signals, and lifestyle markers.",
+                "Pengamatan mendalam dari alokasi waktu 24 jam, sinyal biometrik harian, dan indikator gaya hidup Anda."
+              )}
             </p>
           </div>
 
@@ -363,7 +373,7 @@ export default function InsightsAndPatternsPage() {
                   : "text-on-surface-variant hover:text-on-surface"
               }`}
             >
-              Past 7 Days
+              {t("Past 7 Days", "7 Hari Terakhir")}
             </button>
             <button
               type="button"
@@ -374,7 +384,7 @@ export default function InsightsAndPatternsPage() {
                   : "text-on-surface-variant hover:text-on-surface"
               }`}
             >
-              Past 30 Days
+              {t("Past 30 Days", "30 Hari Terakhir")}
             </button>
           </div>
         </div>
@@ -390,13 +400,16 @@ export default function InsightsAndPatternsPage() {
               </div>
               <div>
                 <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                  Awaiting Your First Telemetry Records
+                  {t(
+                    "Awaiting Your First Telemetry Records",
+                    "Menunggu Catatan Telemetri Pertama Anda"
+                  )}
                 </h2>
                 <p className="font-body-sm text-body-sm text-on-surface-variant mt-1 max-w-2xl">
-                  LifeSync never fabricates health statistics. Log your daily
-                  sleep, hydration, exercise, and 24-hour schedule blocks to
-                  unlock personalized week-over-week trends and category
-                  correlations.
+                  {t(
+                    "LifeSync never fabricates health statistics. Log your daily sleep, hydration, exercise, and 24-hour schedule blocks to unlock personalized week-over-week trends and category correlations.",
+                    "LifeSync tidak pernah memalsukan statistik kesehatan. Catat tidur harian, hidrasi, olahraga, dan blok jadwal 24 jam Anda untuk membuka tren mingguan dan korelasi kategori."
+                  )}
                 </p>
               </div>
             </div>
@@ -405,13 +418,13 @@ export default function InsightsAndPatternsPage() {
                 href="/schedule"
                 className="px-4 py-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md font-semibold transition-colors"
               >
-                Allocate 24h Day
+                {t("Allocate 24h Day", "Atur Jadwal 24 Jam")}
               </Link>
               <Link
                 href="/wellness"
                 className="px-4 py-2.5 rounded-xl bg-primary-container text-on-primary font-label-md text-label-md font-bold shadow-sm hover:opacity-95 transition-all"
               >
-                Log Today&apos;s Vitals
+                {t("Log Today's Vitals", "Catat Biometrik Hari Ini")}
               </Link>
             </div>
           </div>
@@ -434,23 +447,28 @@ export default function InsightsAndPatternsPage() {
                   {formatHoursOneDecimal(
                     activeData?.averages.sleepMinutes ?? 0
                   )}{" "}
-                  avg
+                  {t("avg", "rata-rata")}
                 </span>
               </div>
               <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">
-                Restorative Architecture
+                {t("Restorative Architecture", "Arsitektur Pemulihan")}
               </span>
               <h3 className="font-headline-sm text-headline-sm text-on-surface mt-1 mb-3 font-semibold">
-                Average Sleep Duration
+                {t("Average Sleep Duration", "Rata-rata Durasi Tidur")}
               </h3>
               <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
                 {activeData?.loggedDaysCount ? (
                   <>
-                    Across{" "}
+                    {t("Across", "Selama")}{" "}
                     <span className="font-semibold text-on-surface">
-                      {activeData.loggedDaysCount} logged days
+                      {activeData.loggedDaysCount}{" "}
+                      {t("logged days", "hari tercatat")}
                     </span>
-                    , your average sleep duration is{" "}
+                    ,{" "}
+                    {t(
+                      "your average sleep duration is",
+                      "rata-rata durasi tidur Anda adalah"
+                    )}{" "}
                     <span className="font-semibold text-primary">
                       {formatHoursOneDecimal(activeData.averages.sleepMinutes)}
                     </span>{" "}
@@ -458,19 +476,22 @@ export default function InsightsAndPatternsPage() {
                     ).
                   </>
                 ) : (
-                  "Log your nightly sleep duration in Wellness Tracking to compute your restorative sleep baseline and previous-week delta."
+                  t(
+                    "Log your nightly sleep duration in Wellness Tracking to compute your restorative sleep baseline and previous-week delta.",
+                    "Catat durasi tidur malam Anda di Pelacakan Kesehatan untuk menghitung rata-rata tidur restoratif dan perbandingan minggu sebelumnya."
+                  )
                 )}
               </p>
             </div>
             <div className="mt-6 pt-4 bg-surface-container-low/60 rounded-xl p-3 flex items-center justify-between">
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm text-on-surface-variant">
-                  Period Comparison
+                  {t("Period Comparison", "Perbandingan Periode")}
                 </span>
                 <span className="font-label-lg text-label-lg font-bold text-primary">
                   {formatSignedDelta(
                     comparison?.sleepDeltaMinutes ?? 0,
-                    "mins"
+                    t("mins", "mnt")
                   )}
                 </span>
               </div>
@@ -491,27 +512,31 @@ export default function InsightsAndPatternsPage() {
                   </span>
                 </span>
                 <span className="px-2.5 py-1 rounded-full bg-surface-container-low text-primary-container font-label-sm text-label-sm font-semibold">
-                  {activeData?.averages.exerciseMinutes ?? 0}m / day
+                  {activeData?.averages.exerciseMinutes ?? 0}m /{" "}
+                  {t("day", "hari")}
                 </span>
               </div>
               <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">
-                Metabolic &amp; Hydration Velocity
+                {t(
+                  "Metabolic & Hydration Velocity",
+                  "Kecepatan Metabolik & Hidrasi"
+                )}
               </span>
               <h3 className="font-headline-sm text-headline-sm text-on-surface mt-1 mb-3 font-semibold">
-                Movement &amp; Hydration Trend
+                {t("Movement & Hydration Trend", "Tren Olahraga & Hidrasi")}
               </h3>
               <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
                 {activeData?.loggedDaysCount ? (
                   <>
-                    Averaging{" "}
+                    {t("Averaging", "Rata-rata")}{" "}
                     <span className="font-semibold text-on-surface">
-                      {activeData.averages.exerciseMinutes} mins
+                      {activeData.averages.exerciseMinutes} {t("mins", "mnt")}
                     </span>{" "}
-                    of daily movement and{" "}
+                    {t("of daily movement and", "olahraga harian dan")}{" "}
                     <span className="font-semibold text-primary">
                       {(activeData.averages.waterIntakeMl / 1000).toFixed(2)} L
                     </span>{" "}
-                    of daily water intake (
+                    {t("of daily water intake", "asupan air harian")} (
                     {formatSignedDelta(
                       comparison?.exerciseDeltaMinutes ?? 0,
                       "m"
@@ -519,18 +544,21 @@ export default function InsightsAndPatternsPage() {
                     ).
                   </>
                 ) : (
-                  "Record daily exercise minutes and hydration intake to track how physical movement stabilizes afternoon cognitive energy."
+                  t(
+                    "Record daily exercise minutes and hydration intake to track how physical movement stabilizes afternoon cognitive energy.",
+                    "Catat menit olahraga harian dan asupan air untuk melacak bagaimana aktivitas fisik menstabilkan energi kognitif sore hari."
+                  )
                 )}
               </p>
             </div>
             <div className="mt-6 pt-4 bg-surface-container-low/60 rounded-xl p-3 flex items-center justify-between">
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm text-on-surface-variant">
-                  Daily Steps Average
+                  {t("Daily Steps Average", "Rata-rata Langkah Harian")}
                 </span>
                 <span className="font-label-lg text-label-lg font-bold text-primary-container">
                   {(activeData?.averages.dailySteps ?? 0).toLocaleString()}{" "}
-                  steps
+                  {t("steps", "langkah")}
                 </span>
               </div>
               <div className="flex items-end gap-1 h-8">
@@ -553,42 +581,51 @@ export default function InsightsAndPatternsPage() {
                   </span>
                 </span>
                 <span className="px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-semibold">
-                  {activeData?.scheduledBlocksCount ?? 0} Blocks
+                  {activeData?.scheduledBlocksCount ?? 0} {t("Blocks", "Blok")}
                 </span>
               </div>
               <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">
-                Category Frequency
+                {t("Category Frequency", "Frekuensi Kategori")}
               </span>
               <h3 className="font-headline-sm text-headline-sm text-on-surface mt-1 mb-3 font-semibold">
                 {activeData?.mostFrequentCategories[0]
-                  ? `Top Pillar: ${activeData.mostFrequentCategories[0].name}`
-                  : "24-Hour Pillar Distribution"}
+                  ? `${t("Top Pillar", "Pilar Utama")}: ${translateCategory(activeData.mostFrequentCategories[0].name)}`
+                  : t("24-Hour Pillar Distribution", "Distribusi Pilar 24 Jam")}
               </h3>
               <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
                 {activeData?.mostFrequentCategories[0] ? (
                   <>
-                    Your most frequent scheduled activity category is{" "}
+                    {t(
+                      "Your most frequent scheduled activity category is",
+                      "Kategori aktivitas terjadwal paling sering Anda adalah"
+                    )}{" "}
                     <span className="font-semibold text-primary">
-                      {activeData.mostFrequentCategories[0].name}
+                      {translateCategory(
+                        activeData.mostFrequentCategories[0].name
+                      )}
                     </span>{" "}
-                    with{" "}
+                    {t("with", "dengan")}{" "}
                     <span className="font-semibold text-on-surface">
                       {formatHoursOneDecimal(
                         activeData.mostFrequentCategories[0].totalMinutes
                       )}
                     </span>{" "}
-                    across {activeData.mostFrequentCategories[0].blockCount}{" "}
-                    scheduled blocks.
+                    {t("across", "dalam")}{" "}
+                    {activeData.mostFrequentCategories[0].blockCount}{" "}
+                    {t("scheduled blocks.", "blok terjadwal.")}
                   </>
                 ) : (
-                  "Schedule activities on your 24-hour timeline to analyze your top recurring lifestyle pillars."
+                  t(
+                    "Schedule activities on your 24-hour timeline to analyze your top recurring lifestyle pillars.",
+                    "Jadwalkan aktivitas pada garis waktu 24 jam Anda untuk menganalisis pilar gaya hidup utama Anda."
+                  )
                 )}
               </p>
             </div>
             <div className="mt-6 pt-4 bg-surface-container-low/60 rounded-xl p-3 flex items-center justify-between">
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm text-on-surface-variant">
-                  Total Allocated Time
+                  {t("Total Allocated Time", "Total Waktu Terjadwal")}
                 </span>
                 <span className="font-label-lg text-label-lg font-bold text-primary">
                   {formatHoursOneDecimal(

@@ -9,6 +9,7 @@ import {
 } from "@lifesync/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 
 interface UserWithProfileResponse {
   id: string;
@@ -34,13 +35,30 @@ interface UserWithProfileResponse {
 }
 
 const FOCUS_PILLARS = [
-  "Optimal Sleep & Recovery",
-  "Deep Cognitive Work & Focus",
-  "Metabolic Fitness & Movement",
-  "Stress Reduction & Mindfulness",
+  {
+    id: "Optimal Sleep & Recovery",
+    en: "Optimal Sleep & Recovery",
+    idLabel: "Tidur & Pemulihan Optimal",
+  },
+  {
+    id: "Deep Cognitive Work & Focus",
+    en: "Deep Cognitive Work & Focus",
+    idLabel: "Kerja Fokus & Kognitif Mendalam",
+  },
+  {
+    id: "Metabolic Fitness & Movement",
+    en: "Metabolic Fitness & Movement",
+    idLabel: "Kebugaran Metabolik & Olahraga",
+  },
+  {
+    id: "Stress Reduction & Mindfulness",
+    en: "Stress Reduction & Mindfulness",
+    idLabel: "Reduksi Stres & Kesadaran Penuh",
+  },
 ];
 
 export default function SettingsPage() {
+  const { lang, setLang, locale, t } = useLanguage();
   const [userData, setUserData] = useState<UserWithProfileResponse | null>(
     null
   );
@@ -111,7 +129,10 @@ export default function SettingsPage() {
     });
 
     if (!res.success) {
-      setErrorMessage(res.error?.message || "Failed to update settings.");
+      setErrorMessage(
+        res.error?.message ||
+          t("Failed to update settings.", "Gagal memperbarui pengaturan.")
+      );
       return;
     }
 
@@ -119,13 +140,22 @@ export default function SettingsPage() {
       setUserData(res.data);
     }
     setSavedMessage(
-      "Your circadian profile, daily goals, and preferences have been updated."
+      t(
+        "Your circadian profile, daily goals, and preferences have been updated.",
+        "Profil sirkadian, target harian, dan preferensi Anda berhasil diperbarui."
+      )
     );
     setTimeout(() => setSavedMessage(null), 4000);
   };
 
   const selectedFocus = watch("primaryFocus");
   const sleepMins = watch("dailySleepGoalMinutes") ?? 480;
+
+  const translateFocusLabel = (focusId: string) => {
+    const found = FOCUS_PILLARS.find((p) => p.id === focusId);
+    if (!found) return focusId;
+    return t(found.en, found.idLabel);
+  };
 
   return (
     <AppShell>
@@ -135,18 +165,23 @@ export default function SettingsPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm uppercase tracking-wider font-semibold">
-                Personal Calibration
+                {t("Personal Calibration", "Kalibrasi Personal")}
               </span>
               <span className="font-label-sm text-label-sm text-secondary">
-                • Role: {userData?.role ?? "USER"}
+                • {t("Role", "Peran")}: {userData?.role ?? "USER"}
               </span>
             </div>
             <h1 className="font-headline-lg text-headline-lg text-on-surface font-bold tracking-tight mt-1">
-              Profile &amp; Account Settings
+              {t(
+                "Profile & Account Settings",
+                "Profil & Pengaturan Akun"
+              )}
             </h1>
             <p className="font-body-md text-body-md text-on-surface-variant max-w-2xl mt-0.5">
-              Customize your personal information, circadian wake/sleep anchors,
-              daily biometric targets, and system preferences.
+              {t(
+                "Customize your personal information, circadian wake/sleep anchors, daily biometric targets, and language preferences.",
+                "Sesuaikan informasi pribadi, jadwal bangun/tidur sirkadian, target biometrik harian, dan preferensi bahasa Anda."
+              )}
             </p>
           </div>
         </div>
@@ -200,36 +235,41 @@ export default function SettingsPage() {
                     </p>
                     <span className="inline-flex items-center gap-1 mt-1.5 px-2.5 py-0.5 rounded-full bg-surface-container-low text-primary font-label-sm text-label-sm font-bold">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      {userData?.role} Account
+                      {userData?.role} {t("Account", "Akun")}
                     </span>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-surface-container-low space-y-3 font-body-sm text-body-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-on-surface-variant">Primary Focus</span>
+                    <span className="text-on-surface-variant">
+                      {t("Primary Focus", "Fokus Utama")}
+                    </span>
                     <span className="font-semibold text-primary">
-                      {selectedFocus}
+                      {translateFocusLabel(selectedFocus ?? "")}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-on-surface-variant">
-                      Target Sleep Goal
+                      {t("Target Sleep Goal", "Target Durasi Tidur")}
                     </span>
                     <span className="font-semibold text-on-surface">
-                      {(sleepMins / 60).toFixed(1)} hrs / night
+                      {(sleepMins / 60).toFixed(1)}{" "}
+                      {t("hrs / night", "jam / malam")}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-on-surface-variant">Member Since</span>
+                    <span className="text-on-surface-variant">
+                      {t("Member Since", "Terdaftar Sejak")}
+                    </span>
                     <span className="font-medium text-on-surface">
                       {userData?.createdAt
-                        ? new Intl.DateTimeFormat("en-US", {
+                        ? new Intl.DateTimeFormat(locale, {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
                           }).format(new Date(userData.createdAt))
-                        : "Active"}
+                        : t("Active", "Aktif")}
                     </span>
                   </div>
                 </div>
@@ -242,13 +282,17 @@ export default function SettingsPage() {
                     verified_user
                   </span>
                   <h3 className="font-label-lg text-label-lg font-bold">
-                    Data Ownership &amp; Isolation
+                    {t(
+                      "Data Ownership & Isolation",
+                      "Kepemilikan & Isolasi Data"
+                    )}
                   </h3>
                 </div>
                 <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-                  Your 24-hour schedules, daily reflections, and wellness logs
-                  are strictly isolated to your personal account and protected
-                  by server-side ownership checks.
+                  {t(
+                    "Your 24-hour schedules, daily reflections, and wellness logs are strictly isolated to your personal account and protected by server-side ownership checks.",
+                    "Jadwal 24 jam, refleksi harian, dan catatan kesehatan Anda terisolasi sepenuhnya pada akun pribadi Anda serta dilindungi pemeriksaan kepemilikan di sisi server."
+                  )}
                 </p>
               </div>
             </div>
@@ -262,14 +306,14 @@ export default function SettingsPage() {
                     badge
                   </span>
                   <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                    Personal Information
+                    {t("Personal Information", "Informasi Pribadi")}
                   </h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                      Full Name
+                      {t("Full Name", "Nama Lengkap")}
                     </label>
                     <input
                       type="text"
@@ -285,7 +329,10 @@ export default function SettingsPage() {
 
                   <div>
                     <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                      Email Address (Verified)
+                      {t(
+                        "Email Address (Verified)",
+                        "Alamat Email (Terverifikasi)"
+                      )}
                     </label>
                     <input
                       type="email"
@@ -298,11 +345,17 @@ export default function SettingsPage() {
 
                 <div>
                   <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                    Personal Bio &amp; Lifestyle Intention
+                    {t(
+                      "Personal Bio & Lifestyle Intention",
+                      "Bio Pribadi & Intensi Gaya Hidup"
+                    )}
                   </label>
                   <textarea
                     rows={2}
-                    placeholder="e.g., Building sustainable deep-work habits while prioritizing 8h restorative sleep..."
+                    placeholder={t(
+                      "e.g., Building sustainable deep-work habits while prioritizing 8h restorative sleep...",
+                      "mis., Membangun kebiasaan kerja fokus sembari memprioritaskan tidur restoratif 8 jam..."
+                    )}
                     {...register("bio")}
                     className="w-full rounded-xl bg-surface-container-low px-4 py-2.5 font-body-sm text-body-sm text-on-surface outline-none border border-transparent focus:border-primary transition-all resize-none"
                   />
@@ -310,23 +363,26 @@ export default function SettingsPage() {
 
                 <div>
                   <label className="block font-label-md text-label-md font-semibold text-on-surface mb-2">
-                    Primary Wellness Focus Pillar
+                    {t(
+                      "Primary Wellness Focus Pillar",
+                      "Pilar Fokus Kesehatan Utama"
+                    )}
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {FOCUS_PILLARS.map((pillar) => {
-                      const active = selectedFocus === pillar;
+                      const active = selectedFocus === pillar.id;
                       return (
                         <button
-                          key={pillar}
+                          key={pillar.id}
                           type="button"
-                          onClick={() => setValue("primaryFocus", pillar)}
+                          onClick={() => setValue("primaryFocus", pillar.id)}
                           className={`p-3 rounded-xl text-left font-label-md text-label-md transition-all flex items-center justify-between ${
                             active
                               ? "bg-secondary-container text-primary font-bold shadow-xs"
                               : "bg-surface-container-low text-on-surface hover:bg-surface-container"
                           }`}
                         >
-                          <span>{pillar}</span>
+                          <span>{t(pillar.en, pillar.idLabel)}</span>
                           {active && (
                             <span className="material-symbols-outlined text-[18px] text-primary">
                               check_circle
@@ -346,14 +402,17 @@ export default function SettingsPage() {
                     schedule
                   </span>
                   <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                    Circadian Anchors &amp; Daily Targets
+                    {t(
+                      "Circadian Anchors & Daily Targets",
+                      "Jangkar Sirkadian & Target Harian"
+                    )}
                   </h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                      Target Wake-Up Time
+                      {t("Target Wake-Up Time", "Target Waktu Bangun")}
                     </label>
                     <input
                       type="time"
@@ -364,7 +423,7 @@ export default function SettingsPage() {
 
                   <div>
                     <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                      Target Sleep Onset Time
+                      {t("Target Sleep Onset Time", "Target Waktu Mulai Tidur")}
                     </label>
                     <input
                       type="time"
@@ -377,7 +436,7 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block font-label-sm text-label-sm font-semibold text-on-surface-variant uppercase mb-1.5">
-                      Sleep Goal (mins)
+                      {t("Sleep Goal (mins)", "Target Tidur (mnt)")}
                     </label>
                     <input
                       type="number"
@@ -392,7 +451,7 @@ export default function SettingsPage() {
 
                   <div>
                     <label className="block font-label-sm text-label-sm font-semibold text-on-surface-variant uppercase mb-1.5">
-                      Exercise Goal (mins)
+                      {t("Exercise Goal (mins)", "Target Olahraga (mnt)")}
                     </label>
                     <input
                       type="number"
@@ -407,7 +466,7 @@ export default function SettingsPage() {
 
                   <div>
                     <label className="block font-label-sm text-label-sm font-semibold text-on-surface-variant uppercase mb-1.5">
-                      Hydration Goal (ml)
+                      {t("Hydration Goal (ml)", "Target Hidrasi (ml)")}
                     </label>
                     <input
                       type="number"
@@ -423,7 +482,7 @@ export default function SettingsPage() {
 
                   <div>
                     <label className="block font-label-sm text-label-sm font-semibold text-on-surface-variant uppercase mb-1.5">
-                      Daily Steps Goal
+                      {t("Daily Steps Goal", "Target Langkah Harian")}
                     </label>
                     <input
                       type="number"
@@ -439,21 +498,54 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Section 3: System Preferences */}
+              {/* Section 3: System Preferences & Language */}
               <div className="bg-surface-container-lowest rounded-3xl p-7 shadow-sm space-y-5">
                 <div className="flex items-center gap-2.5 pb-3 border-b border-surface-container-low">
                   <span className="material-symbols-outlined text-primary text-[22px]">
                     tune
                   </span>
                   <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                    Preferences &amp; Notifications
+                    {t(
+                      "Language, Preferences & Notifications",
+                      "Bahasa, Preferensi & Notifikasi"
+                    )}
                   </h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
                   <div>
                     <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
-                      Timezone
+                      {t("Interface Language", "Bahasa Antarmuka")}
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setLang("en")}
+                        className={`py-2.5 px-3 rounded-xl font-label-md text-label-md font-semibold transition-all ${
+                          lang === "en"
+                            ? "bg-primary-container text-on-primary shadow-xs"
+                            : "bg-surface-container-low text-on-surface hover:bg-surface-container"
+                        }`}
+                      >
+                        🇬🇧 English (EN)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLang("id")}
+                        className={`py-2.5 px-3 rounded-xl font-label-md text-label-md font-semibold transition-all ${
+                          lang === "id"
+                            ? "bg-primary-container text-on-primary shadow-xs"
+                            : "bg-surface-container-low text-on-surface hover:bg-surface-container"
+                        }`}
+                      >
+                        🇮🇩 Indonesia (ID)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-label-md text-label-md font-semibold text-on-surface mb-1.5">
+                      {t("Timezone", "Zona Waktu")}
                     </label>
                     <input
                       type="text"
@@ -461,23 +553,29 @@ export default function SettingsPage() {
                       className="w-full rounded-xl bg-surface-container-low px-4 py-2.5 font-body-md text-body-md text-on-surface outline-none"
                     />
                   </div>
-
-                  <label className="flex items-center justify-between p-4 rounded-2xl bg-surface-container-low cursor-pointer mt-2 sm:mt-6">
-                    <div>
-                      <div className="font-label-md text-label-md font-semibold text-on-surface">
-                        Circadian Pacing Alerts
-                      </div>
-                      <div className="font-body-sm text-body-sm text-on-surface-variant">
-                        Remind before wind-down &amp; hydration windows
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      {...register("notificationsEnabled")}
-                      className="w-5 h-5 accent-primary rounded cursor-pointer"
-                    />
-                  </label>
                 </div>
+
+                <label className="flex items-center justify-between p-4 rounded-2xl bg-surface-container-low cursor-pointer">
+                  <div>
+                    <div className="font-label-md text-label-md font-semibold text-on-surface">
+                      {t(
+                        "Circadian Pacing Alerts",
+                        "Pengingat Ritme Sirkadian"
+                      )}
+                    </div>
+                    <div className="font-body-sm text-body-sm text-on-surface-variant">
+                      {t(
+                        "Remind before wind-down & hydration windows",
+                        "Ingatkan sebelum waktu tidur & jendela hidrasi"
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    {...register("notificationsEnabled")}
+                    className="w-5 h-5 accent-primary rounded cursor-pointer"
+                  />
+                </label>
 
                 <div className="flex justify-end pt-3 border-t border-surface-container-low">
                   <button
@@ -489,7 +587,9 @@ export default function SettingsPage() {
                       save
                     </span>
                     <span>
-                      {isSubmitting ? "Saving Changes..." : "Save Preferences"}
+                      {isSubmitting
+                        ? t("Saving Changes...", "Menyimpan Perubahan...")
+                        : t("Save Preferences", "Simpan Preferensi")}
                     </span>
                   </button>
                 </div>
@@ -501,4 +601,3 @@ export default function SettingsPage() {
     </AppShell>
   );
 }
-

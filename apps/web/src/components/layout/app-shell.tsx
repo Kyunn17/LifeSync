@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSession, signOut } from "@/lib/auth-client";
+import { LanguageSwitcher, useLanguage } from "@/lib/i18n";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -28,14 +29,6 @@ interface AppShellProps {
   selectedDateLabel?: string;
   balanceScore?: number;
 }
-
-const navItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutGrid },
-  { label: "Daily Schedule", href: "/schedule", icon: Clock },
-  { label: "Wellness Tracking", href: "/wellness", icon: Activity },
-  { label: "Insights & Patterns", href: "/insights", icon: Sparkles },
-  { label: "Settings", href: "/settings", icon: SlidersHorizontal },
-];
 
 export function AppShell({
   children,
@@ -47,6 +40,35 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const { data: session, isPending } = useSession();
+  const { t, locale } = useLanguage();
+
+  const navItems = [
+    {
+      label: t("Dashboard", "Dasbor"),
+      href: "/dashboard",
+      icon: LayoutGrid,
+    },
+    {
+      label: t("Daily Schedule", "Jadwal Harian"),
+      href: "/schedule",
+      icon: Clock,
+    },
+    {
+      label: t("Wellness Tracking", "Pelacakan Kesehatan"),
+      href: "/wellness",
+      icon: Activity,
+    },
+    {
+      label: t("Insights & Patterns", "Wawasan & Pola"),
+      href: "/insights",
+      icon: Sparkles,
+    },
+    {
+      label: t("Settings", "Pengaturan"),
+      href: "/settings",
+      icon: SlidersHorizontal,
+    },
+  ];
 
   useEffect(() => {
     if (!isPending && !session?.user) {
@@ -60,7 +82,7 @@ export function AppShell({
 
   const todayFormatted =
     selectedDateLabel ||
-    `Today, ${new Intl.DateTimeFormat("en-US", {
+    `${t("Today", "Hari Ini")}, ${new Intl.DateTimeFormat(locale, {
       month: "short",
       day: "numeric",
     }).format(new Date())}`;
@@ -78,7 +100,10 @@ export function AppShell({
             <span className="material-symbols-outlined text-[24px]">spa</span>
           </div>
           <span className="font-label-md text-label-md text-secondary">
-            Synchronizing your circadian profile...
+            {t(
+              "Synchronizing your circadian profile...",
+              "Menyinkronkan profil sirkadian Anda..."
+            )}
           </span>
         </div>
       </div>
@@ -112,7 +137,7 @@ export function AppShell({
 
           <div className="mb-3 px-4">
             <span className="px-3 font-label-sm text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
-              Overview
+              {t("Overview", "Ringkasan")}
             </span>
           </div>
 
@@ -149,7 +174,7 @@ export function AppShell({
                 )}
               >
                 <ShieldCheck className="h-5 w-5" />
-                <span>Admin Console</span>
+                <span>{t("Admin Console", "Konsol Admin")}</span>
               </Link>
             )}
           </nav>
@@ -158,7 +183,7 @@ export function AppShell({
         <div className="flex flex-col gap-1 px-4">
           <div className="mb-2 px-3">
             <span className="font-label-sm text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
-              Preferences
+              {t("Preferences", "Preferensi")}
             </span>
           </div>
           <Link
@@ -166,14 +191,14 @@ export function AppShell({
             className="flex items-center gap-3 rounded-xl px-3 py-2 font-label-md text-label-md text-on-surface-variant transition-all hover:bg-surface-container-low hover:text-on-surface"
           >
             <HelpCircle className="h-4 w-4" />
-            <span>Help & Documentation</span>
+            <span>{t("Help & Documentation", "Bantuan & Dokumentasi")}</span>
           </Link>
           <Link
             href="/settings"
             className="flex items-center gap-3 rounded-xl px-3 py-2 font-label-md text-label-md text-on-surface-variant transition-all hover:bg-surface-container-low hover:text-on-surface"
           >
             <UserCog className="h-4 w-4" />
-            <span>Account Settings</span>
+            <span>{t("Account Settings", "Pengaturan Akun")}</span>
           </Link>
           <button
             type="button"
@@ -181,7 +206,7 @@ export function AppShell({
             className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2 font-label-md text-label-md text-error transition-all hover:bg-error-container/40 text-left"
           >
             <LogOut className="h-4 w-4" />
-            <span>Sign Out</span>
+            <span>{t("Sign Out", "Keluar")}</span>
           </button>
         </div>
       </aside>
@@ -198,11 +223,15 @@ export function AppShell({
             <div className="flex items-center gap-2 rounded-full bg-secondary-container px-3 py-1.5 font-label-md text-label-md text-on-secondary-container">
               <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
               <span className="font-bold">{balanceScore}/100</span>
-              <span className="font-medium text-secondary">Balanced</span>
+              <span className="font-medium text-secondary">
+                {t("Balanced", "Seimbang")}
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+
             <button
               type="button"
               onClick={
@@ -211,13 +240,13 @@ export function AppShell({
               className="flex items-center gap-2 rounded-xl bg-primary-container px-4 py-2 font-label-lg text-label-lg text-on-primary shadow-sm transition-all hover:opacity-95 active:scale-98"
             >
               <Plus className="h-4 w-4" />
-              <span>Log Activity</span>
+              <span>{t("Log Activity", "Catat Aktivitas")}</span>
             </button>
             <button
               type="button"
               onClick={() => router.push("/wellness")}
               className="relative rounded-lg p-2 text-on-surface-variant transition-all hover:bg-surface-container-low hover:text-on-surface"
-              title="Wellness Notifications"
+              title={t("Wellness Notifications", "Notifikasi Kesehatan")}
             >
               <Bell className="h-5 w-5" />
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-error" />
@@ -235,7 +264,9 @@ export function AppShell({
                   {session.user.name}
                 </span>
                 <span className="font-label-sm text-label-sm text-secondary leading-tight">
-                  {effectiveRole}
+                  {effectiveRole === "ADMIN"
+                    ? t("ADMIN", "ADMIN")
+                    : t("USER", "PENGGUNA")}
                 </span>
               </div>
             </Link>

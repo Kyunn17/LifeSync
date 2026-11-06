@@ -8,30 +8,39 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { signUp } from "@/lib/auth-client";
 import { apiFetch } from "@/lib/api";
+import { LanguageSwitcher, useLanguage } from "@/lib/i18n";
 
 const FOCUS_OPTIONS = [
   {
     id: "Optimal Sleep & Recovery",
-    title: "Optimal Sleep & Recovery",
-    subtitle: "REM expansion & latency",
+    titleEn: "Optimal Sleep & Recovery",
+    titleId: "Tidur & Pemulihan Optimal",
+    subtitleEn: "REM expansion & latency",
+    subtitleId: "Ekspansi REM & latensi tidur",
     icon: "bedtime",
   },
   {
     id: "Sustained Daytime Focus",
-    title: "Sustained Daytime Focus",
-    subtitle: "Cortisol curve pacing",
+    titleEn: "Sustained Daytime Focus",
+    titleId: "Fokus Siang Hari Berkelanjutan",
+    subtitleEn: "Cortisol curve pacing",
+    subtitleId: "Pengaturan kurva kortisol",
     icon: "psychology",
   },
   {
     id: "Metabolic Meal Timing",
-    title: "Metabolic Meal Timing",
-    subtitle: "Insulin sensitivity sync",
+    titleEn: "Metabolic Meal Timing",
+    titleId: "Jadwal Makan Metabolik",
+    subtitleEn: "Insulin sensitivity sync",
+    subtitleId: "Sinkronisasi sensitivitas insulin",
     icon: "restaurant",
   },
   {
     id: "Stress & Cortisol Balance",
-    title: "Stress & Cortisol Balance",
-    subtitle: "Vagal tone preservation",
+    titleEn: "Stress & Cortisol Balance",
+    titleId: "Keseimbangan Stres & Kortisol",
+    subtitleEn: "Vagal tone preservation",
+    subtitleId: "Pelestarian tonus vagal",
     icon: "self_improvement",
   },
 ] as const;
@@ -53,7 +62,12 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-function calculateSleepHoursLabel(wakeTime: string, sleepTime: string): string {
+function calculateSleepHoursLabel(
+  wakeTime: string,
+  sleepTime: string,
+  hrsUnit: string,
+  minsUnit: string
+): string {
   const [wakeH = 6, wakeM = 45] = wakeTime.split(":").map(Number);
   const [sleepH = 22, sleepM = 30] = sleepTime.split(":").map(Number);
   const wakeTotal = wakeH * 60 + wakeM;
@@ -62,11 +76,12 @@ function calculateSleepHoursLabel(wakeTime: string, sleepTime: string): string {
   if (diff <= 0) diff += 1440;
   const hrs = Math.floor(diff / 60);
   const mins = diff % 60;
-  return `${hrs} hrs ${mins} mins`;
+  return `${hrs} ${hrsUnit} ${mins} ${minsUnit}`;
 }
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,8 +120,14 @@ export default function RegisterPage() {
   }, [passwordVal]);
 
   const sleepAllocationLabel = useMemo(
-    () => calculateSleepHoursLabel(wakeTime, sleepTime),
-    [wakeTime, sleepTime]
+    () =>
+      calculateSleepHoursLabel(
+        wakeTime,
+        sleepTime,
+        t("hrs", "jam"),
+        t("mins", "mnt")
+      ),
+    [wakeTime, sleepTime, t]
   );
 
   const onSubmit = async (values: RegisterFormValues) => {
@@ -121,7 +142,11 @@ export default function RegisterPage() {
 
       if (res.error) {
         setServerError(
-          res.error.message || "Could not create account. Please try again."
+          res.error.message ||
+            t(
+              "Could not create account. Please try again.",
+              "Tidak dapat membuat akun. Silakan coba lagi."
+            )
         );
         setIsSubmitting(false);
         return;
@@ -140,7 +165,9 @@ export default function RegisterPage() {
       router.push("/dashboard");
     } catch (err) {
       setServerError(
-        err instanceof Error ? err.message : "Failed to complete registration"
+        err instanceof Error
+          ? err.message
+          : t("Failed to complete registration", "Gagal menyelesaikan pendaftaran")
       );
       setIsSubmitting(false);
     }
@@ -162,17 +189,21 @@ export default function RegisterPage() {
                 LifeSync
               </span>
               <span className="font-label-sm text-label-sm text-secondary tracking-widest uppercase mt-0.5">
-                Digital Vitality
+                {t("Digital Vitality", "Vitalitas Digital")}
               </span>
             </div>
           </Link>
           <div className="flex items-center gap-space-md">
+            <LanguageSwitcher />
             <div className="hidden sm:flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-container-low text-secondary">
               <span className="material-symbols-outlined text-[16px] text-primary">
                 verified_user
               </span>
               <span className="font-label-sm text-label-sm text-on-surface-variant font-medium">
-                HIPAA & ISO 27001 Verified
+                {t(
+                  "HIPAA & ISO 27001 Verified",
+                  "Terverifikasi HIPAA & ISO 27001"
+                )}
               </span>
             </div>
             <Link
@@ -182,7 +213,7 @@ export default function RegisterPage() {
               <span className="material-symbols-outlined text-[18px]">
                 arrow_back
               </span>
-              <span>Sign In</span>
+              <span>{t("Sign In", "Masuk")}</span>
             </Link>
           </div>
         </div>
@@ -197,14 +228,21 @@ export default function RegisterPage() {
                 <div className="absolute -right-12 -top-12 w-48 h-48 rounded-full bg-secondary-container/40 blur-2xl pointer-events-none" />
                 <div className="flex items-center gap-space-xs text-secondary font-label-md text-label-md uppercase tracking-widest mb-space-sm">
                   <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  <span>Biological Stewardship</span>
+                  <span>
+                    {t("Biological Stewardship", "Manajemen Biologis")}
+                  </span>
                 </div>
                 <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight mb-space-xs">
-                  Begin your 24-hour balance.
+                  {t(
+                    "Begin your 24-hour balance.",
+                    "Mulai keseimbangan 24 jam Anda."
+                  )}
                 </h1>
                 <p className="font-body-md text-body-md text-on-surface-variant mb-space-lg">
-                  Harmonize daily schedules with your inner physiological clock.
-                  Grounded in chronobiology and real-time biometric stewardship.
+                  {t(
+                    "Harmonize daily schedules with your inner physiological clock. Grounded in chronobiology and real-time biometric stewardship.",
+                    "Selaraskan jadwal harian dengan jam fisiologis alami Anda. Berbasis kronobiologi dan pemantauan biometrik waktu nyata."
+                  )}
                 </p>
 
                 <div className="flex flex-col gap-space-md relative">
@@ -215,13 +253,16 @@ export default function RegisterPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="font-label-lg text-label-lg text-primary font-semibold flex items-center gap-space-xs">
-                        Account Essentials
+                        {t("Account Essentials", "Informasi Akun")}
                         <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">
-                          Active
+                          {t("Active", "Aktif")}
                         </span>
                       </span>
                       <span className="font-body-sm text-body-sm text-on-surface-variant">
-                        Foundational identity and biological privacy safeguards
+                        {t(
+                          "Foundational identity and biological privacy safeguards",
+                          "Identitas dasar dan perlindungan privasi biologis"
+                        )}
                       </span>
                     </div>
                   </div>
@@ -231,10 +272,16 @@ export default function RegisterPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="font-label-lg text-label-lg text-on-surface font-medium">
-                        Circadian Baseline & Daily Rhythm
+                        {t(
+                          "Circadian Baseline & Daily Rhythm",
+                          "Garis Dasar Sirkadian & Ritme Harian"
+                        )}
                       </span>
                       <span className="font-body-sm text-body-sm text-on-surface-variant">
-                        Sleep-wake windows and cognitive peak mapping
+                        {t(
+                          "Sleep-wake windows and cognitive peak mapping",
+                          "Jendela tidur-bangun dan pemetaan puncak kognitif"
+                        )}
                       </span>
                     </div>
                   </div>
@@ -244,10 +291,16 @@ export default function RegisterPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="font-label-lg text-label-lg text-on-surface font-medium">
-                        Biometric Sync & Vital Goals
+                        {t(
+                          "Biometric Sync & Vital Goals",
+                          "Sinkronisasi Biometrik & Target Vital"
+                        )}
                       </span>
                       <span className="font-body-sm text-body-sm text-on-surface-variant">
-                        Continuous telemetry link & predictive guardrails
+                        {t(
+                          "Continuous telemetry link & predictive guardrails",
+                          "Tautan telemetri berkelanjutan & panduan prediktif"
+                        )}
                       </span>
                     </div>
                   </div>
@@ -261,10 +314,10 @@ export default function RegisterPage() {
                     <span className="material-symbols-outlined text-[18px]">
                       timelapse
                     </span>
-                    <span>24h Dial Archetype</span>
+                    <span>{t("24h Dial Archetype", "Arketipe Dial 24 Jam")}</span>
                   </div>
                   <span className="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container text-secondary font-medium">
-                    Interactive Preview
+                    {t("Interactive Preview", "Pratinjau Interaktif")}
                   </span>
                 </div>
 
@@ -320,7 +373,7 @@ export default function RegisterPage() {
                         </span>
                       </span>
                       <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mt-1">
-                        Rest Window
+                        {t("Rest Window", "Waktu Tidur")}
                       </span>
                       <span className="w-1.5 h-1.5 rounded-full bg-primary-container mt-1" />
                     </div>
@@ -334,7 +387,10 @@ export default function RegisterPage() {
               <div className="flex flex-col gap-space-xs mb-space-lg">
                 <div className="flex items-center justify-between">
                   <span className="px-space-sm py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-md text-label-md font-semibold tracking-wide">
-                    Step 1 of 3 • Quick Setup (2 mins)
+                    {t(
+                      "Step 1 of 3 • Quick Setup (2 mins)",
+                      "Langkah 1 dari 3 • Persiapan Cepat (2 mnt)"
+                    )}
                   </span>
                   <div className="flex items-center gap-1">
                     <div className="w-6 h-1.5 rounded-full bg-primary" />
@@ -343,11 +399,16 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <h2 className="font-headline-xl text-headline-xl text-on-surface tracking-tight mt-space-xs">
-                  Create your LifeSync Account
+                  {t(
+                    "Create your LifeSync Account",
+                    "Buat Akun LifeSync Anda"
+                  )}
                 </h2>
                 <p className="font-body-md text-body-md text-on-surface-variant">
-                  Personalized circadian intelligence begins with your
-                  foundational profile.
+                  {t(
+                    "Personalized circadian intelligence begins with your foundational profile.",
+                    "Kecerdasan sirkadian personal dimulai dari profil dasar Anda."
+                  )}
                 </p>
               </div>
 
@@ -370,9 +431,9 @@ export default function RegisterPage() {
                       htmlFor="full-name"
                       className="font-label-md text-label-md text-on-surface font-semibold flex items-center justify-between"
                     >
-                      <span>Full Legal Name</span>
+                      <span>{t("Full Legal Name", "Nama Lengkap")}</span>
                       <span className="text-secondary font-normal font-label-sm text-label-sm">
-                        Protected
+                        {t("Protected", "Terlindungi")}
                       </span>
                     </label>
                     <div className="relative flex items-center">
@@ -382,7 +443,7 @@ export default function RegisterPage() {
                       <input
                         id="full-name"
                         type="text"
-                        placeholder="e.g. Elena Rostova"
+                        placeholder={t("e.g. Elena Rostova", "mis. Budi Santoso")}
                         {...register("name")}
                         className="w-full bg-surface-container-low text-on-surface font-body-md text-body-md pl-10 pr-3 py-2.5 rounded-xl transition-all focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary shadow-inner"
                       />
@@ -399,9 +460,9 @@ export default function RegisterPage() {
                       htmlFor="email"
                       className="font-label-md text-label-md text-on-surface font-semibold flex items-center justify-between"
                     >
-                      <span>Primary Email</span>
+                      <span>{t("Primary Email", "Email Utama")}</span>
                       <span className="text-secondary font-normal font-label-sm text-label-sm">
-                        Alert node
+                        {t("Alert node", "Node notifikasi")}
                       </span>
                     </label>
                     <div className="relative flex items-center">
@@ -431,10 +492,10 @@ export default function RegisterPage() {
                       htmlFor="password"
                       className="font-label-md text-label-md text-on-surface font-semibold"
                     >
-                      Master Security Key
+                      {t("Master Security Key", "Kata Sandi Keamanan")}
                     </label>
                     <span className="font-label-sm text-label-sm text-secondary">
-                      Min 8 characters
+                      {t("Min 8 characters", "Min 8 karakter")}
                     </span>
                   </div>
                   <div className="relative flex items-center">
@@ -444,7 +505,10 @@ export default function RegisterPage() {
                     <input
                       id="password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Enter resilient passphrase"
+                      placeholder={t(
+                        "Enter resilient passphrase",
+                        "Masukkan kata sandi yang kuat"
+                      )}
                       {...register("password")}
                       className="w-full bg-surface-container-low text-on-surface font-body-md text-body-md pl-10 pr-10 py-2.5 rounded-xl transition-all focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary shadow-inner"
                     />
@@ -482,9 +546,16 @@ export default function RegisterPage() {
                         <span className="material-symbols-outlined text-[14px]">
                           shield_lock
                         </span>
-                        <span>Circadian-grade security</span>
+                        <span>
+                          {t(
+                            "Circadian-grade security",
+                            "Keamanan tingkat sirkadian"
+                          )}
+                        </span>
                       </div>
-                      <span>Better Auth hashed</span>
+                      <span>
+                        {t("Better Auth hashed", "Dienkripsi Better Auth")}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -493,10 +564,13 @@ export default function RegisterPage() {
                 <div className="flex flex-col gap-space-xs mt-space-xs">
                   <div className="flex items-center justify-between">
                     <label className="font-label-md text-label-md text-on-surface font-semibold">
-                      Primary Wellness Focus
+                      {t("Primary Wellness Focus", "Fokus Kesehatan Utama")}
                     </label>
                     <span className="font-label-sm text-label-sm text-on-surface-variant">
-                      Select top circadian aim
+                      {t(
+                        "Select top circadian aim",
+                        "Pilih tujuan sirkadian utama"
+                      )}
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-xs">
@@ -523,10 +597,10 @@ export default function RegisterPage() {
                             </span>
                             <div className="flex flex-col">
                               <span className="font-label-md text-label-md font-semibold">
-                                {opt.title}
+                                {t(opt.titleEn, opt.titleId)}
                               </span>
                               <span className="font-label-sm text-label-sm opacity-80">
-                                {opt.subtitle}
+                                {t(opt.subtitleEn, opt.subtitleId)}
                               </span>
                             </div>
                           </div>
@@ -548,10 +622,13 @@ export default function RegisterPage() {
                       <span className="material-symbols-outlined text-[18px] text-primary">
                         schedule
                       </span>
-                      Typical 24h Baseline Ribbon
+                      {t(
+                        "Typical 24h Baseline Ribbon",
+                        "Garis Dasar Waktu 24 Jam"
+                      )}
                     </span>
                     <span className="font-label-sm text-label-sm text-secondary">
-                      Configures 24h dial
+                      {t("Configures 24h dial", "Mengatur dial 24 jam")}
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md mt-1">
@@ -563,7 +640,7 @@ export default function RegisterPage() {
                         <span className="material-symbols-outlined text-[14px] text-secondary">
                           light_mode
                         </span>
-                        Target Awakening Window
+                        {t("Target Awakening Window", "Target Waktu Bangun")}
                       </label>
                       <input
                         id="wake-time"
@@ -581,7 +658,7 @@ export default function RegisterPage() {
                         <span className="material-symbols-outlined text-[14px] text-secondary">
                           dark_mode
                         </span>
-                        Target Sleep Window
+                        {t("Target Sleep Window", "Target Waktu Tidur")}
                       </label>
                       <input
                         id="sleep-time"
@@ -596,10 +673,17 @@ export default function RegisterPage() {
                       <span className="material-symbols-outlined text-[14px]">
                         info
                       </span>
-                      Calculated sleep allocation: {sleepAllocationLabel}
+                      {t(
+                        "Calculated sleep allocation:",
+                        "Estimasi alokasi tidur:"
+                      )}{" "}
+                      {sleepAllocationLabel}
                     </span>
                     <span className="font-medium text-primary">
-                      Natural chronotype: Neutral-Morning
+                      {t(
+                        "Natural chronotype: Neutral-Morning",
+                        "Kronotipe alami: Netral-Pagi"
+                      )}
                     </span>
                   </div>
                 </div>
@@ -616,9 +700,10 @@ export default function RegisterPage() {
                     htmlFor="consent"
                     className="font-body-sm text-body-sm text-on-surface-variant leading-snug cursor-pointer select-none"
                   >
-                    I agree to LifeSync&apos;s Terms of Service and Privacy
-                    Policy, protecting personal biological telemetry with strict
-                    sovereign data ownership.
+                    {t(
+                      "I agree to LifeSync's Terms of Service and Privacy Policy, protecting personal biological telemetry with strict sovereign data ownership.",
+                      "Saya menyetujui Ketentuan Layanan dan Kebijakan Privasi LifeSync yang melindungi telemetri biologis pribadi dengan kepemilikan data penuh."
+                    )}
                   </label>
                 </div>
 
@@ -630,8 +715,11 @@ export default function RegisterPage() {
                   >
                     <span>
                       {isSubmitting
-                        ? "Creating Account..."
-                        : "Create Account & Configure 24h Rhythm"}
+                        ? t("Creating Account...", "Membuat Akun...")
+                        : t(
+                            "Create Account & Configure 24h Rhythm",
+                            "Buat Akun & Atur Ritme 24 Jam"
+                          )}
                     </span>
                     <span className="material-symbols-outlined text-[20px] transition-transform group-hover:translate-x-1">
                       arrow_forward
@@ -639,12 +727,14 @@ export default function RegisterPage() {
                   </button>
 
                   <div className="flex items-center justify-center gap-space-xs font-label-md text-label-md text-on-surface-variant mt-space-xs">
-                    <span>Already registered?</span>
+                    <span>
+                      {t("Already registered?", "Sudah punya akun?")}
+                    </span>
                     <Link
                       href="/login"
                       className="text-primary font-semibold hover:underline flex items-center"
                     >
-                      Sign in instead
+                      {t("Sign in instead", "Masuk di sini")}
                     </Link>
                   </div>
                 </div>
@@ -656,4 +746,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-
