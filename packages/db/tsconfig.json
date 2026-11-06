@@ -1,8 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@lifesync/shared": ["../shared/src/index.ts"]
+    }
   },
-  "include": ["index.ts", "drizzle.config.ts", "schema/**/*"]
+  "include": ["index.ts", "seed.ts", "drizzle.config.ts", "schema/**/*"]
 }
-

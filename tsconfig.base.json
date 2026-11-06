@@ -10,7 +10,11 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@lifesync/shared": ["${configDir}/packages/shared/src/index.ts"],
+      "@lifesync/db": ["${configDir}/packages/db/index.ts"],
+      "@lifesync/db/schema": ["${configDir}/packages/db/schema/index.ts"]
+    }
   }
 }
-
