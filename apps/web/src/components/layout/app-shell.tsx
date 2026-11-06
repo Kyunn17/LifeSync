@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutGrid,
   Clock,
@@ -16,13 +16,17 @@ import {
   Plus,
   Bell,
   ShieldCheck,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSession, signOut } from "@/lib/auth-client";
 
 interface AppShellProps {
   children: React.ReactNode;
   userRole?: "USER" | "ADMIN";
   onQuickLogClick?: () => void;
+  selectedDateLabel?: string;
+  balanceScore?: number;
 }
 
 const navItems = [
@@ -35,15 +39,62 @@ const navItems = [
 
 export function AppShell({
   children,
-  userRole = "USER",
+  userRole,
   onQuickLogClick,
+  selectedDateLabel,
+  balanceScore = 88,
 }: AppShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session, isPending } = useSession();
 
-  const todayFormatted = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(new Date());
+  useEffect(() => {
+    if (!isPending && !session?.user) {
+      router.replace("/login");
+    }
+  }, [isPending, session, router]);
+
+  const effectiveRole =
+    userRole ||
+    ((session?.user as { role?: "USER" | "ADMIN" } | undefined)?.role ?? "USER");
+
+  const todayFormatted =
+    selectedDateLabel ||
+    `Today, ${new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(new Date())}`;
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.replace("/login");
+  };
+
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-secondary-container flex items-center justify-center text-primary animate-pulse">
+            <span className="material-symbols-outlined text-[24px]">spa</span>
+          </div>
+          <span className="font-label-md text-label-md text-secondary">
+            Synchronizing your circadian profile...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session?.user) {
+    return null;
+  }
+
+  const initials = (session.user.name || session.user.email || "LS")
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <div className="min-h-screen bg-surface font-body-md text-on-surface antialiased">
@@ -52,7 +103,7 @@ export function AppShell({
         <div className="flex flex-col">
           <Link href="/dashboard" className="mb-8 flex items-center gap-3 px-6">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary-container text-primary">
-              <Activity className="h-5 w-5" />
+              <span className="material-symbols-outlined text-[22px]">spa</span>
             </div>
             <span className="font-headline-sm text-headline-sm font-bold tracking-tight text-primary">
               LifeSync
@@ -87,7 +138,7 @@ export function AppShell({
               );
             })}
 
-            {userRole === "ADMIN" && (
+            {effectiveRole === "ADMIN" && (
               <Link
                 href="/admin"
                 className={cn(
@@ -124,6 +175,14 @@ export function AppShell({
             <UserCog className="h-4 w-4" />
             <span>Account Settings</span>
           </Link>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2 font-label-md text-label-md text-error transition-all hover:bg-error-container/40 text-left"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Sign Out</span>
+          </button>
         </div>
       </aside>
 
@@ -133,12 +192,12 @@ export function AppShell({
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 rounded-lg bg-surface-container-low px-3 py-1.5 font-label-md text-label-md text-on-surface">
               <Calendar className="h-4 w-4 text-secondary" />
-              <span>Today, {todayFormatted}</span>
+              <span>{todayFormatted}</span>
               <ChevronDown className="h-4 w-4 text-outline" />
             </div>
             <div className="flex items-center gap-2 rounded-full bg-secondary-container px-3 py-1.5 font-label-md text-label-md text-on-secondary-container">
               <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
-              <span className="font-bold">24h Sync</span>
+              <span className="font-bold">{balanceScore}/100</span>
               <span className="font-medium text-secondary">Balanced</span>
             </div>
           </div>
@@ -146,7 +205,9 @@ export function AppShell({
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={onQuickLogClick}
+              onClick={
+                onQuickLogClick || (() => router.push("/schedule"))
+              }
               className="flex items-center gap-2 rounded-xl bg-primary-container px-4 py-2 font-label-lg text-label-lg text-on-primary shadow-sm transition-all hover:opacity-95 active:scale-98"
             >
               <Plus className="h-4 w-4" />
@@ -154,11 +215,30 @@ export function AppShell({
             </button>
             <button
               type="button"
+              onClick={() => router.push("/wellness")}
               className="relative rounded-lg p-2 text-on-surface-variant transition-all hover:bg-surface-container-low hover:text-on-surface"
+              title="Wellness Notifications"
             >
               <Bell className="h-5 w-5" />
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-error" />
             </button>
+            <Link
+              href="/settings"
+              className="flex items-center gap-2.5 pl-2 group"
+              title={`${session.user.name} (${effectiveRole})`}
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary-container font-label-md text-label-md font-bold text-primary ring-2 ring-surface-container-high">
+                {initials}
+              </div>
+              <div className="hidden md:flex flex-col">
+                <span className="font-label-md text-label-md font-semibold text-on-surface leading-tight group-hover:text-primary transition-colors">
+                  {session.user.name}
+                </span>
+                <span className="font-label-sm text-label-sm text-secondary leading-tight">
+                  {effectiveRole}
+                </span>
+              </div>
+            </Link>
           </div>
         </header>
 
@@ -171,4 +251,3 @@ export function AppShell({
     </div>
   );
 }
-

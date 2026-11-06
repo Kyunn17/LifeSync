@@ -116,9 +116,21 @@ export const dateStringSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format");
 
+export const activityCategorySchema = z.object({
+  name: z.string().min(1, "Category name is required").max(80),
+  slug: z.string().min(1).max(80).optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Valid hex color required").default("#0d7a53"),
+  bgColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Valid hex background color required").default("#eef4ff"),
+  icon: z.string().min(1).max(64).default("schedule"),
+  description: z.string().max(300).optional().nullable(),
+  targetMinutesPerDay: z.number().int().min(0).max(1440).default(60),
+});
+
+export type ActivityCategoryInput = z.infer<typeof activityCategorySchema>;
+
 export const scheduleBlockSchema = z.object({
   title: z.string().min(1, "Activity title is required").max(120),
-  categoryId: z.string().min(1, "Category is required"),
+  activityId: z.string().min(1, "Category is required"),
   date: dateStringSchema,
   startTime: timeStringSchema,
   endTime: timeStringSchema,
@@ -126,6 +138,9 @@ export const scheduleBlockSchema = z.object({
 });
 
 export type ScheduleBlockInput = z.infer<typeof scheduleBlockSchema>;
+
+export const updateScheduleBlockSchema = scheduleBlockSchema.partial();
+export type UpdateScheduleBlockInput = z.infer<typeof updateScheduleBlockSchema>;
 
 export const healthLogSchema = z.object({
   date: dateStringSchema,
@@ -147,6 +162,7 @@ export const dailyCheckinSchema = z.object({
   mood: z.enum(MOOD_TYPES),
   energyLevel: z.number().int().min(1).max(100),
   reflection: z.string().max(1000).optional().nullable(),
+  syncSleepPrediction: z.boolean().optional().default(true),
 });
 
 export type DailyCheckinInput = z.infer<typeof dailyCheckinSchema>;
@@ -168,6 +184,8 @@ export const updateProfileSchema = z.object({
   dailySleepGoalMinutes: z.number().int().min(120).max(960).optional(),
   dailyExerciseGoalMinutes: z.number().int().min(0).max(600).optional(),
   bio: z.string().max(500).optional().nullable(),
+  timezone: z.string().max(64).optional(),
+  notificationsEnabled: z.boolean().optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
@@ -181,4 +199,3 @@ export interface ApiResponse<T = unknown> {
     details?: unknown;
   };
 }
-

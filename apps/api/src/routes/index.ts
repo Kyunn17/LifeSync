@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { sendSuccess } from "../utils/response";
 import { DEFAULT_ACTIVITY_CATEGORIES } from "@lifesync/shared";
+import { userRouter } from "./user.routes";
 
 export const apiRouter = Router();
 
@@ -13,3 +14,4 @@ apiRouter.get("/health-check", (_req, res) => {
   });
 });
 
+apiRouter.use("/users", userRouter);
