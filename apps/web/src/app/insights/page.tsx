@@ -1202,3 +1202,4 @@ export default function InsightsAndPatternsPage() {
     </AppShell>
   );
 }
+

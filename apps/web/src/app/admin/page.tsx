@@ -822,3 +822,4 @@ export default function AdminDashboardPage() {
     </AppShell>
   );
 }
+

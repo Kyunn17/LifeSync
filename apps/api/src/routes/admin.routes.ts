@@ -60,3 +60,4 @@ adminRouter.patch(
   patchAdminTipController
 );
 adminRouter.delete("/tips/:id", deleteAdminTipController);
+

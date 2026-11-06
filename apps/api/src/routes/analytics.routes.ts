@@ -13,3 +13,4 @@ analyticsRouter.use(requireAuth);
 analyticsRouter.get("/daily", getDailyAnalyticsController);
 analyticsRouter.get("/weekly", getWeeklyAnalyticsController);
 analyticsRouter.get("/monthly", getMonthlyAnalyticsController);
+
