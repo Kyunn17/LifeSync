@@ -12,8 +12,10 @@
     "dev:api": "bun run --cwd apps/api dev",
     "build": "bun run --filter './packages/*' build && bun run --filter './apps/*' build",
     "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun run --cwd apps/api test",
     "db:generate": "bun run --cwd packages/db db:generate",
     "db:migrate": "bun run --cwd packages/db db:migrate",
+    "db:seed": "bun run --cwd packages/db db:seed",
     "db:push": "bun run --cwd packages/db db:push",
     "db:studio": "bun run --cwd packages/db db:studio"
   },
