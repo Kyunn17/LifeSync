@@ -208,20 +208,18 @@ export default function RegisterPage() {
           <div className="h-16 max-w-7xl mx-auto px-gutter-mobile lg:px-margin flex items-center justify-between">
             <Link
               href="/"
-              className="flex items-center gap-2.5 group cursor-pointer focus:outline-none"
+              className="flex items-center gap-3 group cursor-pointer focus:outline-none"
             >
-              <div className="w-10 h-10 rounded-2xl bg-secondary-container p-2 flex items-center justify-center shadow-xs ring-1 ring-primary-container/20 group-hover:scale-102 transition-transform">
-                <img
-                  src="/favicon.png"
-                  alt="LifeSync Logo"
-                  className="w-full h-full object-contain"
-                />
-              </div>
+              <img
+                src="/favicon.png"
+                alt="LifeSync Logo"
+                className="w-12 h-12 object-contain group-hover:scale-102 transition-transform shrink-0"
+              />
               <div className="flex flex-col">
-                <span className="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight">
+                <span className="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight leading-none">
                   LifeSync
                 </span>
-                <span className="font-label-sm text-label-sm uppercase tracking-widest text-primary font-semibold">
+                <span className="font-label-sm text-label-sm uppercase tracking-widest text-primary font-semibold text-[10px] mt-0.5">
                   Wellness
                 </span>
               </div>
@@ -332,20 +330,18 @@ export default function RegisterPage() {
         <div className="h-16 max-w-7xl mx-auto px-gutter-mobile lg:px-margin flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-space-sm group transition-transform active:scale-[0.98]"
+            className="flex items-center gap-3 group transition-transform active:scale-[0.98]"
           >
-            <div className="w-9 h-9 rounded-xl bg-secondary-container p-1.5 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
-              <img
-                src="/favicon.png"
-                alt="LifeSync Logo"
-                className="w-full h-full object-contain"
-              />
-            </div>
+            <img
+              src="/favicon.png"
+              alt="LifeSync Logo"
+              className="w-12 h-12 object-contain group-hover:scale-105 transition-transform shrink-0"
+            />
             <div className="flex flex-col">
-              <span className="font-headline-sm text-headline-sm tracking-tight text-on-surface leading-none">
+              <span className="font-headline-sm text-headline-sm tracking-tight text-on-surface leading-none font-bold">
                 LifeSync
               </span>
-              <span className="font-label-sm text-label-sm text-secondary tracking-widest uppercase mt-0.5">
+              <span className="font-label-sm text-label-sm text-secondary tracking-widest uppercase mt-0.5 text-[10px]">
                 {t("Daily Lifestyle", "Gaya Hidup Sehat")}
               </span>
             </div>

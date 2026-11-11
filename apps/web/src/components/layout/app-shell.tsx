@@ -126,13 +126,11 @@ export function AppShell({
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-secondary-container flex items-center justify-center p-2 shadow-xs">
-            <img
-              src="/favicon.png"
-              alt="LifeSync"
-              className="w-8 h-8 object-contain animate-pulse"
-            />
-          </div>
+          <img
+            src="/favicon.png"
+            alt="LifeSync"
+            className="w-16 h-16 object-contain animate-pulse"
+          />
           <span className="font-label-md text-label-md text-secondary">
             {t(
               "Loading your daily dashboard...",
@@ -164,18 +162,16 @@ export function AppShell({
             href="/dashboard"
             className="mb-8 flex items-center gap-3 px-6 group"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary-container p-2 shadow-2xs group-hover:scale-105 transition-transform">
-              <img
-                src="/favicon.png"
-                alt="LifeSync Logo"
-                className="w-6 h-6 object-contain"
-              />
-            </div>
+            <img
+              src="/favicon.png"
+              alt="LifeSync Logo"
+              className="w-12 h-12 object-contain group-hover:scale-105 transition-transform shrink-0"
+            />
             <div className="flex flex-col">
-              <span className="font-headline-sm text-headline-sm font-bold tracking-tight text-primary leading-tight">
+              <span className="font-headline-sm text-headline-sm font-bold tracking-tight text-primary leading-none">
                 LifeSync
               </span>
-              <span className="font-label-sm text-label-sm text-secondary tracking-widest uppercase font-semibold text-[10px]">
+              <span className="font-label-sm text-label-sm text-secondary tracking-widest uppercase font-semibold text-[10px] mt-1">
                 Wellness
               </span>
             </div>

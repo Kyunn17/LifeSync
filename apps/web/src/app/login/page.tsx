@@ -129,20 +129,18 @@ export default function LoginPage() {
         <div className="h-16 max-w-7xl mx-auto px-gutter-mobile lg:px-margin flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-space-sm group transition-transform active:scale-[0.98]"
+            className="flex items-center gap-3 group transition-transform active:scale-[0.98]"
           >
-            <div className="w-9 h-9 rounded-xl bg-secondary-container p-1.5 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
-              <img
-                src="/favicon.png"
-                alt="LifeSync Logo"
-                className="w-full h-full object-contain"
-              />
-            </div>
+            <img
+              src="/favicon.png"
+              alt="LifeSync Logo"
+              className="w-12 h-12 object-contain group-hover:scale-105 transition-transform shrink-0"
+            />
             <div className="flex flex-col">
-              <span className="font-headline-sm text-headline-sm tracking-tight text-on-surface leading-none">
+              <span className="font-headline-sm text-headline-sm tracking-tight text-on-surface leading-none font-bold">
                 LifeSync
               </span>
-              <span className="font-label-sm text-label-sm text-secondary tracking-widest uppercase mt-0.5">
+              <span className="font-label-sm text-label-sm text-secondary tracking-widest uppercase mt-0.5 text-[10px]">
                 {t("Daily Lifestyle", "Gaya Hidup Sehat")}
               </span>
             </div>
@@ -190,13 +188,11 @@ export default function LoginPage() {
 
             <div className="w-full bg-surface-container-lowest rounded-xl shadow-xl p-space-lg sm:p-space-xl flex flex-col">
               <div className="flex flex-col text-center items-center mb-space-lg">
-                <div className="w-14 h-14 rounded-2xl bg-secondary-container flex items-center justify-center p-2.5 mb-space-sm shadow-xs ring-1 ring-primary/10">
-                  <img
-                    src="/favicon.png"
-                    alt="LifeSync Logo"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
+                <img
+                  src="/favicon.png"
+                  alt="LifeSync Logo"
+                  className="w-20 h-20 object-contain mb-space-sm"
+                />
                 <h1 className="font-headline-lg text-headline-lg text-on-surface">
                   {t("Sign in to LifeSync", "Masuk ke LifeSync")}
                 </h1>
