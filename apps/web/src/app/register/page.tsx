@@ -210,10 +210,12 @@ export default function RegisterPage() {
               href="/"
               className="flex items-center gap-2.5 group cursor-pointer focus:outline-none"
             >
-              <div className="w-10 h-10 rounded-2xl bg-secondary-container flex items-center justify-center text-primary shadow-xs ring-1 ring-primary-container/20 group-hover:scale-102 transition-transform">
-                <span className="material-symbols-outlined text-[24px]">
-                  spa
-                </span>
+              <div className="w-10 h-10 rounded-2xl bg-secondary-container p-2 flex items-center justify-center shadow-xs ring-1 ring-primary-container/20 group-hover:scale-102 transition-transform">
+                <img
+                  src="/favicon.png"
+                  alt="LifeSync Logo"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div className="flex flex-col">
                 <span className="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight">
@@ -332,8 +334,12 @@ export default function RegisterPage() {
             href="/"
             className="flex items-center gap-space-sm group transition-transform active:scale-[0.98]"
           >
-            <div className="w-9 h-9 rounded-xl bg-secondary-container flex items-center justify-center text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary">
-              <span className="material-symbols-outlined text-[22px]">spa</span>
+            <div className="w-9 h-9 rounded-xl bg-secondary-container p-1.5 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+              <img
+                src="/favicon.png"
+                alt="LifeSync Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div className="flex flex-col">
               <span className="font-headline-sm text-headline-sm tracking-tight text-on-surface leading-none">

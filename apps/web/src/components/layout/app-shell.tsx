@@ -126,8 +126,12 @@ export function AppShell({
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-secondary-container flex items-center justify-center text-primary animate-pulse">
-            <span className="material-symbols-outlined text-[24px]">spa</span>
+          <div className="w-12 h-12 rounded-2xl bg-secondary-container flex items-center justify-center p-2 shadow-xs">
+            <img
+              src="/favicon.png"
+              alt="LifeSync"
+              className="w-8 h-8 object-contain animate-pulse"
+            />
           </div>
           <span className="font-label-md text-label-md text-secondary">
             {t(
@@ -156,13 +160,25 @@ export function AppShell({
       {/* Left Fixed Sidebar matching Stitch design */}
       <aside className="fixed left-0 top-0 z-50 flex h-full w-72 flex-col justify-between bg-surface-container-lowest py-6 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
         <div className="flex flex-col">
-          <Link href="/dashboard" className="mb-8 flex items-center gap-3 px-6">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary-container text-primary">
-              <span className="material-symbols-outlined text-[22px]">spa</span>
+          <Link
+            href="/dashboard"
+            className="mb-8 flex items-center gap-3 px-6 group"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary-container p-2 shadow-2xs group-hover:scale-105 transition-transform">
+              <img
+                src="/favicon.png"
+                alt="LifeSync Logo"
+                className="w-6 h-6 object-contain"
+              />
             </div>
-            <span className="font-headline-sm text-headline-sm font-bold tracking-tight text-primary">
-              LifeSync
-            </span>
+            <div className="flex flex-col">
+              <span className="font-headline-sm text-headline-sm font-bold tracking-tight text-primary leading-tight">
+                LifeSync
+              </span>
+              <span className="font-label-sm text-label-sm text-secondary tracking-widest uppercase font-semibold text-[10px]">
+                Wellness
+              </span>
+            </div>
           </Link>
 
           <div className="mb-3 px-4">

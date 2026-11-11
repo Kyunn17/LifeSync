@@ -131,8 +131,12 @@ export default function LoginPage() {
             href="/"
             className="flex items-center gap-space-sm group transition-transform active:scale-[0.98]"
           >
-            <div className="w-9 h-9 rounded-xl bg-secondary-container flex items-center justify-center text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary">
-              <span className="material-symbols-outlined text-[22px]">spa</span>
+            <div className="w-9 h-9 rounded-xl bg-secondary-container p-1.5 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+              <img
+                src="/favicon.png"
+                alt="LifeSync Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div className="flex flex-col">
               <span className="font-headline-sm text-headline-sm tracking-tight text-on-surface leading-none">
@@ -186,13 +190,12 @@ export default function LoginPage() {
 
             <div className="w-full bg-surface-container-lowest rounded-xl shadow-xl p-space-lg sm:p-space-xl flex flex-col">
               <div className="flex flex-col text-center items-center mb-space-lg">
-                <div className="w-12 h-12 rounded-xl bg-surface-container-low flex items-center justify-center text-primary mb-space-sm shadow-sm">
-                  <span
-                    className="material-symbols-outlined text-[28px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    spa
-                  </span>
+                <div className="w-14 h-14 rounded-2xl bg-secondary-container flex items-center justify-center p-2.5 mb-space-sm shadow-xs ring-1 ring-primary/10">
+                  <img
+                    src="/favicon.png"
+                    alt="LifeSync Logo"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <h1 className="font-headline-lg text-headline-lg text-on-surface">
                   {t("Sign in to LifeSync", "Masuk ke LifeSync")}

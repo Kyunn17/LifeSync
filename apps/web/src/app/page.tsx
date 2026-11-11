@@ -7,15 +7,19 @@ export default function HomePage() {
       <header className="fixed top-0 inset-x-0 z-50 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
         <div className="h-16 max-w-7xl mx-auto px-gutter-mobile lg:px-margin flex items-center justify-between">
           <div className="flex items-center gap-space-sm">
-            <div className="w-9 h-9 rounded-xl bg-secondary-container flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined text-[22px]">spa</span>
+            <div className="w-9 h-9 rounded-xl bg-secondary-container p-1.5 flex items-center justify-center shadow-2xs">
+              <img
+                src="/favicon.png"
+                alt="LifeSync Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div className="flex flex-col">
               <span className="font-headline-sm text-headline-sm tracking-tight text-on-surface leading-none">
                 LifeSync
               </span>
               <span className="font-label-sm text-label-sm text-secondary tracking-widest uppercase mt-0.5">
-                Digital Vitality
+                Wellness
               </span>
             </div>
           </div>

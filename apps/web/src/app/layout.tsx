@@ -16,9 +16,17 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "LifeSync Wellness — 24-Hour Circadian & Lifestyle Platform",
+  title: "LifeSync Wellness — 24-Hour Digital Wellness Platform",
   description:
-    "Manage your daily 24-hour time allocation, monitor sleep, exercise, hydration, and daily mood through circadian-aligned analytics.",
+    "Manage your daily 24-hour time allocation, monitor sleep, exercise, hydration, and daily mood through wellness analytics.",
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: [{ url: "/favicon.png" }],
+    shortcut: ["/favicon.png"],
+  },
 };
 
 export default function RootLayout({
