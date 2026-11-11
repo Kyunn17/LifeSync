@@ -76,6 +76,8 @@ const envSchema = z.object({
     )
     .transform(cleanString),
 
+  BREVO_API_KEY: z.string().optional().default("").transform(cleanString),
+
   REQUIRE_EMAIL_VERIFICATION: z
     .string()
     .optional()

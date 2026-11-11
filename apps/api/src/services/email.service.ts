@@ -31,6 +31,48 @@ export function getVerificationAttempt(
   return verificationAttempts.get(email.trim().toLowerCase()) ?? null;
 }
 
+async function sendViaBrevo({
+  to,
+  name,
+  subject,
+  html,
+}: {
+  to: string;
+  name?: string;
+  subject: string;
+  html: string;
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const senderEmail =
+    env.MAIL_FROM_ADDRESS || env.SMTP_USER || "arulxxds@gmail.com";
+  const senderName = env.MAIL_FROM_NAME || "LifeSync Wellness";
+
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      "api-key": env.BREVO_API_KEY,
+    },
+    body: JSON.stringify({
+      sender: {
+        name: senderName,
+        email: senderEmail,
+      },
+      to: [{ email: to, name: name || to }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    return { ok: false, error: `Brevo error (${res.status}): ${errorText}` };
+  }
+
+  const data = (await res.json()) as { messageId?: string };
+  return { ok: true, messageId: data.messageId };
+}
+
 export async function sendVerificationEmail({
   email,
   name,
@@ -41,28 +83,9 @@ export async function sendVerificationEmail({
   url: string;
 }): Promise<boolean> {
   const normalizedEmail = email.trim().toLowerCase();
+  const displayName = name || email.split("@")[0] || "User";
 
-  if (!transporter) {
-    console.warn(
-      `[EmailService] SMTP is not configured. Set MAIL_USERNAME and MAIL_PASSWORD. Verification URL for ${email}: ${url}`
-    );
-    verificationAttempts.set(normalizedEmail, {
-      email: normalizedEmail,
-      sent: false,
-      error: "SMTP belum dikonfigurasi (MAIL_USERNAME / MAIL_PASSWORD kosong).",
-      verificationUrl: url,
-      updatedAt: new Date().toISOString(),
-    });
-    return false;
-  }
-
-  try {
-    const displayName = name || email.split("@")[0] || "User";
-    const senderName = env.MAIL_FROM_NAME || "LifeSync Wellness";
-    const senderEmail = env.MAIL_FROM_ADDRESS || env.SMTP_USER;
-    const fromAddress = `"${senderName}" <${senderEmail}>`;
-
-    const htmlContent = `
+  const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -110,46 +133,95 @@ export async function sendVerificationEmail({
   </div>
 </body>
 </html>
-    `;
+  `;
 
-    const info = await transporter.sendMail({
-      from: fromAddress,
-      to: email,
-      subject: "Verifikasi Akun Anda — LifeSync Wellness",
-      html: htmlContent,
-    });
+  // 1. Prefer Brevo HTTPS REST API (Port 443 - zero timeout, works on Railway)
+  if (env.BREVO_API_KEY) {
+    try {
+      const result = await sendViaBrevo({
+        to: email,
+        name: displayName,
+        subject: "Verifikasi Akun Anda — LifeSync Wellness",
+        html: htmlContent,
+      });
 
-    console.log(
-      `[EmailService] Verification email successfully sent to ${email} via Gmail SMTP (Message ID: ${info.messageId})`
-    );
+      if (result.ok) {
+        console.log(
+          `[EmailService] Verification email sent to ${email} via Brevo HTTPS API (${result.messageId})`
+        );
+        verificationAttempts.set(normalizedEmail, {
+          email: normalizedEmail,
+          sent: true,
+          error: null,
+          verificationUrl: url,
+          updatedAt: new Date().toISOString(),
+        });
+        return true;
+      }
 
-    verificationAttempts.set(normalizedEmail, {
-      email: normalizedEmail,
-      sent: true,
-      error: null,
-      verificationUrl: url,
-      updatedAt: new Date().toISOString(),
-    });
-
-    return true;
-  } catch (err) {
-    const errorMsg =
-      err instanceof Error ? err.message : "Terjadi kesalahan saat mengirim email.";
-    console.error(
-      "[EmailService] Gmail SMTP error while sending verification email:",
-      err
-    );
-
-    verificationAttempts.set(normalizedEmail, {
-      email: normalizedEmail,
-      sent: false,
-      error: errorMsg,
-      verificationUrl: url,
-      updatedAt: new Date().toISOString(),
-    });
-
-    return false;
+      console.error("[EmailService] Brevo HTTPS API error:", result.error);
+    } catch (err) {
+      console.error("[EmailService] Exception while sending via Brevo:", err);
+    }
   }
+
+  // 2. Fallback to Nodemailer SMTP
+  if (transporter) {
+    try {
+      const senderName = env.MAIL_FROM_NAME || "LifeSync Wellness";
+      const senderEmail = env.MAIL_FROM_ADDRESS || env.SMTP_USER;
+      const fromAddress = `"${senderName}" <${senderEmail}>`;
+
+      const info = await transporter.sendMail({
+        from: fromAddress,
+        to: email,
+        subject: "Verifikasi Akun Anda — LifeSync Wellness",
+        html: htmlContent,
+      });
+
+      console.log(
+        `[EmailService] Verification email sent to ${email} via SMTP (${info.messageId})`
+      );
+
+      verificationAttempts.set(normalizedEmail, {
+        email: normalizedEmail,
+        sent: true,
+        error: null,
+        verificationUrl: url,
+        updatedAt: new Date().toISOString(),
+      });
+
+      return true;
+    } catch (err) {
+      const errorMsg =
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan saat mengirim email via SMTP.";
+      console.error("[EmailService] SMTP error:", err);
+
+      verificationAttempts.set(normalizedEmail, {
+        email: normalizedEmail,
+        sent: false,
+        error: errorMsg,
+        verificationUrl: url,
+        updatedAt: new Date().toISOString(),
+      });
+
+      return false;
+    }
+  }
+
+  console.warn(
+    `[EmailService] Neither Brevo nor SMTP is configured. Verification URL for ${email}: ${url}`
+  );
+  verificationAttempts.set(normalizedEmail, {
+    email: normalizedEmail,
+    sent: false,
+    error: "Layanan email belum dikonfigurasi.",
+    verificationUrl: url,
+    updatedAt: new Date().toISOString(),
+  });
+  return false;
 }
 
 export async function sendPasswordResetEmail({
@@ -161,20 +233,9 @@ export async function sendPasswordResetEmail({
   name?: string;
   url: string;
 }): Promise<boolean> {
-  if (!transporter) {
-    console.warn(
-      `[EmailService] SMTP is not configured. Reset password URL for ${email}: ${url}`
-    );
-    return false;
-  }
+  const displayName = name || email.split("@")[0] || "User";
 
-  try {
-    const displayName = name || email.split("@")[0] || "User";
-    const senderName = env.MAIL_FROM_NAME || "LifeSync Wellness";
-    const senderEmail = env.MAIL_FROM_ADDRESS || env.SMTP_USER;
-    const fromAddress = `"${senderName}" <${senderEmail}>`;
-
-    const htmlContent = `
+  const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -216,22 +277,51 @@ export async function sendPasswordResetEmail({
   </div>
 </body>
 </html>
-    `;
+  `;
 
-    const info = await transporter.sendMail({
-      from: fromAddress,
-      to: email,
-      subject: "Reset Kata Sandi — LifeSync Wellness",
-      html: htmlContent,
-    });
-
-    console.log(
-      `[EmailService] Password reset email sent to ${email} via Gmail SMTP (${info.messageId})`
-    );
-
-    return true;
-  } catch (err) {
-    console.error("[EmailService] Gmail SMTP error while sending password reset:", err);
-    return false;
+  // 1. Try Brevo HTTPS API
+  if (env.BREVO_API_KEY) {
+    try {
+      const res = await sendViaBrevo({
+        to: email,
+        name: displayName,
+        subject: "Reset Kata Sandi — LifeSync Wellness",
+        html: htmlContent,
+      });
+      if (res.ok) {
+        console.log(
+          `[EmailService] Password reset sent to ${email} via Brevo (${res.messageId})`
+        );
+        return true;
+      }
+    } catch (e) {
+      console.error("[EmailService] Brevo reset error:", e);
+    }
   }
+
+  // 2. Try Nodemailer
+  if (transporter) {
+    try {
+      const senderName = env.MAIL_FROM_NAME || "LifeSync Wellness";
+      const senderEmail = env.MAIL_FROM_ADDRESS || env.SMTP_USER;
+      const fromAddress = `"${senderName}" <${senderEmail}>`;
+
+      const info = await transporter.sendMail({
+        from: fromAddress,
+        to: email,
+        subject: "Reset Kata Sandi — LifeSync Wellness",
+        html: htmlContent,
+      });
+
+      console.log(
+        `[EmailService] Password reset sent to ${email} via SMTP (${info.messageId})`
+      );
+      return true;
+    } catch (err) {
+      console.error("[EmailService] SMTP reset error:", err);
+      return false;
+    }
+  }
+
+  return false;
 }

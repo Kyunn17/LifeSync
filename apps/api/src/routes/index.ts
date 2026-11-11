@@ -24,7 +24,9 @@ apiRouter.get("/health-check", (_req, res) => {
     status: "healthy",
     timestamp: new Date().toISOString(),
     defaultCategoriesCount: DEFAULT_ACTIVITY_CATEGORIES.length,
-    emailConfigured: Boolean(env.SMTP_USER && env.SMTP_PASS),
+    emailConfigured: Boolean(
+      env.BREVO_API_KEY || (env.SMTP_USER && env.SMTP_PASS)
+    ),
     requireEmailVerification: env.REQUIRE_EMAIL_VERIFICATION,
   });
 });
