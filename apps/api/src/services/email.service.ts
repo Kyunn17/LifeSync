@@ -1,7 +1,18 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { env } from "../config/env";
 
-export const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+export const transporter =
+  env.SMTP_USER && env.SMTP_PASS
+    ? nodemailer.createTransport({
+        host: env.SMTP_HOST || "smtp.gmail.com",
+        port: env.SMTP_PORT || 587,
+        secure: env.SMTP_SECURE, // true for port 465, false for 587
+        auth: {
+          user: env.SMTP_USER,
+          pass: env.SMTP_PASS,
+        },
+      })
+    : null;
 
 export interface VerificationAttempt {
   email: string;
@@ -30,14 +41,14 @@ export async function sendVerificationEmail({
 }): Promise<boolean> {
   const normalizedEmail = email.trim().toLowerCase();
 
-  if (!resend) {
+  if (!transporter) {
     console.warn(
-      `[EmailService] RESEND_API_KEY is not configured. Verification URL for ${email}: ${url}`
+      `[EmailService] SMTP is not configured. Set MAIL_USERNAME and MAIL_PASSWORD. Verification URL for ${email}: ${url}`
     );
     verificationAttempts.set(normalizedEmail, {
       email: normalizedEmail,
       sent: false,
-      error: "RESEND_API_KEY belum dikonfigurasi pada server.",
+      error: "SMTP belum dikonfigurasi (MAIL_USERNAME / MAIL_PASSWORD kosong).",
       verificationUrl: url,
       updatedAt: new Date().toISOString(),
     });
@@ -46,8 +57,9 @@ export async function sendVerificationEmail({
 
   try {
     const displayName = name || email.split("@")[0] || "User";
-    const fromAddress =
-      env.EMAIL_FROM || "LifeSync Wellness <onboarding@resend.dev>";
+    const senderName = env.MAIL_FROM_NAME || "LifeSync Wellness";
+    const senderEmail = env.MAIL_FROM_ADDRESS || env.SMTP_USER;
+    const fromAddress = `"${senderName}" <${senderEmail}>`;
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -80,50 +92,36 @@ export async function sendVerificationEmail({
     <div class="content">
       <div class="greeting">Hi ${displayName},</div>
       <div class="text">
-        Thank you for joining <strong>LifeSync Wellness</strong>. To complete your account registration and ensure you have secure access to your daily schedules and wellness insights, please verify your email address.
+        Terima kasih telah mendaftar di <strong>LifeSync Wellness</strong>. Untuk menyelesaikan aktivasi akun Anda dan mengakses jadwal harian serta pelacakan kesehatan, silakan klik tombol verifikasi di bawah ini:
       </div>
       <div class="btn-container">
-        <a href="${url}" class="btn" target="_blank">Verify Email &amp; Activate Account</a>
+        <a href="${url}" class="btn" target="_blank">Verifikasi Akun &amp; Aktifkan</a>
       </div>
       <div class="fallback">
-        If the button above does not work, copy and paste this link into your web browser:<br>
+        Jika tombol di atas tidak dapat diklik, salin dan buka tautan berikut di browser Anda:<br>
         <a href="${url}" style="color: #0d7a53;">${url}</a>
       </div>
     </div>
     <div class="footer">
-      This verification link will expire in 24 hours.<br>
-      If you did not sign up for LifeSync Wellness, you can safely ignore this email.
+      Tautan verifikasi ini berlaku selama 24 jam.<br>
+      Jika Anda tidak pernah mendaftar di LifeSync Wellness, abaikan email ini.
     </div>
   </div>
 </body>
 </html>
     `;
 
-    const { data, error } = await resend.emails.send({
+    const info = await transporter.sendMail({
       from: fromAddress,
-      to: [email],
-      subject: "Verify your email — LifeSync Wellness",
+      to: email,
+      subject: "Verifikasi Akun Anda — LifeSync Wellness",
       html: htmlContent,
     });
 
-    if (error) {
-      console.error(
-        "[EmailService] Resend failed to send verification email:",
-        error
-      );
-      verificationAttempts.set(normalizedEmail, {
-        email: normalizedEmail,
-        sent: false,
-        error: error.message || "Gagal mengirim email melalui Resend.",
-        verificationUrl: url,
-        updatedAt: new Date().toISOString(),
-      });
-      return false;
-    }
-
     console.log(
-      `[EmailService] Verification email successfully sent to ${email} (ID: ${data?.id})`
+      `[EmailService] Verification email successfully sent to ${email} via Gmail SMTP (Message ID: ${info.messageId})`
     );
+
     verificationAttempts.set(normalizedEmail, {
       email: normalizedEmail,
       sent: true,
@@ -131,19 +129,24 @@ export async function sendVerificationEmail({
       verificationUrl: url,
       updatedAt: new Date().toISOString(),
     });
+
     return true;
   } catch (err) {
+    const errorMsg =
+      err instanceof Error ? err.message : "Terjadi kesalahan saat mengirim email.";
     console.error(
-      "[EmailService] Exception while sending verification email:",
+      "[EmailService] Gmail SMTP error while sending verification email:",
       err
     );
+
     verificationAttempts.set(normalizedEmail, {
       email: normalizedEmail,
       sent: false,
-      error: err instanceof Error ? err.message : "Terjadi kesalahan saat mengirim email.",
+      error: errorMsg,
       verificationUrl: url,
       updatedAt: new Date().toISOString(),
     });
+
     return false;
   }
 }
@@ -157,17 +160,18 @@ export async function sendPasswordResetEmail({
   name?: string;
   url: string;
 }): Promise<boolean> {
-  if (!resend) {
+  if (!transporter) {
     console.warn(
-      `[EmailService] RESEND_API_KEY is not configured. Reset password URL for ${email}: ${url}`
+      `[EmailService] SMTP is not configured. Reset password URL for ${email}: ${url}`
     );
     return false;
   }
 
   try {
     const displayName = name || email.split("@")[0] || "User";
-    const fromAddress =
-      env.EMAIL_FROM || "LifeSync Wellness <onboarding@resend.dev>";
+    const senderName = env.MAIL_FROM_NAME || "LifeSync Wellness";
+    const senderEmail = env.MAIL_FROM_ADDRESS || env.SMTP_USER;
+    const fromAddress = `"${senderName}" <${senderEmail}>`;
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -194,52 +198,39 @@ export async function sendPasswordResetEmail({
   <div class="container">
     <div class="header">
       <h1>LifeSync Wellness</h1>
-      <p>Password Reset Request</p>
+      <p>Permintaan Reset Kata Sandi</p>
     </div>
     <div class="content">
       <div class="greeting">Hi ${displayName},</div>
       <div class="text">
-        We received a request to reset the password for your LifeSync account. Click the button below to set a new password:
+        Kami menerima permintaan untuk mereset kata sandi akun LifeSync Anda. Klik tombol di bawah ini untuk membuat kata sandi baru:
       </div>
       <div class="btn-container">
-        <a href="${url}" class="btn" target="_blank">Reset Password</a>
+        <a href="${url}" class="btn" target="_blank">Reset Kata Sandi</a>
       </div>
       <div class="fallback">
-        If you did not request a password reset, you can safely ignore this email. Your account remains secure.
+        Tautan ini berlaku selama 1 jam. Jika Anda tidak meminta reset kata sandi, abaikan email ini.
       </div>
-    </div>
-    <div class="footer">
-      This password reset link will expire in 1 hour.
     </div>
   </div>
 </body>
 </html>
     `;
 
-    const { data, error } = await resend.emails.send({
+    const info = await transporter.sendMail({
       from: fromAddress,
-      to: [email],
-      subject: "Reset your password — LifeSync Wellness",
+      to: email,
+      subject: "Reset Kata Sandi — LifeSync Wellness",
       html: htmlContent,
     });
 
-    if (error) {
-      console.error(
-        "[EmailService] Resend failed to send reset password email:",
-        error
-      );
-      return false;
-    }
-
     console.log(
-      `[EmailService] Password reset email sent to ${email} (ID: ${data?.id})`
+      `[EmailService] Password reset email sent to ${email} via Gmail SMTP (${info.messageId})`
     );
+
     return true;
   } catch (err) {
-    console.error(
-      "[EmailService] Exception while sending reset password email:",
-      err
-    );
+    console.error("[EmailService] Gmail SMTP error while sending password reset:", err);
     return false;
   }
 }
