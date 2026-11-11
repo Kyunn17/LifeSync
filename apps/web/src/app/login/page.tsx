@@ -130,9 +130,7 @@ export default function LoginPage() {
 
   const onSubmit = async (values: LoginFormValues) => {
     setServerError(null);
-    setUnverifiedEmail(null);
     setResendStatus(null);
-    setLastPassword(values.password);
     setIsSubmitting(true);
     try {
       const result = await signIn.email({
@@ -149,21 +147,22 @@ export default function LoginPage() {
 
         if (isVerifError) {
           setUnverifiedEmail(values.email);
-          setServerError(
-            t(
-              "Verification email sent! Please check your Gmail inbox (or Spam folder), or click Instant Verify below if no email arrives.",
-              "Email verifikasi telah dikirim! Silakan cek kotak masuk Gmail (atau folder Spam), atau klik 'Verifikasi Instan & Masuk' di bawah jika email tidak masuk."
-            )
-          );
-        } else {
-          setServerError(
-            errorMsg ||
-              t(
-                "Invalid email or password. Please try again.",
-                "Email atau kata sandi salah. Silakan coba lagi."
-              )
-          );
+          setIsSubmitting(false);
+          // Automatically trigger sending a fresh verification email via Gmail SMTP!
+          void authClient.sendVerificationEmail({
+            email: values.email,
+            callbackURL: `${window.location.origin}/dashboard?verified=true`,
+          });
+          return;
         }
+
+        setServerError(
+          errorMsg ||
+            t(
+              "Invalid email or password. Please try again.",
+              "Email atau kata sandi salah. Silakan coba lagi."
+            )
+        );
         setIsSubmitting(false);
         return;
       }
@@ -181,6 +180,127 @@ export default function LoginPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (unverifiedEmail) {
+    return (
+      <div className="bg-background font-body-md text-on-surface antialiased min-h-screen flex flex-col justify-between selection:bg-secondary-container selection:text-on-secondary-container">
+        <header className="fixed top-0 inset-x-0 z-50 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+          <div className="h-16 max-w-7xl mx-auto px-gutter-mobile lg:px-margin flex items-center justify-between">
+            <Link
+              href="/"
+              className="flex items-center gap-3 group transition-transform active:scale-[0.98]"
+            >
+              <img
+                src="/favicon.png"
+                alt="LifeSync Logo"
+                className="w-12 h-12 object-contain group-hover:scale-105 transition-transform shrink-0"
+              />
+              <div className="flex flex-col">
+                <span className="font-headline-sm text-headline-sm tracking-tight text-on-surface leading-none font-bold">
+                  LifeSync
+                </span>
+                <span className="font-label-sm text-label-sm text-secondary tracking-widest uppercase mt-0.5 text-[10px]">
+                  Wellness
+                </span>
+              </div>
+            </Link>
+            <LanguageSwitcher />
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center p-6 pt-28 pb-12">
+          <div className="w-full max-w-lg bg-surface-container-lowest rounded-3xl p-8 sm:p-10 shadow-xl border border-surface-container-high flex flex-col items-center text-center gap-6 animate-in zoom-in-95 duration-200">
+            <div className="w-20 h-20 rounded-3xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-xs">
+              <span className="material-symbols-outlined text-[44px]">
+                mark_email_unread
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="font-label-sm text-label-sm uppercase font-bold tracking-widest text-amber-600">
+                {t("Action Required", "Tindakan Diperlukan")}
+              </span>
+              <h2 className="font-headline-md text-headline-md font-bold text-on-surface tracking-tight">
+                {t("Gmail Verification Required", "Verifikasi Gmail Diperlukan")}
+              </h2>
+              <p className="font-body-md text-body-md text-secondary mt-1">
+                {t(
+                  "Your account is not verified yet. We have sent a verification email to:",
+                  "Akun Anda belum diverifikasi. Kami telah mengirimkan email verifikasi ke:"
+                )}
+              </p>
+              <span className="font-headline-sm text-headline-sm font-bold text-primary break-all">
+                {unverifiedEmail}
+              </span>
+            </div>
+
+            <div className="w-full p-4 rounded-2xl bg-surface-container-low text-left font-body-sm text-body-sm text-secondary flex flex-col gap-2 border border-surface-container-high">
+              <div className="flex items-center gap-2 font-semibold text-on-surface font-label-md text-label-md">
+                <span className="material-symbols-outlined text-[18px] text-primary">
+                  lightbulb
+                </span>
+                <span>{t("What to do next", "Langkah Selanjutnya")}</span>
+              </div>
+              <p>
+                {t(
+                  "1. Open your Gmail inbox and look for an email from LifeSync Wellness.",
+                  "1. Buka kotak masuk Gmail Anda dan cari email dari LifeSync Wellness."
+                )}
+              </p>
+              <p>
+                {t(
+                  "2. Click the 'Verifikasi Akun & Aktifkan' button inside the email.",
+                  "2. Klik tombol 'Verifikasi Akun & Aktifkan' di dalam email."
+                )}
+              </p>
+              <p className="text-outline text-xs">
+                {t(
+                  "* If it doesn't appear in 1-2 minutes, check your Spam / Promotions folder.",
+                  "* Jika belum muncul dalam 1-2 menit, periksa folder Spam atau Promosi."
+                )}
+              </p>
+            </div>
+
+            {resendStatus && (
+              <div className="w-full p-3.5 rounded-2xl bg-secondary-container text-on-secondary-container font-label-md text-label-md font-semibold text-center">
+                {resendStatus}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 w-full pt-2">
+              <button
+                type="button"
+                disabled={isResending}
+                onClick={handleResendLoginVerification}
+                className="w-full py-3.5 rounded-xl bg-primary-container text-on-primary font-label-lg text-label-lg font-bold shadow-md hover:opacity-95 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  send
+                </span>
+                <span>
+                  {isResending
+                    ? t("Sending...", "Mengirim...")
+                    : t("Resend Verification Email", "Kirim Ulang Email Verifikasi")}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setUnverifiedEmail(null)}
+                className="w-full py-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md font-semibold transition-all text-center"
+              >
+                {t("Back to Sign In", "Kembali ke Form Masuk")}
+              </button>
+            </div>
+          </div>
+        </main>
+
+        <footer className="w-full border-t border-surface-container-low py-6 bg-surface text-center font-body-sm text-body-sm text-secondary">
+          LifeSync Wellness &copy; {new Date().getFullYear()}
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background font-body-md text-on-surface antialiased min-h-screen flex flex-col justify-between selection:bg-secondary-container selection:text-on-secondary-container">

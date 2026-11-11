@@ -4,9 +4,7 @@ import { env } from "../config/env";
 export const transporter =
   env.SMTP_USER && env.SMTP_PASS
     ? nodemailer.createTransport({
-        host: env.SMTP_HOST || "smtp.gmail.com",
-        port: env.SMTP_PORT || 587,
-        secure: env.SMTP_SECURE, // true for port 465, false for 587
+        service: "gmail",
         auth: {
           user: env.SMTP_USER,
           pass: env.SMTP_PASS,
@@ -67,7 +65,7 @@ export async function sendVerificationEmail({
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify your LifeSync account</title>
+  <title>Verifikasi Akun LifeSync</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f7faf8; margin: 0; padding: 24px; color: #1e2924; }
     .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(13, 122, 83, 0.06); border: 1px solid #e2ebe6; }
@@ -90,21 +88,21 @@ export async function sendVerificationEmail({
       <p>Daily Balance &amp; Lifestyle Management</p>
     </div>
     <div class="content">
-      <div class="greeting">Hi ${displayName},</div>
+      <div class="greeting">Halo ${displayName},</div>
       <div class="text">
-        Terima kasih telah mendaftar di <strong>LifeSync Wellness</strong>. Untuk menyelesaikan aktivasi akun Anda dan mengakses jadwal harian serta pelacakan kesehatan, silakan klik tombol verifikasi di bawah ini:
+        Terima kasih telah bergabung di <strong>LifeSync Wellness</strong>. Untuk menyelesaikan pendaftaran akun Anda dan mulai mengelola jadwal harian serta kebiasaan sehat, silakan klik tombol verifikasi di bawah ini:
       </div>
       <div class="btn-container">
         <a href="${url}" class="btn" target="_blank">Verifikasi Akun &amp; Aktifkan</a>
       </div>
       <div class="fallback">
-        Jika tombol di atas tidak dapat diklik, salin dan buka tautan berikut di browser Anda:<br>
+        Jika tombol di atas tidak berfungsi, salin dan buka tautan berikut di browser Anda:<br>
         <a href="${url}" style="color: #0d7a53;">${url}</a>
       </div>
     </div>
     <div class="footer">
       Tautan verifikasi ini berlaku selama 24 jam.<br>
-      Jika Anda tidak pernah mendaftar di LifeSync Wellness, abaikan email ini.
+      Jika Anda tidak pernah mendaftar di LifeSync Wellness, Anda bisa mengabaikan email ini.
     </div>
   </div>
 </body>
@@ -179,7 +177,7 @@ export async function sendPasswordResetEmail({
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset your LifeSync password</title>
+  <title>Reset Password LifeSync</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f7faf8; margin: 0; padding: 24px; color: #1e2924; }
     .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(13, 122, 83, 0.06); border: 1px solid #e2ebe6; }
@@ -201,9 +199,9 @@ export async function sendPasswordResetEmail({
       <p>Permintaan Reset Kata Sandi</p>
     </div>
     <div class="content">
-      <div class="greeting">Hi ${displayName},</div>
+      <div class="greeting">Halo ${displayName},</div>
       <div class="text">
-        Kami menerima permintaan untuk mereset kata sandi akun LifeSync Anda. Klik tombol di bawah ini untuk membuat kata sandi baru:
+        Kami menerima permintaan untuk mengatur ulang kata sandi akun LifeSync Anda. Klik tombol di bawah ini:
       </div>
       <div class="btn-container">
         <a href="${url}" class="btn" target="_blank">Reset Kata Sandi</a>

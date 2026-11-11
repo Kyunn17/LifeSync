@@ -235,8 +235,7 @@ export default function RegisterPage() {
         return;
       }
 
-      // Show the dedicated Gmail verification step screen
-      setRegisteredPassword(values.password);
+      // Show the dedicated Gmail verification screen
       setRegisteredEmail(values.email);
     } catch (err) {
       setServerError(
@@ -320,8 +319,8 @@ export default function RegisterPage() {
               </p>
               <p>
                 {t(
-                  "2. Click the 'Verify Email & Activate Account' button.",
-                  "2. Klik tombol 'Verify Email & Activate Account'."
+                  "2. Click the 'Verifikasi Akun & Aktifkan' button.",
+                  "2. Klik tombol 'Verifikasi Akun & Aktifkan' di dalam email."
                 )}
               </p>
               <p className="text-outline text-xs">
@@ -354,25 +353,6 @@ export default function RegisterPage() {
                     : t(
                         "Resend Verification Email",
                         "Kirim Ulang Email Verifikasi"
-                      )}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                disabled={isDirectVerifying}
-                onClick={handleDirectVerifyRegister}
-                className="w-full py-3.5 rounded-xl bg-secondary-container text-on-secondary-container font-label-lg text-label-lg font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 border border-primary/20"
-              >
-                <span className="material-symbols-outlined text-[20px] text-primary">
-                  verified
-                </span>
-                <span>
-                  {isDirectVerifying
-                    ? t("Verifying...", "Memverifikasi...")
-                    : t(
-                        "Instant Verify & Enter Dashboard (If No Email)",
-                        "Verifikasi Instan & Masuk Dasbor (Jika Email Tidak Masuk)"
                       )}
                 </span>
               </button>
