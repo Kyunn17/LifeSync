@@ -481,6 +481,230 @@ export default function DailySchedulePage() {
     openAddModal(startStr, endStr);
   };
 
+  const [applyingTemplate, setApplyingTemplate] = useState<boolean>(false);
+
+  const handleApplyTemplate = async (
+    templateType: "copy-yesterday" | "workday" | "weekend"
+  ) => {
+    if (applyingTemplate) return;
+    setApplyingTemplate(true);
+    try {
+      if (templateType === "copy-yesterday") {
+        const yesterdayIso = shiftIsoDate(selectedDate, -1);
+        const res = await apiFetch<DailyScheduleSummary>(
+          `/api/schedules?date=${yesterdayIso}`
+        );
+        if (!res.success || !res.data?.blocks || res.data.blocks.length === 0) {
+          setActionFeedback(
+            t(
+              "No schedule found on yesterday to copy.",
+              "Tidak ada jadwal kemarin untuk disalin."
+            )
+          );
+          setTimeout(() => setActionFeedback(null), 3500);
+          return;
+        }
+
+        let copied = 0;
+        for (const block of res.data.blocks) {
+          const createRes = await apiFetch("/api/schedules", {
+            method: "POST",
+            body: JSON.stringify({
+              title: block.title,
+              description: block.description,
+              date: selectedDate,
+              startTime: block.startTime,
+              endTime: block.endTime,
+              activityId: block.activityId,
+            }),
+          });
+          if (createRes.success) copied++;
+        }
+
+        await fetchScheduleAndCategories(selectedDate);
+        setActionFeedback(
+          t(
+            `Copied ${copied} schedule blocks from yesterday!`,
+            `Berhasil menyalin ${copied} blok jadwal dari kemarin!`
+          )
+        );
+        setTimeout(() => setActionFeedback(null), 3500);
+        return;
+      }
+
+      // Workday or Weekend Template
+      const findCatId = (slugOrName: string) => {
+        const lower = slugOrName.toLowerCase();
+        const found = categories.find(
+          (c) =>
+            c.slug.toLowerCase().includes(lower) ||
+            c.name.toLowerCase().includes(lower)
+        );
+        return found?.id || categories[0]?.id;
+      };
+
+      const sleepCatId = findCatId("sleep") || categories[0]?.id;
+      const workCatId =
+        findCatId("work") || findCatId("study") || categories[0]?.id;
+      const mealCatId = findCatId("meal") || categories[0]?.id;
+      const exerciseCatId = findCatId("exercise") || categories[0]?.id;
+      const personalCatId =
+        findCatId("personal") || findCatId("rest") || categories[0]?.id;
+
+      const templateBlocks =
+        templateType === "workday"
+          ? [
+              {
+                title: t(
+                  "Morning Routine & Breakfast",
+                  "Rutinitas Pagi & Sarapan"
+                ),
+                startTime: "07:00",
+                endTime: "08:30",
+                activityId: mealCatId,
+              },
+              {
+                title: t(
+                  "Focus Work / Study Block",
+                  "Kerja Fokus / Belajar"
+                ),
+                startTime: "09:00",
+                endTime: "12:00",
+                activityId: workCatId,
+              },
+              {
+                title: t("Lunch Break & Reset", "Makan Siang & Istirahat"),
+                startTime: "12:00",
+                endTime: "13:00",
+                activityId: mealCatId,
+              },
+              {
+                title: t(
+                  "Afternoon Tasks & Meetings",
+                  "Pekerjaan Sore & Diskusi"
+                ),
+                startTime: "13:30",
+                endTime: "17:00",
+                activityId: workCatId,
+              },
+              {
+                title: t("Workout & Movement", "Olahraga & Jalan Santai"),
+                startTime: "17:30",
+                endTime: "18:30",
+                activityId: exerciseCatId,
+              },
+              {
+                title: t(
+                  "Dinner & Evening Wind Down",
+                  "Makan Malam & Relaksasi"
+                ),
+                startTime: "19:00",
+                endTime: "20:30",
+                activityId: personalCatId,
+              },
+              {
+                title: t("Restful Night Sleep", "Tidur Malam Berkualitas"),
+                startTime: "22:30",
+                endTime: "06:30",
+                activityId: sleepCatId,
+              },
+            ]
+          : [
+              {
+                title: t(
+                  "Relaxed Morning & Breakfast",
+                  "Pagi Santai & Sarapan"
+                ),
+                startTime: "08:00",
+                endTime: "09:30",
+                activityId: mealCatId,
+              },
+              {
+                title: t(
+                  "Outdoor Activity & Walk",
+                  "Jalan Santai & Udara Segar"
+                ),
+                startTime: "10:00",
+                endTime: "11:30",
+                activityId: exerciseCatId,
+              },
+              {
+                title: t(
+                  "Lunch & Social Time",
+                  "Makan Siang & Waktu Bersama"
+                ),
+                startTime: "12:30",
+                endTime: "14:00",
+                activityId: mealCatId,
+              },
+              {
+                title: t(
+                  "Hobbies & Creative Time",
+                  "Hobi & Waktu Pribadi"
+                ),
+                startTime: "14:30",
+                endTime: "17:30",
+                activityId: personalCatId,
+              },
+              {
+                title: t(
+                  "Family Dinner & Entertainment",
+                  "Makan Malam & Hiburan"
+                ),
+                startTime: "19:00",
+                endTime: "21:00",
+                activityId: personalCatId,
+              },
+              {
+                title: t(
+                  "Weekend Sleep & Recovery",
+                  "Tidur & Pemulihan Akhir Pekan"
+                ),
+                startTime: "23:00",
+                endTime: "07:30",
+                activityId: sleepCatId,
+              },
+            ];
+
+      let added = 0;
+      for (const block of templateBlocks) {
+        if (!block.activityId) continue;
+        const createRes = await apiFetch("/api/schedules", {
+          method: "POST",
+          body: JSON.stringify({
+            title: block.title,
+            description: null,
+            date: selectedDate,
+            startTime: block.startTime,
+            endTime: block.endTime,
+            activityId: block.activityId,
+          }),
+        });
+        if (createRes.success) added++;
+      }
+
+      await fetchScheduleAndCategories(selectedDate);
+      setActionFeedback(
+        t(
+          `Applied ${
+            templateType === "workday" ? "Workday" : "Weekend"
+          } template (${added} blocks)!`,
+          `Template ${
+            templateType === "workday" ? "Hari Kerja" : "Akhir Pekan"
+          } berhasil diterapkan (${added} blok)!`
+        )
+      );
+      setTimeout(() => setActionFeedback(null), 3500);
+    } catch {
+      setActionFeedback(
+        t("Failed to apply template.", "Gagal menerapkan template.")
+      );
+      setTimeout(() => setActionFeedback(null), 3500);
+    } finally {
+      setApplyingTemplate(false);
+    }
+  };
+
   const filteredBlocks = useMemo(() => {
     const raw = scheduleData?.blocks ?? [];
     const byCategory =
@@ -739,6 +963,55 @@ export default function DailySchedulePage() {
               )}
             </div>
 
+            {/* 1-Click Starter Templates */}
+            <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl shadow-2xs">
+              <button
+                type="button"
+                disabled={applyingTemplate}
+                onClick={() => handleApplyTemplate("copy-yesterday")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-label-md text-label-md transition-all disabled:opacity-50 shadow-2xs"
+                title={t(
+                  "Copy all activities from yesterday",
+                  "Salin semua kegiatan dari kemarin"
+                )}
+              >
+                <span className="material-symbols-outlined text-[16px] text-primary">
+                  content_copy
+                </span>
+                <span>{t("Copy Yesterday", "Salin Kemarin")}</span>
+              </button>
+              <button
+                type="button"
+                disabled={applyingTemplate}
+                onClick={() => handleApplyTemplate("workday")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-label-md text-label-md transition-all disabled:opacity-50 shadow-2xs"
+                title={t(
+                  "Fill day with standard workday routine",
+                  "Terapkan rutinitas hari kerja teratur"
+                )}
+              >
+                <span className="material-symbols-outlined text-[16px] text-primary">
+                  work
+                </span>
+                <span>{t("Workday", "Hari Kerja")}</span>
+              </button>
+              <button
+                type="button"
+                disabled={applyingTemplate}
+                onClick={() => handleApplyTemplate("weekend")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-label-md text-label-md transition-all disabled:opacity-50 shadow-2xs"
+                title={t(
+                  "Fill day with relaxing weekend routine",
+                  "Terapkan rutinitas santai akhir pekan"
+                )}
+              >
+                <span className="material-symbols-outlined text-[16px] text-primary">
+                  weekend
+                </span>
+                <span>{t("Weekend", "Akhir Pekan")}</span>
+              </button>
+            </div>
+
             {/* Auto-Balance / Fill Open Window Action */}
             <button
               type="button"
@@ -773,7 +1046,7 @@ export default function DailySchedulePage() {
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-3">
                 <span className="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-tight">
-                  {t("24-Hour Circadian Ribbon", "Pita Sirkadian 24 Jam")}
+                  {t("24-Hour Daily Timeline", "Garis Waktu Harian 24 Jam")}
                 </span>
                 <span className="font-label-sm text-label-sm px-2.5 py-0.5 bg-surface-container-low text-secondary font-semibold uppercase tracking-wider rounded-full">
                   {scheduleData?.allocatedPercentage ?? 0}%{" "}

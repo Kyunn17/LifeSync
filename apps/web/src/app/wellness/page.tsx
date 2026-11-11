@@ -57,16 +57,16 @@ interface WellnessTipItem {
 
 const MOOD_META: Record<
   MoodType,
-  { emoji: string; clarityScore: number; stressScore: number }
+  { emoji: string; energyDefault: number }
 > = {
-  Peaceful: { emoji: "🌱", clarityScore: 4.8, stressScore: 14 },
-  Motivated: { emoji: "⚡", clarityScore: 4.7, stressScore: 20 },
-  Calm: { emoji: "🌊", clarityScore: 4.5, stressScore: 18 },
-  Focused: { emoji: "🎯", clarityScore: 4.6, stressScore: 22 },
-  Vibrant: { emoji: "✨", clarityScore: 4.9, stressScore: 15 },
-  Steady: { emoji: "🍃", clarityScore: 4.2, stressScore: 26 },
-  Fatigued: { emoji: "☁️", clarityScore: 3.1, stressScore: 54 },
-  Restless: { emoji: "🌀", clarityScore: 2.9, stressScore: 68 },
+  Peaceful: { emoji: "🌱", energyDefault: 75 },
+  Motivated: { emoji: "⚡", energyDefault: 95 },
+  Calm: { emoji: "🌊", energyDefault: 70 },
+  Focused: { emoji: "🎯", energyDefault: 88 },
+  Vibrant: { emoji: "✨", energyDefault: 90 },
+  Steady: { emoji: "🍃", energyDefault: 72 },
+  Fatigued: { emoji: "☁️", energyDefault: 40 },
+  Restless: { emoji: "🌀", energyDefault: 50 },
 };
 
 function getTodayIsoDate(): string {
@@ -324,8 +324,7 @@ export default function WellnessTrackingPage() {
         todayWaterLiters: waterLiters.toFixed(2),
         waterGoalPct: Math.min(100, Math.round((waterLiters / 2.5) * 100)),
         latestMood: selectedMood,
-        clarityIndex: moodInfo.clarityScore.toFixed(1),
-        stressScore: moodInfo.stressScore,
+        energyLevel: Math.round(energyLevel) || moodInfo.energyDefault,
         restingHr,
       };
     }
@@ -357,8 +356,7 @@ export default function WellnessTrackingPage() {
       todayWaterLiters: waterL.toFixed(1),
       waterGoalPct: Math.min(100, Math.round((waterL / 2.5) * 100)),
       latestMood: latest.mood,
-      clarityIndex: moodInfo.clarityScore.toFixed(1),
-      stressScore: moodInfo.stressScore,
+      energyLevel: latest.energyLevel ?? moodInfo.energyDefault,
       restingHr: latest.restingHeartRate ?? 58,
     };
   }, [
@@ -368,6 +366,7 @@ export default function WellnessTrackingPage() {
     dailySteps,
     waterLiters,
     selectedMood,
+    energyLevel,
     restingHr,
   ]);
 
@@ -691,7 +690,7 @@ export default function WellnessTrackingPage() {
             </div>
           </div>
 
-          {/* Card 4: Mood & Mental Clarity */}
+          {/* Card 4: Mood & Daily Energy */}
           <div className="group relative overflow-hidden bg-surface-container-lowest rounded-2xl p-5 shadow-[0_4px_24px_rgba(15,56,42,0.04)] transition-all hover:shadow-[0_8px_30px_rgba(15,56,42,0.07)] flex flex-col justify-between">
             <div className="flex items-start justify-between">
               <div className="w-10 h-10 rounded-xl bg-secondary-container/40 flex items-center justify-center text-primary">
@@ -706,28 +705,20 @@ export default function WellnessTrackingPage() {
             </div>
             <div className="mt-4">
               <span className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-                {t("Clarity Index", "Indeks Kejernihan")}
+                {t("Energy Level", "Tingkat Energi")}
               </span>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">
-                  {summaryMetrics.clarityIndex}
-                </span>
-                <span className="font-body-sm text-body-sm text-on-surface-variant">
-                  / 5.0
+                  {summaryMetrics.energyLevel}%
                 </span>
               </div>
               <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-surface-container-low">
                 <span className="w-2 h-2 rounded-full bg-primary-container" />
                 <span className="font-label-md text-label-md text-on-surface-variant">
-                  {t("Stress metric", "Metrik stres")}:{" "}
+                  {t("State", "Kondisi")}:{" "}
                   <strong className="text-on-surface font-semibold">
-                    {summaryMetrics.stressScore}/100
-                  </strong>{" "}
-                  (
-                  {summaryMetrics.stressScore <= 30
-                    ? t("Low", "Rendah")
-                    : t("Moderate", "Sedang")}
-                  )
+                    {translateMood(summaryMetrics.latestMood)}
+                  </strong>
                 </span>
               </div>
             </div>
@@ -747,7 +738,7 @@ export default function WellnessTrackingPage() {
             </div>
             <div className="mt-4">
               <span className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">
-                {t("Resting HR", "Detak Jantung Istirahat")}
+                {t("Resting Heart Rate", "Detak Jantung Istirahat")}
               </span>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">
@@ -761,7 +752,7 @@ export default function WellnessTrackingPage() {
                 <span className="material-symbols-outlined text-[16px] text-primary">
                   verified
                 </span>
-                <span>{t("Sympathetic calm", "Ketenangan simpatik")}</span>
+                <span>{t("Relaxed & Steady", "Rileks & Stabil")}</span>
               </div>
             </div>
           </div>
@@ -1512,14 +1503,21 @@ export default function WellnessTrackingPage() {
               </div>
               <div>
                 <span className="font-label-sm text-label-sm uppercase font-semibold text-secondary">
-                  {tips[0]?.category || "Circadian Reset"}
+                  {tips[0]?.category || t("Morning Energy", "Energi Pagi")}
                 </span>
                 <h4 className="font-headline-sm text-headline-sm font-bold text-on-surface mt-0.5">
-                  {tips[0]?.title || "Morning Photon Exposure"}
+                  {tips[0]?.title ||
+                    t(
+                      "Morning Sunshine & Fresh Air",
+                      "Sinar Matahari Pagi & Udara Segar"
+                    )}
                 </h4>
                 <p className="font-body-sm text-body-sm text-on-surface-variant mt-2">
                   {tips[0]?.content ||
-                    "Target 15 mins of outdoor natural light within 45 minutes of wake-up to cement your cortisol peak and sleep onset tonight."}
+                    t(
+                      "Enjoy 15 minutes of outdoor light in the morning to feel energized and help you sleep well tonight.",
+                      "Nikmati 15 menit sinar matahari pagi agar lebih bersemangat dan tidur lebih nyenyak malam nanti."
+                    )}
                 </p>
               </div>
             </div>
@@ -1609,10 +1607,10 @@ export default function WellnessTrackingPage() {
                   </div>
                   <div>
                     <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                      Log Health Habits
+                      {t("Log Daily Habits", "Catat Kebiasaan Harian")}
                     </h3>
                     <p className="font-body-sm text-body-sm text-on-surface-variant">
-                      Real-time biometric sync active
+                      {t("Simple daily check-in", "Pencatatan harian sederhana")}
                     </p>
                   </div>
                 </div>
@@ -1628,7 +1626,7 @@ export default function WellnessTrackingPage() {
               <div className="mt-6 space-y-6">
                 <div>
                   <label className="font-label-md text-label-md font-semibold text-on-surface block mb-2">
-                    Step Count (Today)
+                    {t("Step Count (Today)", "Jumlah Langkah (Hari Ini)")}
                   </label>
                   <div className="flex items-center gap-3">
                     <input
@@ -1640,14 +1638,14 @@ export default function WellnessTrackingPage() {
                       className="w-full px-4 py-3 rounded-xl bg-surface-container-low text-on-surface font-headline-sm text-headline-sm font-bold outline-none border border-transparent focus:border-primary transition"
                     />
                     <span className="font-label-md text-label-md text-on-surface-variant font-medium">
-                      Steps
+                      {t("Steps", "Langkah")}
                     </span>
                   </div>
                 </div>
 
                 <div>
                   <label className="font-label-md text-label-md font-semibold text-on-surface block mb-2">
-                    Quick Add Hydration
+                    {t("Quick Add Water", "Tambah Minum Air Cepat")}
                   </label>
                   <div className="grid grid-cols-4 gap-2">
                     {[250, 500, 750, 1000].map((amt) => (
@@ -1670,7 +1668,7 @@ export default function WellnessTrackingPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="font-label-md text-label-md font-semibold text-on-surface block mb-2">
-                      Resting HR (BPM)
+                      {t("Resting HR (BPM)", "Detak Jantung (BPM)")}
                     </label>
                     <input
                       type="number"
@@ -1685,7 +1683,7 @@ export default function WellnessTrackingPage() {
                   </div>
                   <div>
                     <label className="font-label-md text-label-md font-semibold text-on-surface block mb-2">
-                      Exercise (Mins)
+                      {t("Exercise (Mins)", "Olahraga (Menit)")}
                     </label>
                     <input
                       type="number"
@@ -1702,30 +1700,31 @@ export default function WellnessTrackingPage() {
 
                 <div>
                   <label className="font-label-md text-label-md font-semibold text-on-surface block mb-2">
-                    Stress Calibration
+                    {t("Current Mood & Feeling", "Suasana Hati & Perasaan")}
                   </label>
                   <div className="flex justify-between items-center p-3 rounded-xl bg-surface-container-low">
-                    <span className="font-body-sm text-body-sm text-on-surface-variant">
-                      Autonomous State ({selectedMood})
+                    <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1.5">
+                      <span>{MOOD_META[selectedMood]?.emoji}</span>
+                      <span>{translateMood(selectedMood)}</span>
                     </span>
-                    <span className="font-label-lg text-label-lg font-bold text-primary">
-                      {MOOD_META[selectedMood].stressScore <= 25
-                        ? "Very Low"
-                        : "Moderate"}{" "}
-                      ({MOOD_META[selectedMood].stressScore}/100)
+                    <span className="font-label-md text-label-md font-bold text-primary">
+                      {Math.round(energyLevel)}% {t("energy", "energi")}
                     </span>
                   </div>
                 </div>
 
                 <div>
                   <label className="font-label-md text-label-md font-semibold text-on-surface block mb-2">
-                    Daily Notes &amp; Observations
+                    {t("Daily Notes & Reflections", "Catatan Harian & Refleksi")}
                   </label>
                   <textarea
                     rows={3}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Notes on sleep clarity, meals, or physical sensations..."
+                    placeholder={t(
+                      "Notes on how you felt today, meals, or thoughts...",
+                      "Catatan perasaan hari ini, makanan, atau refleksi santai..."
+                    )}
                     className="w-full p-3.5 rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm outline-none resize-none placeholder:text-outline"
                   />
                 </div>

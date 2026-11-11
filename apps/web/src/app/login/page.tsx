@@ -89,7 +89,7 @@ export default function LoginPage() {
                 LifeSync
               </span>
               <span className="font-label-sm text-label-sm text-secondary tracking-widest uppercase mt-0.5">
-                {t("Digital Vitality", "Vitalitas Digital")}
+                {t("Daily Lifestyle", "Gaya Hidup Sehat")}
               </span>
             </div>
           </Link>
@@ -97,13 +97,10 @@ export default function LoginPage() {
             <LanguageSwitcher />
             <div className="hidden sm:flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-container-low text-secondary">
               <span className="material-symbols-outlined text-[16px] text-primary">
-                verified_user
+                lock
               </span>
               <span className="font-label-sm text-label-sm text-on-surface-variant font-medium">
-                {t(
-                  "HIPAA & ISO 27001 Verified",
-                  "Terverifikasi HIPAA & ISO 27001"
-                )}
+                {t("Private & Secure", "Aman & Terjaga Privasi")}
               </span>
             </div>
             <Link
@@ -133,7 +130,7 @@ export default function LoginPage() {
                 eco
               </span>
               <span className="font-label-md text-label-md text-on-secondary-fixed-variant">
-                {t("Welcome back to balance", "Selamat datang kembali")}
+                {t("Welcome back to your daily routine", "Selamat datang kembali di rutinitas Anda")}
               </span>
             </div>
 
@@ -152,8 +149,8 @@ export default function LoginPage() {
                 </h1>
                 <p className="font-body-md text-body-md text-on-surface-variant mt-1 max-w-sm">
                   {t(
-                    "Resume your 24-hour circadian and lifestyle rhythm.",
-                    "Lanjutkan ritme sirkadian dan gaya hidup 24 jam Anda."
+                    "Track your 24 hours, sleep well, and build healthy daily habits.",
+                    "Atur 24 jam Anda, tidur cukup, dan bangun kebiasaan harian yang baik."
                   )}
                 </p>
               </div>
@@ -177,10 +174,7 @@ export default function LoginPage() {
                     className="font-label-md text-label-md text-on-surface font-medium flex items-center justify-between"
                   >
                     <span>
-                      {t("Work or Personal Email", "Email Kerja atau Pribadi")}
-                    </span>
-                    <span className="font-label-sm text-label-sm text-secondary font-normal">
-                      {t("Encrypted", "Terenkripsi")}
+                      {t("Email Address", "Alamat Email")}
                     </span>
                   </label>
                   <div className="relative flex items-center">
@@ -190,7 +184,7 @@ export default function LoginPage() {
                     <input
                       id="email-input"
                       type="email"
-                      placeholder="elena@circadianlife.io"
+                      placeholder="name@example.com"
                       {...register("email")}
                       className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-surface-container-low text-on-surface placeholder:text-outline-variant font-body-md text-body-md transition-all focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 focus:shadow-sm"
                     />
@@ -257,8 +251,8 @@ export default function LoginPage() {
                     </div>
                     <span className="font-label-md text-label-md text-on-surface-variant font-normal">
                       {t(
-                        "Remember device (7 days)",
-                        "Ingat perangkat ini (7 hari)"
+                        "Remember me on this device",
+                        "Ingat saya di perangkat ini"
                       )}
                     </span>
                   </label>
@@ -272,7 +266,7 @@ export default function LoginPage() {
                   <span>
                     {isSubmitting
                       ? t("Signing in...", "Sedang masuk...")
-                      : t("Sign In to LifeSync", "Masuk ke LifeSync")}
+                      : t("Sign In", "Masuk")}
                   </span>
                   <span className="material-symbols-outlined text-[18px]">
                     arrow_forward
@@ -283,26 +277,15 @@ export default function LoginPage() {
               <div className="mt-space-lg pt-space-md flex flex-col items-center gap-space-sm text-center">
                 <div className="font-body-sm text-body-sm text-on-surface-variant">
                   {t(
-                    "Don't have a LifeSync account yet?",
-                    "Belum memiliki akun LifeSync?"
+                    "Don't have an account yet?",
+                    "Belum punya akun?"
                   )}{" "}
                   <Link
                     href="/register"
                     className="text-primary font-semibold hover:underline ml-1"
                   >
-                    {t("Create your account", "Buat akun sekarang")}
+                    {t("Create your account", "Daftar sekarang")}
                   </Link>
-                </div>
-                <div className="flex items-center justify-center gap-space-xs px-space-md py-1 rounded-full bg-surface-container-low text-outline text-[12px]">
-                  <span className="material-symbols-outlined text-[14px] text-primary">
-                    shield
-                  </span>
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">
-                    {t(
-                      "256-bit encrypted • Sovereign Health Telemetry",
-                      "Enkripsi 256-bit • Telemetri Kesehatan Pribadi"
-                    )}
-                  </span>
                 </div>
               </div>
             </div>
@@ -310,17 +293,17 @@ export default function LoginPage() {
             <div className="mt-space-lg max-w-md text-center flex flex-col items-center gap-space-xs">
               <div className="flex items-center gap-1.5 text-secondary">
                 <span className="material-symbols-outlined text-[16px]">
-                  self_improvement
+                  favorite
                 </span>
                 <span className="font-label-sm text-label-sm tracking-wide uppercase font-semibold">
-                  {t("Circadian Principle", "Prinsip Sirkadian")}
+                  {t("Daily Balance Principle", "Prinsip Hidup Sehat")}
                 </span>
               </div>
               <blockquote className="font-body-md text-body-md italic text-on-surface-variant">
                 &ldquo;
                 {t(
-                  "A harmonized day begins with mindful awareness.",
-                  "Hari yang harmonis dimulai dengan kesadaran penuh."
+                  "A healthy, energized day begins with a mindful, well-paced routine.",
+                  "Hari yang sehat dan bertenaga dimulai dari rutinitas yang teratur dan penuh kesadaran."
                 )}
                 &rdquo;
               </blockquote>
@@ -333,21 +316,21 @@ export default function LoginPage() {
         <div className="max-w-7xl mx-auto px-gutter-mobile lg:px-margin flex flex-col sm:flex-row items-center justify-between gap-space-sm font-label-sm text-label-sm text-on-surface-variant">
           <div className="flex items-center gap-space-xs">
             <span className="material-symbols-outlined text-[14px] text-primary">
-              lock
+              check_circle
             </span>
             <span>
               {t(
-                "End-to-End Encrypted Health Profile",
-                "Profil Kesehatan Terenkripsi Ujung-ke-Ujung"
+                "Your Personal Data is Kept Safe & Private",
+                "Data Pribadi Anda Aman & Terlindungi"
               )}
             </span>
           </div>
           <div className="flex items-center gap-space-md">
-            <span>{t("Privacy Notice", "Kebijakan Privasi")}</span>
+            <span>{t("Privacy Policy", "Kebijakan Privasi")}</span>
             <span className="text-outline-variant">•</span>
-            <span>{t("Clinical Standards", "Standar Klinis")}</span>
+            <span>{t("Terms of Use", "Syarat Penggunaan")}</span>
             <span className="text-outline-variant">•</span>
-            <span>© 2026 LifeSync Health</span>
+            <span>© 2026 LifeSync</span>
           </div>
         </div>
       </footer>

@@ -140,11 +140,35 @@ export default function DashboardPage() {
   const [selectedPreset, setSelectedPreset] =
     useState<EnergyPreset>("Vibrant");
   const [reflectionText, setReflectionText] = useState<string>("");
-  const [syncSleepPrediction, setSyncSleepPrediction] =
-    useState<boolean>(true);
   const [submittingCheckin, setSubmittingCheckin] = useState<boolean>(false);
   const [checkinSavedBanner, setCheckinSavedBanner] = useState<boolean>(false);
-  const [telemetryToast, setTelemetryToast] = useState<string | null>(null);
+
+  // Relaxing / Focus Breathing Timer
+  const [breathingActive, setBreathingActive] = useState<boolean>(false);
+  const [breathingPhase, setBreathingPhase] = useState<
+    "Inhale" | "Hold" | "Exhale" | "Rest"
+  >("Inhale");
+  const [breathingSecondsLeft, setBreathingSecondsLeft] = useState<number>(60);
+
+  useEffect(() => {
+    if (!breathingActive) return;
+    const interval = setInterval(() => {
+      setBreathingSecondsLeft((sec) => {
+        if (sec <= 1) {
+          setBreathingActive(false);
+          return 60;
+        }
+        const elapsed = 60 - sec + 1;
+        const cyclePos = elapsed % 16;
+        if (cyclePos < 4) setBreathingPhase("Inhale");
+        else if (cyclePos < 8) setBreathingPhase("Hold");
+        else if (cyclePos < 12) setBreathingPhase("Exhale");
+        else setBreathingPhase("Rest");
+        return sec - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [breathingActive]);
 
   const greetingText = useMemo(() => {
     const hour = new Date().getHours();
@@ -196,7 +220,6 @@ export default function DashboardPage() {
           mood: mapped.mood,
           energyLevel: mapped.energyLevel,
           reflection: reflectionText.trim() || null,
-          syncSleepPrediction,
         }),
       });
       if (res.success) {
@@ -292,18 +315,81 @@ export default function DashboardPage() {
     minute: "2-digit",
   }).format(new Date());
 
+  const dailyHabits = useMemo(() => {
+    const sleepTarget = analytics?.goals.dailySleepGoalMinutes ?? 420;
+    const sleepMinutes = analytics?.wellness.sleepMinutes ?? 0;
+    const waterTarget = analytics?.goals.dailyWaterGoalMl ?? 2000;
+    const waterIntake = analytics?.wellness.waterIntakeMl ?? 0;
+    const stepsTarget = analytics?.goals.dailyStepsGoal ?? 8000;
+    const steps = analytics?.wellness.dailySteps ?? 0;
+    const exerciseMinutes = analytics?.wellness.exerciseMinutes ?? 0;
+    const scheduleCount = analytics?.schedule.blocks.length ?? 0;
+    const hasReflected = Boolean(
+      analytics?.wellness.mood ||
+        (analytics?.recentCheckins && analytics.recentCheckins.length > 0)
+    );
+
+    return [
+      {
+        id: "sleep",
+        label: t("Restful Sleep (7+ hrs)", "Tidur Cukup (7+ jam)"),
+        done: sleepMinutes >= sleepTarget * 0.9,
+        detail: `${Math.round(sleepMinutes / 60)}h / ${Math.round(sleepTarget / 60)}h`,
+        icon: "bedtime",
+        href: "/wellness",
+      },
+      {
+        id: "water",
+        label: t("Daily Hydration Target", "Target Minum Air"),
+        done: waterIntake >= waterTarget,
+        detail: `${waterIntake} / ${waterTarget} ml`,
+        icon: "water_drop",
+        href: "/wellness",
+      },
+      {
+        id: "movement",
+        label: t("Movement / Exercise", "Aktivitas / Olahraga"),
+        done: exerciseMinutes >= 20 || steps >= 5000,
+        detail:
+          exerciseMinutes > 0
+            ? `${exerciseMinutes}m ${t("workout", "olahraga")}`
+            : `${steps} ${t("steps", "langkah")}`,
+        icon: "directions_run",
+        href: "/wellness",
+      },
+      {
+        id: "schedule",
+        label: t("Plan 24h Activities", "Susun Jadwal 24 Jam"),
+        done: scheduleCount >= 2,
+        detail: `${scheduleCount} ${t("blocks planned", "kegiatan dibuat")}`,
+        icon: "calendar_today",
+        href: "/schedule",
+      },
+      {
+        id: "reflection",
+        label: t("Daily Mood & Reflection", "Refleksi Suasana Hati"),
+        done: hasReflected,
+        detail: hasReflected ? t("Logged", "Tercatat") : t("Pending", "Belum"),
+        icon: "mood",
+        href: "#mind-reflection",
+      },
+    ];
+  }, [analytics, t]);
+
+  const completedHabitsCount = dailyHabits.filter((h) => h.done).length;
+
   return (
     <AppShell
       onQuickLogClick={() => router.push("/schedule")}
       balanceScore={effectiveBalanceScore}
     >
       <div className="flex flex-col gap-8 w-full">
-        {/* Top Greeting & Biometric Pulse Strip */}
+        {/* Top Greeting Strip */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pt-2">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <span className="font-label-sm text-label-sm uppercase tracking-widest text-primary font-bold">
-                {t("Circadian Sync active", "Sinkronisasi Sirkadian Aktif")}
+                {t("Daily Routine Active", "Rutinitas Harian Aktif")}
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
             </div>
@@ -319,8 +405,8 @@ export default function DashboardPage() {
                 {t("unallocated", "waktu luang")}
               </span>{" "}
               {t(
-                "today. Your circadian cycle indicates optimum mental clarity through early afternoon.",
-                "hari ini. Siklus sirkadian Anda menunjukkan kejernihan mental optimal hingga sore hari."
+                "today. Plan your hours comfortably to keep your day balanced and relaxed.",
+                "hari ini. Atur waktu Anda dengan nyaman agar hari tetap seimbang dan teratur."
               )}
             </p>
           </div>
@@ -335,7 +421,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="font-label-sm text-label-sm text-secondary uppercase font-semibold">
-                  {t("Vitality Pulse", "Denyut Vitalitas")}
+                  {t("Energy Level", "Tingkat Energi")}
                 </div>
                 <div className="font-headline-sm text-headline-sm text-on-surface">
                   {vitalityPulse}%{" "}
@@ -401,8 +487,8 @@ export default function DashboardPage() {
                 {analytics?.tips[0]?.content ?? (
                   <>
                     {t(
-                      "You register deeper REM & Stage 3 restorative sleep on consecutive days when evening meals conclude before 7:30 PM.",
-                      "Anda mencatat tidur restoratif REM & Tahap 3 yang lebih dalam saat makan malam selesai sebelum pukul 19:30."
+                      "Having dinner 2-3 hours before bed helps you fall asleep faster and wake up refreshed.",
+                      "Makan malam 2-3 jam sebelum tidur membantu Anda tidur lebih cepat dan bangun lebih segar."
                     )}
                   </>
                 )}
@@ -437,7 +523,7 @@ export default function DashboardPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm uppercase font-bold tracking-wider text-secondary">
-                  {t("Stewardship Architecture", "Arsitektur Manajemen Waktu")}
+                  {t("Daily Time Allocation", "Alokasi Waktu Harian")}
                 </span>
                 <h2 className="font-headline-md text-headline-md text-on-surface font-semibold tracking-tight">
                   {t(
@@ -691,147 +777,177 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Column: Visual Mood / Wellness Snapshot */}
+          {/* Right Column: Daily Habits Checklist & Interactive Breathing Timer */}
           <div className="xl:col-span-4 flex flex-col gap-6">
-            {/* Circadian State Card */}
-            <div className="bg-surface-container-lowest rounded-3xl overflow-hidden shadow-sm flex flex-col">
-              <div className="relative h-44 w-full overflow-hidden bg-gradient-to-br from-primary via-primary-container to-secondary flex items-end p-6">
-                <div className="absolute top-4 left-4 bg-surface-container-lowest/90 backdrop-blur-md px-3 py-1 rounded-full text-primary font-label-sm text-label-sm font-bold shadow-xs">
-                  {t("Natural Daylight Cycle", "Siklus Cahaya Alami")}
-                </div>
-                <div className="text-on-primary">
-                  <span className="material-symbols-outlined text-[36px] text-primary-fixed">
-                    wb_sunny
+            {/* Daily Habit Goals & Streak Card */}
+            <div className="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col gap-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-label-sm text-label-sm uppercase font-bold tracking-wider text-secondary">
+                    {t("Daily Habits", "Kebiasaan Harian")}
                   </span>
-                  <p className="font-label-md text-label-md text-primary-fixed uppercase tracking-wider mt-1">
-                    {t("Biophilic Equilibrium", "Keseimbangan Biofilik")}
-                  </p>
+                  <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                    {t("Today's Progress", "Kemajuan Hari Ini")}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary-container rounded-full text-primary font-label-sm text-label-sm font-bold shadow-2xs">
+                  <span>🔥</span>
+                  <span>
+                    5 {t("Day Streak", "Hari Beruntun")}
+                  </span>
                 </div>
               </div>
 
-              <div className="p-6 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-headline-sm text-headline-sm font-semibold text-on-surface">
-                    {t("Circadian State", "Kondisi Sirkadian")}
+              {/* Progress Bar */}
+              <div>
+                <div className="flex items-center justify-between font-label-sm text-label-sm mb-1.5">
+                  <span className="text-secondary font-medium">
+                    {completedHabitsCount} {t("of", "dari")} {dailyHabits.length}{" "}
+                    {t("habits completed", "kebiasaan selesai")}
                   </span>
-                  <span className="px-2.5 py-1 rounded-full bg-secondary-container text-primary font-label-sm text-label-sm font-bold">
-                    {t("Synchronized", "Tersinkronisasi")}
-                  </span>
-                </div>
-                <p className="font-body-md text-body-md text-secondary">
-                  {t(
-                    "Scheduling a 15-minute outdoor daylight walk between deep focus blocks preserves evening melatonin onset.",
-                    "Menjadwalkan jalan kaki 15 menit di bawah sinar matahari di sela blok kerja fokus menjaga produksi melatonin malam hari."
-                  )}
-                </p>
-                <div className="pt-2 flex items-center justify-between border-t border-surface-container-low">
-                  <span className="font-label-md text-label-md text-on-surface font-medium">
-                    {t("Target Sleep Onset", "Target Waktu Tidur")}
-                  </span>
-                  <span className="font-label-md text-label-md text-primary font-bold">
-                    {analytics?.goals.targetSleepTime || "22:30"}
+                  <span className="text-primary font-bold">
+                    {Math.round((completedHabitsCount / dailyHabits.length) * 100)}%
                   </span>
                 </div>
+                <div className="w-full h-2 rounded-full bg-surface-container-low overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500"
+                    style={{
+                      width: `${(completedHabitsCount / dailyHabits.length) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Habit Items */}
+              <div className="flex flex-col gap-2.5">
+                {dailyHabits.map((habit) => (
+                  <Link
+                    key={habit.id}
+                    href={habit.href}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`material-symbols-outlined text-[20px] ${
+                          habit.done ? "text-primary" : "text-outline"
+                        }`}
+                      >
+                        {habit.done ? "check_circle" : "radio_button_unchecked"}
+                      </span>
+                      <div className="flex flex-col">
+                        <span
+                          className={`font-label-md text-label-md font-semibold ${
+                            habit.done
+                              ? "text-on-surface line-through decoration-secondary/50"
+                              : "text-on-surface"
+                          }`}
+                        >
+                          {habit.label}
+                        </span>
+                        <span className="font-body-sm text-body-sm text-secondary">
+                          {habit.detail}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-[18px] text-outline group-hover:text-primary group-hover:translate-x-0.5 transition-all">
+                      chevron_right
+                    </span>
+                  </Link>
+                ))}
               </div>
             </div>
 
-            {/* Quick Telemetry Tile */}
-            <div className="bg-surface-container-low rounded-3xl p-6 flex flex-col gap-4 shadow-sm">
+            {/* Interactive Relaxation & Focus Breathing Timer Card */}
+            <div className="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col gap-5 relative overflow-hidden">
               <div className="flex items-center justify-between">
-                <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-                  {t("Quick Telemetry", "Telemetri Cepat")}
-                </h3>
-                <span className="material-symbols-outlined text-secondary">
-                  sensors
-                </span>
-              </div>
-
-              {telemetryToast && (
-                <div className="px-3 py-2 rounded-xl bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-semibold">
-                  {telemetryToast}
+                <div>
+                  <span className="font-label-sm text-label-sm uppercase font-bold tracking-wider text-secondary">
+                    {t("Mindfulness & Calm", "Ketenangan & Fokus")}
+                  </span>
+                  <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                    {t("Box Breathing Timer", "Timer Pernapasan Kotak")}
+                  </h3>
                 </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTelemetryToast(
-                      t(
-                        "Caffeine cutoff reminder active (14:00)",
-                        "Pengingat batas kafein aktif (14:00)"
-                      )
-                    );
-                    setTimeout(() => setTelemetryToast(null), 3000);
-                  }}
-                  className="flex flex-col gap-1 p-3.5 bg-surface-container-lowest rounded-2xl hover:bg-surface-container-high transition-all text-left shadow-xs"
-                >
-                  <span className="material-symbols-outlined text-primary text-[24px]">
-                    coffee
-                  </span>
-                  <span className="font-label-md text-label-md text-on-surface font-semibold mt-1">
-                    {t("Caffeine", "Kafein")}
-                  </span>
-                  <span className="font-body-sm text-body-sm text-secondary">
-                    {t("Cutoff: 2:00 PM", "Batas: 14:00")}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTelemetryToast(
-                      t(
-                        "5-minute box breathing timer started",
-                        "Timer pernapasan 5 menit dimulai"
-                      )
-                    );
-                    setTimeout(() => setTelemetryToast(null), 3000);
-                  }}
-                  className="flex flex-col gap-1 p-3.5 bg-surface-container-lowest rounded-2xl hover:bg-surface-container-high transition-all text-left shadow-xs"
-                >
-                  <span className="material-symbols-outlined text-primary text-[24px]">
+                <div className="w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center text-primary">
+                  <span className="material-symbols-outlined text-[20px]">
                     self_improvement
                   </span>
-                  <span className="font-label-md text-label-md text-on-surface font-semibold mt-1">
-                    {t("Breathing", "Pernapasan")}
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center justify-center py-4 bg-surface-container-low rounded-2xl gap-3">
+                {/* Animated Breathing Circle */}
+                <div className="relative w-28 h-28 flex items-center justify-center">
+                  <div
+                    className={`absolute inset-0 rounded-full bg-primary/15 transition-all duration-1000 ${
+                      breathingActive && breathingPhase === "Inhale"
+                        ? "scale-110 bg-primary/25"
+                        : breathingActive && breathingPhase === "Exhale"
+                        ? "scale-75 bg-primary/10"
+                        : "scale-95"
+                    }`}
+                  />
+                  <div
+                    className={`w-20 h-20 rounded-full flex flex-col items-center justify-center bg-surface-container-lowest shadow-sm z-10 transition-all duration-700 ${
+                      breathingActive ? "border-2 border-primary" : ""
+                    }`}
+                  >
+                    <span className="font-headline-md text-headline-md font-bold text-on-surface">
+                      00:{String(breathingSecondsLeft).padStart(2, "0")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <span className="font-label-lg text-label-lg font-bold text-primary block">
+                    {breathingActive
+                      ? breathingPhase === "Inhale"
+                        ? t("Breathe In (4s)", "Tarik Napas (4d)")
+                        : breathingPhase === "Hold"
+                        ? t("Hold Breath (4s)", "Tahan Tenang (4d)")
+                        : breathingPhase === "Exhale"
+                        ? t("Breathe Out (4s)", "Hembuskan Perlahan (4d)")
+                        : t("Relax & Rest (4s)", "Istirahat Santai (4d)")
+                      : t("1-Minute Reset", "Relaksasi 1 Menit")}
                   </span>
                   <span className="font-body-sm text-body-sm text-secondary">
-                    {t("5 min box cycle", "Siklus 5 menit")}
+                    {t(
+                      "4s Inhale · 4s Hold · 4s Exhale · 4s Rest",
+                      "4d Tarik · 4d Tahan · 4d Hembus · 4d Santai"
+                    )}
                   </span>
-                </button>
+                </div>
+              </div>
 
+              {/* Breathing Controls */}
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => router.push("/schedule")}
-                  className="flex flex-col gap-1 p-3.5 bg-surface-container-lowest rounded-2xl hover:bg-surface-container-high transition-all text-left shadow-xs"
+                  onClick={() => setBreathingActive((a) => !a)}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-primary-container text-on-primary font-label-md text-label-md font-bold shadow-sm hover:opacity-95 transition-all"
                 >
-                  <span className="material-symbols-outlined text-primary text-[24px]">
-                    bedtime
+                  <span className="material-symbols-outlined text-[18px]">
+                    {breathingActive ? "pause" : "play_arrow"}
                   </span>
-                  <span className="font-label-md text-label-md text-on-surface font-semibold mt-1">
-                    {t("Wind Down", "Relaksasi Malam")}
-                  </span>
-                  <span className="font-body-sm text-body-sm text-secondary">
-                    {t("Set", "Pukul")}{" "}
-                    {analytics?.goals.targetSleepTime || "22:30"}
+                  <span>
+                    {breathingActive
+                      ? t("Pause", "Jeda")
+                      : t("Start Breathing", "Mulai Bernapas")}
                   </span>
                 </button>
-
                 <button
                   type="button"
-                  onClick={() => router.push("/wellness")}
-                  className="flex flex-col gap-1 p-3.5 bg-surface-container-lowest rounded-2xl hover:bg-surface-container-high transition-all text-left shadow-xs"
+                  onClick={() => {
+                    setBreathingActive(false);
+                    setBreathingSecondsLeft(60);
+                    setBreathingPhase("Inhale");
+                  }}
+                  className="p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-secondary transition-all"
+                  title={t("Reset Timer", "Reset Timer")}
                 >
-                  <span className="material-symbols-outlined text-primary text-[24px]">
-                    heart_check
-                  </span>
-                  <span className="font-label-md text-label-md text-on-surface font-semibold mt-1">
-                    {t("HRV Sync", "Sinkronisasi HRV")}
-                  </span>
-                  <span className="font-body-sm text-body-sm text-secondary">
-                    {analytics?.wellness.restingHeartRate ?? 58}{" "}
-                    {t("bpm resting", "bpm istirahat")}
+                  <span className="material-symbols-outlined text-[18px]">
+                    replay
                   </span>
                 </button>
               </div>
@@ -839,22 +955,22 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Daily Health & Wellness Quick Cards Grid (Core Biometrics) */}
+        {/* Daily Health & Wellness Quick Cards Grid */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
               <span className="font-label-sm text-label-sm uppercase font-bold tracking-wider text-secondary">
-                {t("Real-Time Telemetry", "Telemetri Waktu Nyata")}
+                {t("Daily Overview", "Ringkasan Harian")}
               </span>
               <h2 className="font-headline-md text-headline-md text-on-surface font-semibold">
-                {t("Core Biometrics", "Biometrik Utama")}
+                {t("Today's Health & Habits", "Kesehatan & Kebiasaan Hari Ini")}
               </h2>
             </div>
             <Link
               href="/wellness"
               className="font-label-md text-label-md text-primary font-semibold hover:underline flex items-center gap-1"
             >
-              <span>{t("Detailed Vitals", "Detail Biometrik")}</span>
+              <span>{t("View Details", "Lihat Detail")}</span>
               <span className="material-symbols-outlined text-[16px]">
                 arrow_forward
               </span>
@@ -1230,21 +1346,7 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={syncSleepPrediction}
-                    onChange={(e) => setSyncSleepPrediction(e.target.checked)}
-                    className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary"
-                  />
-                  <span className="font-body-sm text-body-sm text-secondary">
-                    {t(
-                      "Sync with sleep prediction",
-                      "Sinkronkan dengan prediksi tidur"
-                    )}
-                  </span>
-                </label>
+              <div className="flex items-center justify-end pt-1">
                 <button
                   type="submit"
                   disabled={submittingCheckin}
@@ -1263,8 +1365,8 @@ export default function DashboardPage() {
                   </span>
                   <span>
                     {t(
-                      "Reflection synchronized. Your daily check-in and vitality pulse have been updated.",
-                      "Refleksi tersinkronisasi. Check-in harian dan denyut vitalitas Anda telah diperbarui."
+                      "Reflection saved. Your daily mood and energy level have been updated.",
+                      "Refleksi tersimpan. Suasana hati dan tingkat energi harian Anda telah diperbarui."
                     )}
                   </span>
                 </div>

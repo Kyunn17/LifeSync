@@ -101,8 +101,8 @@ export function AppShell({
           </div>
           <span className="font-label-md text-label-md text-secondary">
             {t(
-              "Synchronizing your circadian profile...",
-              "Menyinkronkan profil sirkadian Anda..."
+              "Loading your daily dashboard...",
+              "Memuat dasbor harian Anda..."
             )}
           </span>
         </div>
