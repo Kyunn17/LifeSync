@@ -19,7 +19,11 @@ export const auth = betterAuth({
   }),
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
-  trustedOrigins: [env.FRONTEND_URL, "http://localhost:3000"],
+  trustedOrigins: [
+    env.FRONTEND_URL,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ],
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
@@ -81,7 +85,7 @@ export const auth = betterAuth({
   },
   advanced: {
     defaultCookieAttributes: {
-      sameSite: "lax",
+      sameSite: env.NODE_ENV === "production" ? "none" : "lax",
       httpOnly: true,
       secure: env.NODE_ENV === "production",
     },
