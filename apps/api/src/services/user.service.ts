@@ -1,4 +1,16 @@
-import { getDb, user, profile, eq } from "@lifesync/db";
+import {
+  getDb,
+  user,
+  profile,
+  dailySchedules,
+  activities,
+  waterLogs,
+  healthLogs,
+  dailyCheckins,
+  session,
+  account,
+  eq,
+} from "@lifesync/db";
 import type { UpdateProfileInput } from "@lifesync/shared";
 
 export async function getOrCreateProfile(userId: string) {
@@ -105,5 +117,22 @@ export async function updateUserProfile(
     .where(eq(profile.userId, userId));
 
   return getUserWithProfile(userId);
+}
+
+export async function deleteUserAccount(userId: string): Promise<boolean> {
+  const db = getDb();
+
+  // Delete all user records in proper dependency order
+  await db.delete(dailySchedules).where(eq(dailySchedules.userId, userId));
+  await db.delete(activities).where(eq(activities.userId, userId));
+  await db.delete(waterLogs).where(eq(waterLogs.userId, userId));
+  await db.delete(healthLogs).where(eq(healthLogs.userId, userId));
+  await db.delete(dailyCheckins).where(eq(dailyCheckins.userId, userId));
+  await db.delete(profile).where(eq(profile.userId, userId));
+  await db.delete(session).where(eq(session.userId, userId));
+  await db.delete(account).where(eq(account.userId, userId));
+  await db.delete(user).where(eq(user.id, userId));
+
+  return true;
 }
 

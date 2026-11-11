@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { fromNodeHeaders } from "better-auth/node";
 import type { UserRole } from "@lifesync/shared";
 import { auth } from "../config/auth";
+import { env } from "../config/env";
 import { sendError } from "../utils/response";
 
 export interface AuthenticatedUser {
@@ -46,6 +47,16 @@ export async function requireAuth(
 
     if (rawUser.banned) {
       sendError(res, 403, "ACCOUNT_SUSPENDED", "Your account has been suspended.");
+      return;
+    }
+
+    if (env.REQUIRE_EMAIL_VERIFICATION && !rawUser.emailVerified) {
+      sendError(
+        res,
+        403,
+        "EMAIL_NOT_VERIFIED",
+        "Email verification required. Please verify your Gmail address to access LifeSync."
+      );
       return;
     }
 

@@ -44,6 +44,11 @@ export const auth = betterAuth({
         ? url
         : `${url}${url.includes("?") ? "&" : "?"}${callbackParam}`;
 
+      console.log(
+        `[BetterAuth] Triggered sendVerificationEmail for ${user.email}`
+      );
+      console.log(`[BetterAuth] Verification link: ${fullUrl}`);
+
       await sendVerificationEmail({
         email: user.email,
         name: user.name,

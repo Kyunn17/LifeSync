@@ -1,5 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
-import { getUserWithProfile, updateUserProfile } from "../services/user.service";
+import {
+  getUserWithProfile,
+  updateUserProfile,
+  deleteUserAccount,
+} from "../services/user.service";
 import { sendSuccess, sendError } from "../utils/response";
 
 export async function getMeController(
@@ -38,6 +42,24 @@ export async function updateMeController(
 
     const updated = await updateUserProfile(req.user.id, req.body);
     sendSuccess(res, updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteMeController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      sendError(res, 401, "UNAUTHORIZED", "Authentication required");
+      return;
+    }
+
+    await deleteUserAccount(req.user.id);
+    sendSuccess(res, { message: "Account deleted successfully." });
   } catch (err) {
     next(err);
   }

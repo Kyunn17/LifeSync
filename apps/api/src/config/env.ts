@@ -13,8 +13,8 @@ const envSchema = z.object({
   REQUIRE_EMAIL_VERIFICATION: z
     .string()
     .optional()
-    .default("false")
-    .transform((val) => val === "true"),
+    .default("true")
+    .transform((val) => val !== "false"),
 });
 
 export const env = envSchema.parse(process.env);

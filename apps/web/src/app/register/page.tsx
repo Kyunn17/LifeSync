@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { signUp } from "@/lib/auth-client";
+import { signUp, authClient } from "@/lib/auth-client";
 import { apiFetch } from "@/lib/api";
 import { LanguageSwitcher, useLanguage } from "@/lib/i18n";
 
@@ -85,6 +85,39 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState<number>(0);
+  const [resendStatus, setResendStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  const handleResendRegisterVerification = async () => {
+    if (!registeredEmail || resendCooldown > 0) return;
+    try {
+      await authClient.sendVerificationEmail({
+        email: registeredEmail,
+        callbackURL: `${window.location.origin}/dashboard?verified=true`,
+      });
+      setResendStatus(
+        t(
+          "Verification email re-sent! Please check your Gmail inbox.",
+          "Email verifikasi telah dikirim ulang! Silakan periksa kotak masuk Gmail Anda."
+        )
+      );
+      setResendCooldown(60);
+    } catch {
+      setResendStatus(
+        t(
+          "Failed to resend. Please try again.",
+          "Gagal mengirim ulang. Silakan coba lagi."
+        )
+      );
+    }
+  };
 
   const {
     register,
@@ -152,25 +185,144 @@ export default function RegisterPage() {
         return;
       }
 
-      await apiFetch("/api/users/me", {
-        method: "PATCH",
-        body: JSON.stringify({
-          primaryFocus: values.primaryFocus,
-          targetWakeTime: values.targetWakeTime,
-          targetSleepTime: values.targetSleepTime,
-        }),
-      });
-
-      router.push("/dashboard");
+      // Show the dedicated Gmail verification step screen
+      setRegisteredEmail(values.email);
     } catch (err) {
       setServerError(
         err instanceof Error
           ? err.message
-          : t("Failed to complete registration", "Gagal menyelesaikan pendaftaran")
+          : t(
+              "Failed to complete registration",
+              "Gagal menyelesaikan pendaftaran"
+            )
       );
+    } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (registeredEmail) {
+    return (
+      <div className="bg-background font-body-md text-on-surface antialiased min-h-screen flex flex-col justify-between selection:bg-secondary-container selection:text-on-secondary-container">
+        <header className="fixed top-0 inset-x-0 z-50 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+          <div className="h-16 max-w-7xl mx-auto px-gutter-mobile lg:px-margin flex items-center justify-between">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 group cursor-pointer focus:outline-none"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-secondary-container flex items-center justify-center text-primary shadow-xs ring-1 ring-primary-container/20 group-hover:scale-102 transition-transform">
+                <span className="material-symbols-outlined text-[24px]">
+                  spa
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight">
+                  LifeSync
+                </span>
+                <span className="font-label-sm text-label-sm uppercase tracking-widest text-primary font-semibold">
+                  Wellness
+                </span>
+              </div>
+            </Link>
+            <LanguageSwitcher />
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center p-6 pt-28 pb-12">
+          <div className="w-full max-w-lg bg-surface-container-lowest rounded-3xl p-8 sm:p-10 shadow-xl border border-surface-container-high flex flex-col items-center text-center gap-6 animate-in zoom-in-95 duration-200">
+            <div className="w-20 h-20 rounded-3xl bg-secondary-container text-primary flex items-center justify-center shadow-xs">
+              <span className="material-symbols-outlined text-[44px]">
+                mark_email_unread
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="font-label-sm text-label-sm uppercase font-bold tracking-widest text-primary">
+                {t("Almost Done!", "Hampir Selesai!")}
+              </span>
+              <h2 className="font-headline-md text-headline-md font-bold text-on-surface tracking-tight">
+                {t("Verify your Gmail inbox", "Periksa Kotak Masuk Gmail Anda")}
+              </h2>
+              <p className="font-body-md text-body-md text-secondary mt-1">
+                {t(
+                  "We have sent an activation link to:",
+                  "Kami telah mengirimkan tautan aktivasi ke:"
+                )}
+              </p>
+              <span className="font-headline-sm text-headline-sm font-bold text-primary break-all">
+                {registeredEmail}
+              </span>
+            </div>
+
+            <div className="w-full p-4 rounded-2xl bg-surface-container-low text-left font-body-sm text-body-sm text-secondary flex flex-col gap-2 border border-surface-container-high">
+              <div className="flex items-center gap-2 font-semibold text-on-surface font-label-md text-label-md">
+                <span className="material-symbols-outlined text-[18px] text-primary">
+                  lightbulb
+                </span>
+                <span>{t("Next Steps", "Langkah Selanjutnya")}</span>
+              </div>
+              <p>
+                {t(
+                  "1. Open your Gmail and look for an email from LifeSync Wellness.",
+                  "1. Buka Gmail Anda dan cari email dari LifeSync Wellness."
+                )}
+              </p>
+              <p>
+                {t(
+                  "2. Click the 'Verify Email & Activate Account' button.",
+                  "2. Klik tombol 'Verify Email & Activate Account'."
+                )}
+              </p>
+              <p className="text-outline text-xs">
+                {t(
+                  "* If you don't see it in 1-2 minutes, check your Spam / Promotions folder.",
+                  "* Jika tidak terlihat dalam 1-2 menit, periksa folder Spam / Promosi."
+                )}
+              </p>
+            </div>
+
+            {resendStatus && (
+              <div className="w-full p-3.5 rounded-2xl bg-secondary-container text-on-secondary-container font-label-md text-label-md font-semibold text-center">
+                {resendStatus}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 w-full pt-2">
+              <button
+                type="button"
+                disabled={resendCooldown > 0}
+                onClick={handleResendRegisterVerification}
+                className="w-full py-3.5 rounded-xl bg-primary-container text-on-primary font-label-lg text-label-lg font-bold shadow-md hover:opacity-95 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  send
+                </span>
+                <span>
+                  {resendCooldown > 0
+                    ? `${t("Resend in", "Kirim ulang dalam")} ${resendCooldown}s`
+                    : t(
+                        "Resend Verification Email",
+                        "Kirim Ulang Email Verifikasi"
+                      )}
+                </span>
+              </button>
+
+              <Link
+                href="/login"
+                className="w-full py-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md font-semibold transition-all text-center"
+              >
+                {t("Go to Sign In", "Beralih ke Halaman Masuk")}
+              </Link>
+            </div>
+          </div>
+        </main>
+
+        <footer className="w-full border-t border-surface-container-low py-6 bg-surface text-center font-body-sm text-body-sm text-secondary">
+          LifeSync Wellness &copy; {new Date().getFullYear()}
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background font-body-md text-on-surface antialiased min-h-screen flex flex-col justify-between selection:bg-secondary-container selection:text-on-secondary-container">

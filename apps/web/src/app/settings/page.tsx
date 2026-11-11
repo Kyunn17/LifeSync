@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -9,6 +10,7 @@ import {
 } from "@lifesync/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api";
+import { signOut } from "@/lib/auth-client";
 import { useLanguage } from "@/lib/i18n";
 
 interface UserWithProfileResponse {
@@ -58,6 +60,7 @@ const FOCUS_PILLARS = [
 ];
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { lang, setLang, locale, t } = useLanguage();
   const [userData, setUserData] = useState<UserWithProfileResponse | null>(
     null
@@ -65,6 +68,46 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Delete Account States
+  const [deleteModalOpen, setDeleteModalOpen] = useState<boolean>(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState<string>("");
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteAccount = async () => {
+    const trimmed = deleteConfirmText.trim().toUpperCase();
+    if (trimmed !== "DELETE" && trimmed !== "HAPUS") {
+      return;
+    }
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await apiFetch("/api/users/me", {
+        method: "DELETE",
+      });
+      if (!res.success) {
+        setDeleteError(
+          res.error?.message ||
+            t("Failed to delete account.", "Gagal menghapus akun.")
+        );
+        setIsDeleting(false);
+        return;
+      }
+      await signOut();
+      router.replace("/login?deleted=true");
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error
+          ? err.message
+          : t(
+              "An error occurred while deleting your account.",
+              "Terjadi kesalahan saat menghapus akun Anda."
+            )
+      );
+      setIsDeleting(false);
+    }
+  };
 
   const {
     register,
@@ -596,6 +639,134 @@ export default function SettingsPage() {
               </div>
             </div>
           </form>
+        )}
+
+        {/* Danger Zone: Account Deletion */}
+        <div className="rounded-3xl border border-error/30 bg-surface-container-lowest p-6 sm:p-8 shadow-sm flex flex-col gap-5">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-error font-headline-sm text-headline-sm font-bold">
+              <span className="material-symbols-outlined text-[24px]">
+                warning
+              </span>
+              <span>{t("Danger Zone", "Zona Berbahaya")}</span>
+            </div>
+            <p className="font-body-md text-body-md text-secondary">
+              {t(
+                "Permanently delete your LifeSync account, daily schedules, wellness metrics, and habits history.",
+                "Hapus akun LifeSync, seluruh jadwal harian, data kesehatan, dan riwayat kebiasaan Anda secara permanen."
+              )}
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-error-container/20 border border-error/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-col">
+              <span className="font-label-md text-label-md font-bold text-on-surface">
+                {t("Delete LifeSync Account", "Hapus Akun LifeSync")}
+              </span>
+              <span className="font-body-sm text-body-sm text-secondary">
+                {t(
+                  "Once deleted, all your data will be permanently wiped. This action cannot be reversed.",
+                  "Setelah dihapus, seluruh data Anda akan musnah secara permanen. Tindakan ini tidak dapat dibatalkan."
+                )}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteConfirmText("");
+                setDeleteError(null);
+                setDeleteModalOpen(true);
+              }}
+              className="px-5 py-2.5 rounded-xl bg-error text-on-error font-label-md text-label-md font-bold hover:opacity-90 active:scale-98 transition-all shrink-0 shadow-sm"
+            >
+              {t("Delete Account", "Hapus Akun")}
+            </button>
+          </div>
+        </div>
+
+        {/* Delete Confirmation Modal */}
+        {deleteModalOpen && (
+          <div className="fixed inset-0 z-50 bg-on-surface/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="w-full max-w-md bg-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-2xl border border-surface-container-high flex flex-col gap-5">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-error-container text-on-error-container flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-[28px]">
+                    delete_forever
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
+                    {t("Delete Account?", "Hapus Akun?")}
+                  </h3>
+                  <span className="font-label-sm text-label-sm text-error font-semibold uppercase tracking-wider">
+                    {t("Irreversible Action", "Tindakan Permanen")}
+                  </span>
+                </div>
+              </div>
+
+              <p className="font-body-md text-body-md text-secondary leading-relaxed">
+                {t(
+                  "Are you sure you want to delete your LifeSync account? All your 24-hour schedules, wellness logs, and insights will be erased forever.",
+                  "Apakah Anda yakin ingin menghapus akun LifeSync Anda? Seluruh jadwal 24 jam, catatan kesehatan, dan wawasan Anda akan dihapus selamanya."
+                )}
+              </p>
+
+              {deleteError && (
+                <div className="p-3.5 rounded-xl bg-error-container text-on-error-container font-label-sm text-label-sm font-semibold flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px]">
+                    error
+                  </span>
+                  <span>{deleteError}</span>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <label className="font-label-sm text-label-sm font-semibold text-secondary">
+                  {t(
+                    "Type DELETE to confirm account deletion:",
+                    "Ketik DELETE untuk mengonfirmasi penghapusan akun:"
+                  )}
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="w-full px-4 py-2.5 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface font-label-md text-label-md font-bold focus:outline-none focus:border-error transition-colors"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setDeleteModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-secondary font-label-md text-label-md font-semibold transition-all"
+                >
+                  {t("Cancel", "Batal")}
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    isDeleting ||
+                    (deleteConfirmText.trim().toUpperCase() !== "DELETE" &&
+                      deleteConfirmText.trim().toUpperCase() !== "HAPUS")
+                  }
+                  onClick={handleDeleteAccount}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-error text-on-error font-label-md text-label-md font-bold hover:opacity-90 disabled:opacity-40 transition-all shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    delete_forever
+                  </span>
+                  <span>
+                    {isDeleting
+                      ? t("Deleting...", "Menghapus...")
+                      : t("Confirm Delete", "Konfirmasi Hapus")}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </AppShell>

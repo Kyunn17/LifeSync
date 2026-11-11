@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { signIn } from "@/lib/auth-client";
+import { signIn, authClient } from "@/lib/auth-client";
 import { LanguageSwitcher, useLanguage } from "@/lib/i18n";
 
 const loginSchema = z.object({
@@ -19,10 +19,17 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useLanguage();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resendStatus, setResendStatus] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
+
+  const isVerifiedBanner = searchParams.get("verified") === "true";
+  const isDeletedBanner = searchParams.get("deleted") === "true";
 
   const {
     register,
@@ -37,8 +44,36 @@ export default function LoginPage() {
     },
   });
 
+  const handleResendLoginVerification = async () => {
+    if (!unverifiedEmail || isResending) return;
+    setIsResending(true);
+    try {
+      await authClient.sendVerificationEmail({
+        email: unverifiedEmail,
+        callbackURL: `${window.location.origin}/dashboard?verified=true`,
+      });
+      setResendStatus(
+        t(
+          "Verification link sent to your Gmail inbox! Please check your spam folder if needed.",
+          "Tautan verifikasi telah dikirim ke kotak masuk Gmail Anda! Periksa folder spam jika perlu."
+        )
+      );
+    } catch {
+      setResendStatus(
+        t(
+          "Failed to resend email. Please try again later.",
+          "Gagal mengirim ulang email. Silakan coba lagi."
+        )
+      );
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const onSubmit = async (values: LoginFormValues) => {
     setServerError(null);
+    setUnverifiedEmail(null);
+    setResendStatus(null);
     setIsSubmitting(true);
     try {
       const result = await signIn.email({
@@ -48,13 +83,28 @@ export default function LoginPage() {
       });
 
       if (result.error) {
-        setServerError(
-          result.error.message ||
+        const errorMsg = result.error.message || "";
+        const isVerifError =
+          errorMsg.toLowerCase().includes("verif") ||
+          (result.error as { code?: string }).code === "EMAIL_NOT_VERIFIED";
+
+        if (isVerifError) {
+          setUnverifiedEmail(values.email);
+          setServerError(
             t(
-              "Invalid email or password. Please try again.",
-              "Email atau kata sandi salah. Silakan coba lagi."
+              "Your email is not verified yet. Please check your Gmail or resend the verification link below.",
+              "Email Anda belum diverifikasi. Silakan periksa Gmail Anda atau kirim ulang tautan verifikasi di bawah."
             )
-        );
+          );
+        } else {
+          setServerError(
+            errorMsg ||
+              t(
+                "Invalid email or password. Please try again.",
+                "Email atau kata sandi salah. Silakan coba lagi."
+              )
+          );
+        }
         setIsSubmitting(false);
         return;
       }
@@ -155,12 +205,72 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              {serverError && (
-                <div className="mb-space-md p-3.5 rounded-xl bg-error-container text-on-error-container font-label-md text-label-md flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px]">
-                    error
+              {isVerifiedBanner && (
+                <div className="mb-space-md p-4 rounded-2xl bg-secondary-container text-on-secondary-container font-label-md text-label-md flex items-center gap-2.5 shadow-2xs">
+                  <span className="material-symbols-outlined text-[20px] text-primary">
+                    check_circle
                   </span>
-                  <span>{serverError}</span>
+                  <span>
+                    {t(
+                      "Your email has been verified successfully! You can now sign in.",
+                      "Email Anda berhasil diverifikasi! Anda sekarang dapat masuk."
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {isDeletedBanner && (
+                <div className="mb-space-md p-4 rounded-2xl bg-surface-container-high text-on-surface font-label-md text-label-md flex items-center gap-2.5 shadow-2xs">
+                  <span className="material-symbols-outlined text-[20px] text-primary">
+                    delete
+                  </span>
+                  <span>
+                    {t(
+                      "Your account has been deleted successfully.",
+                      "Akun Anda telah berhasil dihapus."
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {serverError && (
+                <div className="mb-space-md p-4 rounded-2xl bg-error-container text-on-error-container font-label-md text-label-md flex flex-col gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px] shrink-0">
+                      error
+                    </span>
+                    <span>{serverError}</span>
+                  </div>
+
+                  {unverifiedEmail && (
+                    <button
+                      type="button"
+                      disabled={isResending}
+                      onClick={handleResendLoginVerification}
+                      className="self-start mt-1 px-3 py-1.5 rounded-xl bg-on-error-container text-surface-container-lowest font-label-sm text-label-sm font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">
+                        send
+                      </span>
+                      <span>
+                        {isResending
+                          ? t("Sending...", "Mengirim...")
+                          : t(
+                              "Resend Verification Link",
+                              "Kirim Ulang Tautan Verifikasi"
+                            )}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {resendStatus && (
+                <div className="mb-space-md p-3.5 rounded-2xl bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-semibold flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px] text-primary">
+                    mark_email_read
+                  </span>
+                  <span>{resendStatus}</span>
                 </div>
               )}
 

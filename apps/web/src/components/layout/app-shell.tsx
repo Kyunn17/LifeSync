@@ -329,47 +329,90 @@ export function AppShell({
               </div>
             )}
 
-            {/* Email Unverified Reminder Banner */}
-            {!isEmailVerified && !isVerifiedParam && (
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 px-4 rounded-2xl bg-surface-container-lowest border border-primary/20 shadow-xs">
-                <div className="flex items-center gap-3">
-                  <MailCheck className="h-5 w-5 text-primary shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="font-label-md text-label-md font-semibold text-on-surface">
-                      {t("Verify your email address", "Verifikasi alamat email Anda")}
+            {/* Email Unverified Blocking Card */}
+            {!isEmailVerified && !isVerifiedParam ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center max-w-lg mx-auto bg-surface-container-lowest rounded-3xl border border-primary/20 shadow-lg my-8 animate-in zoom-in-95 duration-200">
+                <div className="w-18 h-18 rounded-3xl bg-secondary-container text-primary flex items-center justify-center mb-5 p-4 shadow-2xs">
+                  <MailCheck className="h-10 w-10 text-primary" />
+                </div>
+                <span className="font-label-sm text-label-sm uppercase font-bold tracking-widest text-primary mb-1">
+                  {t("Action Required", "Tindakan Diperlukan")}
+                </span>
+                <h2 className="font-headline-md text-headline-md font-bold text-on-surface tracking-tight">
+                  {t(
+                    "Gmail Verification Required",
+                    "Verifikasi Gmail Diperlukan"
+                  )}
+                </h2>
+                <p className="font-body-md text-body-md text-secondary mt-2 mb-2 leading-relaxed">
+                  {t(
+                    "To access your 24-hour schedules, habit tracking, and wellness insights, please verify your Gmail address:",
+                    "Untuk mengakses jadwal 24 jam, pelacakan kebiasaan, dan wawasan kesehatan, silakan verifikasi alamat Gmail Anda:"
+                  )}
+                </p>
+                <span className="font-label-lg text-label-lg font-bold text-primary break-all mb-6">
+                  {session.user.email}
+                </span>
+
+                <div className="w-full p-4 rounded-2xl bg-surface-container-low text-left font-body-sm text-body-sm text-secondary flex flex-col gap-1.5 border border-surface-container-high mb-6">
+                  <div className="flex items-center gap-2 font-semibold text-on-surface font-label-md text-label-md">
+                    <span className="material-symbols-outlined text-[18px] text-primary">
+                      info
                     </span>
-                    <span className="font-body-sm text-body-sm text-secondary">
-                      {emailSentNotice
-                        ? t(
-                            "Verification link sent to your Gmail inbox! Please check your spam folder if needed.",
-                            "Tautan verifikasi telah dikirim ke kotak masuk Gmail Anda! Periksa folder spam jika perlu."
-                          )
+                    <span>{t("Important Notice", "Catatan Penting")}</span>
+                  </div>
+                  <p>
+                    {t(
+                      "• Click the link sent to your inbox to activate your account.",
+                      "• Klik tautan yang dikirimkan ke kotak masuk untuk mengaktifkan akun."
+                    )}
+                  </p>
+                  <p>
+                    {t(
+                      "• If you don't see it, check your Spam or Promotions folder.",
+                      "• Jika tidak terlihat, periksa folder Spam atau Promosi Gmail Anda."
+                    )}
+                  </p>
+                </div>
+
+                {emailSentNotice && (
+                  <div className="w-full mb-5 p-3.5 rounded-2xl bg-secondary-container text-on-secondary-container font-label-md text-label-md font-semibold text-center">
+                    {t(
+                      "Verification link re-sent! Please check your Gmail inbox.",
+                      "Tautan verifikasi telah dikirim ulang! Silakan periksa kotak masuk Gmail Anda."
+                    )}
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+                  <button
+                    type="button"
+                    disabled={resendingEmail}
+                    onClick={handleResendVerification}
+                    className="w-full sm:flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary text-on-primary font-label-md text-label-md font-bold hover:bg-primary-container transition-all disabled:opacity-50 shadow-sm"
+                  >
+                    <Send className="h-4 w-4" />
+                    <span>
+                      {resendingEmail
+                        ? t("Sending...", "Mengirim...")
                         : t(
-                            "Please check your Gmail inbox to activate full account features and alerts.",
-                            "Silakan periksa kotak masuk Gmail Anda untuk mengaktifkan fitur dan pengingat akun secara lengkap."
+                            "Resend Verification Email",
+                            "Kirim Ulang Email"
                           )}
                     </span>
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="w-full sm:w-auto py-3 px-5 rounded-xl bg-surface-container-low hover:bg-surface-container font-label-md text-label-md font-semibold text-on-surface transition-all"
+                  >
+                    {t("I've Verified", "Sudah Verifikasi")}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  disabled={resendingEmail}
-                  onClick={handleResendVerification}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary-container text-on-primary font-label-sm text-label-sm font-semibold hover:opacity-95 transition-all disabled:opacity-50"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  <span>
-                    {resendingEmail
-                      ? t("Sending...", "Mengirim...")
-                      : emailSentNotice
-                      ? t("Sent!", "Terkirim!")
-                      : t("Resend Email", "Kirim Ulang Email")}
-                  </span>
-                </button>
               </div>
+            ) : (
+              children
             )}
-
-            {children}
           </div>
         </main>
       </div>
