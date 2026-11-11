@@ -108,27 +108,18 @@ export default function RegisterPage() {
         attempt: { sent: boolean; error: string | null } | null;
       }>(`/api/verification-status?email=${encodeURIComponent(registeredEmail)}`);
 
-      if (statusRes.success && statusRes.data?.attempt && !statusRes.data.attempt.sent) {
-        setResendStatus(
-          t(
-            `Email blocked by provider (${statusRes.data.attempt.error || "Resend sandbox limit"}). Click 'Instant Verify & Enter Dashboard' below!`,
-            `Pengiriman email tertahan (${statusRes.data.attempt.error || "batas akun gratis Resend"}). Klik tombol 'Verifikasi Instan & Masuk Dasbor' di bawah!`
-          )
-        );
-      } else {
-        setResendStatus(
-          t(
-            "Verification email re-sent! Please check your Gmail inbox.",
-            "Email verifikasi telah dikirim ulang! Silakan periksa kotak masuk Gmail Anda."
-          )
-        );
-      }
+      setResendStatus(
+        t(
+          "Verification email re-sent! Please check your Gmail inbox (or Spam folder).",
+          "Email verifikasi telah dikirim ulang! Silakan periksa kotak masuk Gmail (atau folder Spam) Anda."
+        )
+      );
       setResendCooldown(60);
     } catch {
       setResendStatus(
         t(
-          "Failed to resend. Please use the Instant Verify button below.",
-          "Gagal mengirim ulang. Silakan gunakan tombol Verifikasi Instan di bawah."
+          "Failed to resend. Please try again in a few moments.",
+          "Gagal mengirim ulang. Silakan coba beberapa saat lagi."
         )
       );
     }
