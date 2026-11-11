@@ -5,6 +5,9 @@ export const transporter =
   env.SMTP_USER && env.SMTP_PASS
     ? nodemailer.createTransport({
         service: "gmail",
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 5000,
         auth: {
           user: env.SMTP_USER,
           pass: env.SMTP_PASS,

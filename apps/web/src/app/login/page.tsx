@@ -277,6 +277,25 @@ export default function LoginPage() {
 
               <button
                 type="button"
+                disabled={isDirectVerifying}
+                onClick={handleDirectVerifyAndLogin}
+                className="w-full py-3.5 rounded-xl bg-secondary-container text-on-secondary-container font-label-lg text-label-lg font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 border border-primary/20 shadow-xs"
+              >
+                <span className="material-symbols-outlined text-[20px] text-primary">
+                  verified
+                </span>
+                <span>
+                  {isDirectVerifying
+                    ? t("Verifying...", "Memverifikasi...")
+                    : t(
+                        "Instant Verify & Sign In (If SMTP Blocked)",
+                        "Verifikasi Langsung & Masuk (Jika Email Tertahan)"
+                      )}
+                </span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setUnverifiedEmail(null)}
                 className="w-full py-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md font-semibold transition-all text-center"
               >
