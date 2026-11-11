@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { signIn, authClient } from "@/lib/auth-client";
+import { apiFetch } from "@/lib/api";
 import { LanguageSwitcher, useLanguage } from "@/lib/i18n";
 
 const loginSchema = z.object({
@@ -25,8 +26,10 @@ export default function LoginPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [lastPassword, setLastPassword] = useState<string>("");
   const [resendStatus, setResendStatus] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
+  const [isDirectVerifying, setIsDirectVerifying] = useState(false);
 
   const isVerifiedBanner = searchParams.get("verified") === "true";
   const isDeletedBanner = searchParams.get("deleted") === "true";
@@ -52,17 +55,30 @@ export default function LoginPage() {
         email: unverifiedEmail,
         callbackURL: `${window.location.origin}/dashboard?verified=true`,
       });
-      setResendStatus(
-        t(
-          "Verification link sent to your Gmail inbox! Please check your spam folder if needed.",
-          "Tautan verifikasi telah dikirim ke kotak masuk Gmail Anda! Periksa folder spam jika perlu."
-        )
-      );
+      const statusRes = await apiFetch<{
+        attempt: { sent: boolean; error: string | null } | null;
+      }>(`/api/verification-status?email=${encodeURIComponent(unverifiedEmail)}`);
+
+      if (statusRes.success && statusRes.data?.attempt && !statusRes.data.attempt.sent) {
+        setResendStatus(
+          t(
+            `Email delivery blocked by mail provider (${statusRes.data.attempt.error || "Resend sandbox limit"}). Please use the Instant Verify button below!`,
+            `Pengiriman email tertahan oleh provider (${statusRes.data.attempt.error || "batas akun gratis Resend"}). Silakan klik tombol 'Verifikasi Instan & Masuk' di bawah!`
+          )
+        );
+      } else {
+        setResendStatus(
+          t(
+            "Verification link sent to your Gmail inbox! Please check your spam folder if needed.",
+            "Tautan verifikasi telah dikirim ke kotak masuk Gmail Anda! Periksa folder spam jika perlu."
+          )
+        );
+      }
     } catch {
       setResendStatus(
         t(
-          "Failed to resend email. Please try again later.",
-          "Gagal mengirim ulang email. Silakan coba lagi."
+          "Failed to resend email. Please use the Instant Verify button below.",
+          "Gagal mengirim ulang email. Silakan gunakan tombol Verifikasi Instan di bawah."
         )
       );
     } finally {
@@ -70,10 +86,53 @@ export default function LoginPage() {
     }
   };
 
+  const handleDirectVerifyAndLogin = async () => {
+    if (!unverifiedEmail || isDirectVerifying) return;
+    setIsDirectVerifying(true);
+    try {
+      const verifyRes = await apiFetch<{ verified: boolean }>("/api/verify-direct", {
+        method: "POST",
+        body: JSON.stringify({ email: unverifiedEmail }),
+      });
+
+      if (verifyRes.success) {
+        if (lastPassword) {
+          const loginRes = await signIn.email({
+            email: unverifiedEmail,
+            password: lastPassword,
+            rememberMe: true,
+          });
+          if (!loginRes.error) {
+            router.push("/dashboard?verified=true");
+            return;
+          }
+        }
+        setUnverifiedEmail(null);
+        setServerError(null);
+        setResendStatus(
+          t(
+            "Account verified! Please click Sign In again.",
+            "Akun berhasil diverifikasi! Silakan klik tombol Masuk kembali."
+          )
+        );
+      }
+    } catch {
+      setResendStatus(
+        t(
+          "Could not verify directly. Please try again.",
+          "Gagal memverifikasi secara langsung. Silakan coba lagi."
+        )
+      );
+    } finally {
+      setIsDirectVerifying(false);
+    }
+  };
+
   const onSubmit = async (values: LoginFormValues) => {
     setServerError(null);
     setUnverifiedEmail(null);
     setResendStatus(null);
+    setLastPassword(values.password);
     setIsSubmitting(true);
     try {
       const result = await signIn.email({
@@ -92,8 +151,8 @@ export default function LoginPage() {
           setUnverifiedEmail(values.email);
           setServerError(
             t(
-              "Your email is not verified yet. Please check your Gmail or resend the verification link below.",
-              "Email Anda belum diverifikasi. Silakan periksa Gmail Anda atau kirim ulang tautan verifikasi di bawah."
+              "Verification email sent! Please check your Gmail inbox (or Spam folder), or click Instant Verify below if no email arrives.",
+              "Email verifikasi telah dikirim! Silakan cek kotak masuk Gmail (atau folder Spam), atau klik 'Verifikasi Instan & Masuk' di bawah jika email tidak masuk."
             )
           );
         } else {
@@ -242,24 +301,45 @@ export default function LoginPage() {
                   </div>
 
                   {unverifiedEmail && (
-                    <button
-                      type="button"
-                      disabled={isResending}
-                      onClick={handleResendLoginVerification}
-                      className="self-start mt-1 px-3 py-1.5 rounded-xl bg-on-error-container text-surface-container-lowest font-label-sm text-label-sm font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-1.5"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">
-                        send
-                      </span>
-                      <span>
-                        {isResending
-                          ? t("Sending...", "Mengirim...")
-                          : t(
-                              "Resend Verification Link",
-                              "Kirim Ulang Tautan Verifikasi"
-                            )}
-                      </span>
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <button
+                        type="button"
+                        disabled={isResending}
+                        onClick={handleResendLoginVerification}
+                        className="px-3 py-1.5 rounded-xl bg-on-error-container text-surface-container-lowest font-label-sm text-label-sm font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          send
+                        </span>
+                        <span>
+                          {isResending
+                            ? t("Sending...", "Mengirim...")
+                            : t(
+                                "Resend Verification Link",
+                                "Kirim Ulang Tautan Verifikasi"
+                              )}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isDirectVerifying}
+                        onClick={handleDirectVerifyAndLogin}
+                        className="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-label-sm text-label-sm font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-1.5 shadow-xs"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          verified
+                        </span>
+                        <span>
+                          {isDirectVerifying
+                            ? t("Verifying...", "Memverifikasi...")
+                            : t(
+                                "Instant Verify & Sign In",
+                                "Verifikasi Instan & Masuk"
+                              )}
+                        </span>
+                      </button>
+                    </div>
                   )}
                 </div>
               )}

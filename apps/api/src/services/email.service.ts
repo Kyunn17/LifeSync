@@ -3,6 +3,22 @@ import { env } from "../config/env";
 
 export const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
+export interface VerificationAttempt {
+  email: string;
+  sent: boolean;
+  error: string | null;
+  verificationUrl: string;
+  updatedAt: string;
+}
+
+const verificationAttempts = new Map<string, VerificationAttempt>();
+
+export function getVerificationAttempt(
+  email: string
+): VerificationAttempt | null {
+  return verificationAttempts.get(email.trim().toLowerCase()) ?? null;
+}
+
 export async function sendVerificationEmail({
   email,
   name,
@@ -12,10 +28,19 @@ export async function sendVerificationEmail({
   name?: string;
   url: string;
 }): Promise<boolean> {
+  const normalizedEmail = email.trim().toLowerCase();
+
   if (!resend) {
     console.warn(
       `[EmailService] RESEND_API_KEY is not configured. Verification URL for ${email}: ${url}`
     );
+    verificationAttempts.set(normalizedEmail, {
+      email: normalizedEmail,
+      sent: false,
+      error: "RESEND_API_KEY belum dikonfigurasi pada server.",
+      verificationUrl: url,
+      updatedAt: new Date().toISOString(),
+    });
     return false;
   }
 
@@ -86,18 +111,39 @@ export async function sendVerificationEmail({
         "[EmailService] Resend failed to send verification email:",
         error
       );
+      verificationAttempts.set(normalizedEmail, {
+        email: normalizedEmail,
+        sent: false,
+        error: error.message || "Gagal mengirim email melalui Resend.",
+        verificationUrl: url,
+        updatedAt: new Date().toISOString(),
+      });
       return false;
     }
 
     console.log(
       `[EmailService] Verification email successfully sent to ${email} (ID: ${data?.id})`
     );
+    verificationAttempts.set(normalizedEmail, {
+      email: normalizedEmail,
+      sent: true,
+      error: null,
+      verificationUrl: url,
+      updatedAt: new Date().toISOString(),
+    });
     return true;
   } catch (err) {
     console.error(
       "[EmailService] Exception while sending verification email:",
       err
     );
+    verificationAttempts.set(normalizedEmail, {
+      email: normalizedEmail,
+      sent: false,
+      error: err instanceof Error ? err.message : "Terjadi kesalahan saat mengirim email.",
+      verificationUrl: url,
+      updatedAt: new Date().toISOString(),
+    });
     return false;
   }
 }
@@ -197,4 +243,3 @@ export async function sendPasswordResetEmail({
     return false;
   }
 }
-

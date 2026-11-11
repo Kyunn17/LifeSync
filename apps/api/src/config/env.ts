@@ -1,21 +1,47 @@
 import { z } from "zod";
 
+const cleanString = (val: string) =>
+  val
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
+    .trim();
+
+const cleanUrl = (val: string) => cleanString(val).replace(/\/+$/, "");
+
 const envSchema = z.object({
-  DATABASE_URL: z.string().optional().default(""),
-  DIRECT_URL: z.string().optional().default(""),
-  BETTER_AUTH_SECRET: z.string().optional().default("dev-secret-change-in-production-32chars"),
-  BETTER_AUTH_URL: z.string().url().default("http://localhost:3001"),
-  FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+  DATABASE_URL: z.string().optional().default("").transform(cleanString),
+  DIRECT_URL: z.string().optional().default("").transform(cleanString),
+  BETTER_AUTH_SECRET: z
+    .string()
+    .optional()
+    .default("dev-secret-change-in-production-32chars")
+    .transform(cleanString),
+  BETTER_AUTH_URL: z
+    .string()
+    .default("http://localhost:3001")
+    .transform(cleanUrl)
+    .pipe(z.string().url()),
+  FRONTEND_URL: z
+    .string()
+    .default("http://localhost:3000")
+    .transform(cleanUrl)
+    .pipe(z.string().url()),
   PORT: z.coerce.number().default(3001),
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  RESEND_API_KEY: z.string().optional().default(""),
-  EMAIL_FROM: z.string().default("LifeSync Wellness <onboarding@resend.dev>"),
+  NODE_ENV: z
+    .string()
+    .default("development")
+    .transform(cleanString)
+    .pipe(z.enum(["development", "production", "test"]).catch("development")),
+  RESEND_API_KEY: z.string().optional().default("").transform(cleanString),
+  EMAIL_FROM: z
+    .string()
+    .default("LifeSync Wellness <onboarding@resend.dev>")
+    .transform(cleanString),
   REQUIRE_EMAIL_VERIFICATION: z
     .string()
     .optional()
     .default("true")
-    .transform((val) => val !== "false"),
+    .transform((val) => cleanString(val).toLowerCase() !== "false"),
 });
 
 export const env = envSchema.parse(process.env);
-

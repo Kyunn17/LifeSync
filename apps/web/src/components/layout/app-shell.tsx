@@ -22,6 +22,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api";
 import { useSession, signOut, authClient } from "@/lib/auth-client";
 import { LanguageSwitcher, useLanguage } from "@/lib/i18n";
 
@@ -47,6 +48,7 @@ export function AppShell({
   const { t, locale } = useLanguage();
 
   const [resendingEmail, setResendingEmail] = useState(false);
+  const [directVerifying, setDirectVerifying] = useState(false);
   const [emailSentNotice, setEmailSentNotice] = useState(false);
   const [verifiedDismissed, setVerifiedDismissed] = useState(false);
 
@@ -69,6 +71,23 @@ export function AppShell({
       console.error("[AppShell] Failed to resend verification email:", e);
     } finally {
       setResendingEmail(false);
+    }
+  };
+
+  const handleInstantVerify = async () => {
+    if (!session?.user?.email || directVerifying) return;
+    setDirectVerifying(true);
+    try {
+      await apiFetch("/api/verify-direct", {
+        method: "POST",
+        body: JSON.stringify({ email: session.user.email }),
+      });
+      window.location.href = "/dashboard?verified=true";
+    } catch (e) {
+      console.error("[AppShell] Failed to verify directly:", e);
+      window.location.reload();
+    } finally {
+      setDirectVerifying(false);
     }
   };
 
@@ -415,10 +434,13 @@ export function AppShell({
                   </button>
                   <button
                     type="button"
-                    onClick={() => window.location.reload()}
-                    className="w-full sm:w-auto py-3 px-5 rounded-xl bg-surface-container-low hover:bg-surface-container font-label-md text-label-md font-semibold text-on-surface transition-all"
+                    disabled={directVerifying}
+                    onClick={handleInstantVerify}
+                    className="w-full sm:w-auto py-3 px-5 rounded-xl bg-surface-container-low hover:bg-surface-container font-label-md text-label-md font-semibold text-on-surface transition-all disabled:opacity-50"
                   >
-                    {t("I've Verified", "Sudah Verifikasi")}
+                    {directVerifying
+                      ? t("Verifying...", "Memverifikasi...")
+                      : t("Instant Verify / I've Verified", "Verifikasi Instan / Sudah Verifikasi")}
                   </button>
                 </div>
               </div>

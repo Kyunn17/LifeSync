@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { signUp, authClient } from "@/lib/auth-client";
+import { signUp, signIn, authClient } from "@/lib/auth-client";
 import { apiFetch } from "@/lib/api";
 import { LanguageSwitcher, useLanguage } from "@/lib/i18n";
 
@@ -86,8 +86,10 @@ export default function RegisterPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const [registeredPassword, setRegisteredPassword] = useState<string>("");
   const [resendCooldown, setResendCooldown] = useState<number>(0);
   const [resendStatus, setResendStatus] = useState<string | null>(null);
+  const [isDirectVerifying, setIsDirectVerifying] = useState(false);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -102,20 +104,68 @@ export default function RegisterPage() {
         email: registeredEmail,
         callbackURL: `${window.location.origin}/dashboard?verified=true`,
       });
-      setResendStatus(
-        t(
-          "Verification email re-sent! Please check your Gmail inbox.",
-          "Email verifikasi telah dikirim ulang! Silakan periksa kotak masuk Gmail Anda."
-        )
-      );
+      const statusRes = await apiFetch<{
+        attempt: { sent: boolean; error: string | null } | null;
+      }>(`/api/verification-status?email=${encodeURIComponent(registeredEmail)}`);
+
+      if (statusRes.success && statusRes.data?.attempt && !statusRes.data.attempt.sent) {
+        setResendStatus(
+          t(
+            `Email blocked by provider (${statusRes.data.attempt.error || "Resend sandbox limit"}). Click 'Instant Verify & Enter Dashboard' below!`,
+            `Pengiriman email tertahan (${statusRes.data.attempt.error || "batas akun gratis Resend"}). Klik tombol 'Verifikasi Instan & Masuk Dasbor' di bawah!`
+          )
+        );
+      } else {
+        setResendStatus(
+          t(
+            "Verification email re-sent! Please check your Gmail inbox.",
+            "Email verifikasi telah dikirim ulang! Silakan periksa kotak masuk Gmail Anda."
+          )
+        );
+      }
       setResendCooldown(60);
     } catch {
       setResendStatus(
         t(
-          "Failed to resend. Please try again.",
-          "Gagal mengirim ulang. Silakan coba lagi."
+          "Failed to resend. Please use the Instant Verify button below.",
+          "Gagal mengirim ulang. Silakan gunakan tombol Verifikasi Instan di bawah."
         )
       );
+    }
+  };
+
+  const handleDirectVerifyRegister = async () => {
+    if (!registeredEmail || isDirectVerifying) return;
+    setIsDirectVerifying(true);
+    try {
+      const verifyRes = await apiFetch<{ verified: boolean }>("/api/verify-direct", {
+        method: "POST",
+        body: JSON.stringify({ email: registeredEmail }),
+      });
+
+      if (verifyRes.success) {
+        if (registeredPassword) {
+          const loginRes = await signIn.email({
+            email: registeredEmail,
+            password: registeredPassword,
+            rememberMe: true,
+          });
+          if (!loginRes.error) {
+            router.push("/dashboard?verified=true");
+            return;
+          }
+        }
+        router.push("/login?verified=true");
+      }
+    } catch {
+      setResendStatus(
+        t(
+          "Could not verify directly. Please try signing in.",
+          "Gagal memverifikasi secara langsung. Silakan coba masuk."
+        )
+      );
+    } finally {
+      setIsDirectVerifying(false);
     }
   };
 
@@ -186,6 +236,7 @@ export default function RegisterPage() {
       }
 
       // Show the dedicated Gmail verification step screen
+      setRegisteredPassword(values.password);
       setRegisteredEmail(values.email);
     } catch (err) {
       setServerError(
@@ -303,6 +354,25 @@ export default function RegisterPage() {
                     : t(
                         "Resend Verification Email",
                         "Kirim Ulang Email Verifikasi"
+                      )}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isDirectVerifying}
+                onClick={handleDirectVerifyRegister}
+                className="w-full py-3.5 rounded-xl bg-secondary-container text-on-secondary-container font-label-lg text-label-lg font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 border border-primary/20"
+              >
+                <span className="material-symbols-outlined text-[20px] text-primary">
+                  verified
+                </span>
+                <span>
+                  {isDirectVerifying
+                    ? t("Verifying...", "Memverifikasi...")
+                    : t(
+                        "Instant Verify & Enter Dashboard (If No Email)",
+                        "Verifikasi Instan & Masuk Dasbor (Jika Email Tidak Masuk)"
                       )}
                 </span>
               </button>

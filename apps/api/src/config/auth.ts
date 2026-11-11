@@ -39,14 +39,25 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendOnSignUp: true,
+    sendOnSignIn: true,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      const callbackParam = `callbackURL=${encodeURIComponent(
-        `${env.FRONTEND_URL}/dashboard?verified=true`
-      )}`;
-      const fullUrl = url.includes("callbackURL=")
-        ? url
-        : `${url}${url.includes("?") ? "&" : "?"}${callbackParam}`;
+      let fullUrl = url;
+      try {
+        const parsed = new URL(url);
+        parsed.searchParams.set(
+          "callbackURL",
+          `${env.FRONTEND_URL}/dashboard?verified=true`
+        );
+        fullUrl = parsed.toString();
+      } catch {
+        const callbackParam = `callbackURL=${encodeURIComponent(
+          `${env.FRONTEND_URL}/dashboard?verified=true`
+        )}`;
+        fullUrl = url.includes("callbackURL=")
+          ? url
+          : `${url}${url.includes("?") ? "&" : "?"}${callbackParam}`;
+      }
 
       console.log(
         `[BetterAuth] Triggered sendVerificationEmail for ${user.email}`
