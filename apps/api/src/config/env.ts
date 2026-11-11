@@ -32,51 +32,13 @@ const envSchema = z.object({
     .default("development")
     .transform(cleanString)
     .pipe(z.enum(["development", "production", "test"]).catch("development")),
-  
-  // Gmail SMTP & Custom SMTP Configuration
-  SMTP_HOST: z
-    .string()
-    .optional()
-    .default(process.env.MAIL_HOST || "smtp.gmail.com")
-    .transform(cleanString),
-  SMTP_PORT: z.coerce
-    .number()
-    .default(Number(process.env.MAIL_PORT) || 587),
-  SMTP_USER: z
-    .string()
-    .optional()
-    .default(process.env.MAIL_USERNAME || "")
-    .transform(cleanString),
-  SMTP_PASS: z
-    .string()
-    .optional()
-    .default(process.env.MAIL_PASSWORD || "")
-    .transform((val) => cleanString(val).replace(/\s+/g, "")),
-  SMTP_SECURE: z
-    .string()
-    .optional()
-    .default(
-      process.env.MAIL_PORT === "465" || process.env.MAIL_ENCRYPTION === "ssl"
-        ? "true"
-        : "false"
-    )
-    .transform((val) => cleanString(val).toLowerCase() === "true"),
-  MAIL_FROM_ADDRESS: z
-    .string()
-    .optional()
-    .default(process.env.MAIL_FROM_ADDRESS || process.env.MAIL_USERNAME || "")
-    .transform(cleanString),
-  MAIL_FROM_NAME: z
-    .string()
-    .optional()
-    .default(
-      process.env.MAIL_FROM_NAME && process.env.MAIL_FROM_NAME !== "${APP_NAME}"
-        ? process.env.MAIL_FROM_NAME
-        : "LifeSync Wellness"
-    )
-    .transform(cleanString),
 
+  // Brevo HTTPS Email Service (Port 443)
   BREVO_API_KEY: z.string().optional().default("").transform(cleanString),
+  EMAIL_FROM: z
+    .string()
+    .default("LifeSync Wellness <arulxxds@gmail.com>")
+    .transform(cleanString),
 
   REQUIRE_EMAIL_VERIFICATION: z
     .string()

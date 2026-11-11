@@ -89,7 +89,9 @@ export default function RegisterPage() {
   const [registeredPassword, setRegisteredPassword] = useState<string>("");
   const [resendCooldown, setResendCooldown] = useState<number>(0);
   const [resendStatus, setResendStatus] = useState<string | null>(null);
-  const [isDirectVerifying, setIsDirectVerifying] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -100,21 +102,27 @@ export default function RegisterPage() {
   const handleResendRegisterVerification = async () => {
     if (!registeredEmail || resendCooldown > 0) return;
     try {
-      await authClient.sendVerificationEmail({
-        email: registeredEmail,
-        callbackURL: `${window.location.origin}/dashboard?verified=true`,
+      const res = await apiFetch<{ sent: boolean; message?: string }>("/api/resend-code", {
+        method: "POST",
+        body: JSON.stringify({ email: registeredEmail }),
       });
-      const statusRes = await apiFetch<{
-        attempt: { sent: boolean; error: string | null } | null;
-      }>(`/api/verification-status?email=${encodeURIComponent(registeredEmail)}`);
 
-      setResendStatus(
-        t(
-          "Verification email re-sent! Please check your Gmail inbox (or Spam folder).",
-          "Email verifikasi telah dikirim ulang! Silakan periksa kotak masuk Gmail (atau folder Spam) Anda."
-        )
-      );
-      setResendCooldown(60);
+      if (res.success) {
+        setResendStatus(
+          t(
+            "New 5-digit code sent to your Gmail inbox! Please check your spam folder if needed.",
+            "Kode 5 digit baru telah dikirim ke kotak masuk Gmail Anda! Periksa folder spam jika perlu."
+          )
+        );
+        setResendCooldown(60);
+      } else {
+        setResendStatus(
+          t(
+            "Failed to resend. Please try again in a few moments.",
+            "Gagal mengirim ulang. Silakan coba beberapa saat lagi."
+          )
+        );
+      }
     } catch {
       setResendStatus(
         t(
@@ -125,38 +133,49 @@ export default function RegisterPage() {
     }
   };
 
-  const handleDirectVerifyRegister = async () => {
-    if (!registeredEmail || isDirectVerifying) return;
-    setIsDirectVerifying(true);
+  const handleVerifyOtpRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!registeredEmail || otpCode.trim().length !== 5 || isVerifyingCode) return;
+    setIsVerifyingCode(true);
+    setCodeError(null);
     try {
-      const verifyRes = await apiFetch<{ verified: boolean }>("/api/verify-direct", {
+      const res = await apiFetch<{ verified: boolean; message?: string }>("/api/verify-code", {
         method: "POST",
-        body: JSON.stringify({ email: registeredEmail }),
+        body: JSON.stringify({
+          email: registeredEmail,
+          code: otpCode.trim(),
+        }),
       });
 
-      if (verifyRes.success) {
-        if (registeredPassword) {
-          const loginRes = await signIn.email({
-            email: registeredEmail,
-            password: registeredPassword,
-            rememberMe: true,
-          });
-          if (!loginRes.error) {
-            router.push("/dashboard?verified=true");
-            return;
-          }
-        }
-        router.push("/login?verified=true");
+      if (!res.success) {
+        setCodeError(
+          res.error?.message ||
+            t("Invalid or expired 5-digit code.", "Kode 5 digit salah atau sudah kadaluarsa.")
+        );
+        setIsVerifyingCode(false);
+        return;
       }
+
+      // Verification successful! Automatically sign in & redirect to dashboard
+      if (registeredPassword) {
+        const loginRes = await signIn.email({
+          email: registeredEmail,
+          password: registeredPassword,
+          rememberMe: true,
+        });
+        if (!loginRes.error) {
+          router.push("/dashboard?verified=true");
+          return;
+        }
+      }
+
+      router.push("/login?verified=true");
     } catch {
-      setResendStatus(
-        t(
-          "Could not verify directly. Please try signing in.",
-          "Gagal memverifikasi secara langsung. Silakan coba masuk."
-        )
+      setCodeError(
+        t("Failed to verify code. Please try again.", "Gagal memverifikasi kode. Silakan coba lagi.")
       );
     } finally {
-      setIsDirectVerifying(false);
+      setIsVerifyingCode(false);
     }
   };
 
@@ -273,7 +292,7 @@ export default function RegisterPage() {
           <div className="w-full max-w-lg bg-surface-container-lowest rounded-3xl p-8 sm:p-10 shadow-xl border border-surface-container-high flex flex-col items-center text-center gap-6 animate-in zoom-in-95 duration-200">
             <div className="w-20 h-20 rounded-3xl bg-secondary-container text-primary flex items-center justify-center shadow-xs">
               <span className="material-symbols-outlined text-[44px]">
-                mark_email_unread
+                pin
               </span>
             </div>
 
@@ -282,12 +301,12 @@ export default function RegisterPage() {
                 {t("Almost Done!", "Hampir Selesai!")}
               </span>
               <h2 className="font-headline-md text-headline-md font-bold text-on-surface tracking-tight">
-                {t("Verify your Gmail inbox", "Periksa Kotak Masuk Gmail Anda")}
+                {t("Enter 5-Digit Code", "Masukkan Kode 5 Digit")}
               </h2>
               <p className="font-body-md text-body-md text-secondary mt-1">
                 {t(
-                  "We have sent an activation link to:",
-                  "Kami telah mengirimkan tautan aktivasi ke:"
+                  "We have sent a 5-digit verification code to your Gmail:",
+                  "Kami telah mengirimkan 5 digit kode verifikasi ke Gmail Anda:"
                 )}
               </p>
               <span className="font-headline-sm text-headline-sm font-bold text-primary break-all">
@@ -295,81 +314,79 @@ export default function RegisterPage() {
               </span>
             </div>
 
-            <div className="w-full p-4 rounded-2xl bg-surface-container-low text-left font-body-sm text-body-sm text-secondary flex flex-col gap-2 border border-surface-container-high">
-              <div className="flex items-center gap-2 font-semibold text-on-surface font-label-md text-label-md">
-                <span className="material-symbols-outlined text-[18px] text-primary">
-                  lightbulb
+            <form onSubmit={handleVerifyOtpRegister} className="w-full flex flex-col gap-4">
+              <div className="flex flex-col items-center gap-2">
+                <label className="font-label-sm uppercase tracking-wider text-secondary font-semibold">
+                  {t("Verification Code", "Kode Verifikasi")}
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={5}
+                  value={otpCode}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 5);
+                    setOtpCode(val);
+                    setCodeError(null);
+                  }}
+                  placeholder="•••••"
+                  className="w-64 h-16 text-center font-mono text-3xl font-bold tracking-[14px] rounded-2xl bg-surface-container-low border-2 border-surface-container-high focus:border-primary focus:bg-surface focus:outline-none transition-all shadow-inner text-primary"
+                  autoFocus
+                />
+              </div>
+
+              {codeError && (
+                <div className="p-3 rounded-xl bg-error-container text-on-error-container font-label-sm text-label-sm text-center">
+                  {codeError}
+                </div>
+              )}
+
+              {resendStatus && (
+                <div className="w-full p-3.5 rounded-2xl bg-secondary-container text-on-secondary-container font-label-md text-label-md font-semibold text-center">
+                  {resendStatus}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={otpCode.length !== 5 || isVerifyingCode}
+                className="w-full py-3.5 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold shadow-md hover:bg-primary-container disabled:opacity-40 transition-all flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  check_circle
                 </span>
-                <span>{t("Next Steps", "Langkah Selanjutnya")}</span>
-              </div>
-              <p>
-                {t(
-                  "1. Open your Gmail and look for an email from LifeSync Wellness.",
-                  "1. Buka Gmail Anda dan cari email dari LifeSync Wellness."
-                )}
-              </p>
-              <p>
-                {t(
-                  "2. Click the 'Verifikasi Akun & Aktifkan' button.",
-                  "2. Klik tombol 'Verifikasi Akun & Aktifkan' di dalam email."
-                )}
-              </p>
-              <p className="text-outline text-xs">
-                {t(
-                  "* If you don't see it in 1-2 minutes, check your Spam / Promotions folder.",
-                  "* Jika tidak terlihat dalam 1-2 menit, periksa folder Spam / Promosi."
-                )}
-              </p>
-            </div>
+                <span>
+                  {isVerifyingCode
+                    ? t("Verifying...", "Memeriksa...")
+                    : t("Confirm & Activate Account", "Konfirmasi & Aktifkan")}
+                </span>
+              </button>
+            </form>
 
-            {resendStatus && (
-              <div className="w-full p-3.5 rounded-2xl bg-secondary-container text-on-secondary-container font-label-md text-label-md font-semibold text-center">
-                {resendStatus}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-3 w-full pt-2">
+            <div className="flex flex-col gap-3 w-full pt-1">
               <button
                 type="button"
                 disabled={resendCooldown > 0}
                 onClick={handleResendRegisterVerification}
-                className="w-full py-3.5 rounded-xl bg-primary-container text-on-primary font-label-lg text-label-lg font-bold shadow-md hover:opacity-95 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-primary font-label-md text-label-md font-semibold transition-all flex items-center justify-center gap-2"
               >
-                <span className="material-symbols-outlined text-[20px]">
+                <span className="material-symbols-outlined text-[18px]">
                   send
                 </span>
                 <span>
                   {resendCooldown > 0
                     ? `${t("Resend in", "Kirim ulang dalam")} ${resendCooldown}s`
                     : t(
-                        "Resend Verification Email",
-                        "Kirim Ulang Email Verifikasi"
-                      )}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                disabled={isDirectVerifying}
-                onClick={handleDirectVerifyRegister}
-                className="w-full py-3.5 rounded-xl bg-secondary-container text-on-secondary-container font-label-lg text-label-lg font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 border border-primary/20 shadow-xs"
-              >
-                <span className="material-symbols-outlined text-[20px] text-primary">
-                  verified
-                </span>
-                <span>
-                  {isDirectVerifying
-                    ? t("Verifying...", "Memverifikasi...")
-                    : t(
-                        "Instant Verify & Enter Dashboard (If SMTP Blocked)",
-                        "Verifikasi Langsung & Masuk Dasbor (Jika Email Tertahan)"
+                        "Resend 5-Digit Code",
+                        "Kirim Ulang Kode 5 Digit"
                       )}
                 </span>
               </button>
 
               <Link
                 href="/login"
-                className="w-full py-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md font-semibold transition-all text-center"
+                className="w-full py-2.5 text-secondary hover:text-on-surface font-label-md text-label-md font-medium transition-all text-center"
               >
                 {t("Go to Sign In", "Beralih ke Halaman Masuk")}
               </Link>
