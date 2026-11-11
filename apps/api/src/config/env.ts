@@ -8,6 +8,13 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
   PORT: z.coerce.number().default(3001),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  RESEND_API_KEY: z.string().optional().default(""),
+  EMAIL_FROM: z.string().default("LifeSync Wellness <onboarding@resend.dev>"),
+  REQUIRE_EMAIL_VERIFICATION: z
+    .string()
+    .optional()
+    .default("false")
+    .transform((val) => val === "true"),
 });
 
 export const env = envSchema.parse(process.env);
