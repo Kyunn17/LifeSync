@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../shared/models/schedule_block_model.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import '../../../shared/widgets/status_banner.dart';
@@ -8,8 +9,17 @@ import '../providers/planner_provider.dart';
 
 class AddScheduleSheet extends ConsumerStatefulWidget {
   final String date;
+  final ScheduleBlockModel? initialBlock;
+  final String? prefillStartTime;
+  final String? prefillEndTime;
 
-  const AddScheduleSheet({super.key, required this.date});
+  const AddScheduleSheet({
+    super.key,
+    required this.date,
+    this.initialBlock,
+    this.prefillStartTime,
+    this.prefillEndTime,
+  });
 
   @override
   ConsumerState<AddScheduleSheet> createState() => _AddScheduleSheetState();
@@ -17,14 +27,36 @@ class AddScheduleSheet extends ConsumerStatefulWidget {
 
 class _AddScheduleSheetState extends ConsumerState<AddScheduleSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _descController = TextEditingController();
+  late final TextEditingController _titleController;
+  late final TextEditingController _descController;
 
-  TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
-  TimeOfDay _endTime = const TimeOfDay(hour: 10, minute: 30);
+  late TimeOfDay _startTime;
+  late TimeOfDay _endTime;
   String? _selectedCategoryId;
   bool _isLoading = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.initialBlock?.title ?? '');
+    _descController = TextEditingController(text: widget.initialBlock?.description ?? '');
+    _selectedCategoryId = widget.initialBlock?.activityId;
+
+    _startTime = _parseTime(widget.initialBlock?.startTime ?? widget.prefillStartTime ?? '09:00');
+    _endTime = _parseTime(widget.initialBlock?.endTime ?? widget.prefillEndTime ?? '10:30');
+  }
+
+  TimeOfDay _parseTime(String timeStr) {
+    try {
+      final parts = timeStr.split(':');
+      final h = int.parse(parts[0]);
+      final m = int.parse(parts[1]);
+      return TimeOfDay(hour: h, minute: m);
+    } catch (_) {
+      return const TimeOfDay(hour: 9, minute: 0);
+    }
+  }
 
   @override
   void dispose() {
@@ -77,14 +109,26 @@ class _AddScheduleSheetState extends ConsumerState<AddScheduleSheet> {
     });
 
     try {
-      await ref.read(plannerRepositoryProvider).createSchedule(
-            title: _titleController.text.trim(),
-            activityId: _selectedCategoryId!,
-            date: widget.date,
-            startTime: _formatTimeOfDay(_startTime),
-            endTime: _formatTimeOfDay(_endTime),
-            description: _descController.text.trim(),
-          );
+      if (widget.initialBlock != null) {
+        await ref.read(plannerRepositoryProvider).updateSchedule(
+              id: widget.initialBlock!.id,
+              title: _titleController.text.trim(),
+              activityId: _selectedCategoryId!,
+              date: widget.date,
+              startTime: _formatTimeOfDay(_startTime),
+              endTime: _formatTimeOfDay(_endTime),
+              description: _descController.text.trim(),
+            );
+      } else {
+        await ref.read(plannerRepositoryProvider).createSchedule(
+              title: _titleController.text.trim(),
+              activityId: _selectedCategoryId!,
+              date: widget.date,
+              startTime: _formatTimeOfDay(_startTime),
+              endTime: _formatTimeOfDay(_endTime),
+              description: _descController.text.trim(),
+            );
+      }
 
       ref.invalidate(scheduleSummaryProvider);
 
@@ -95,7 +139,7 @@ class _AddScheduleSheetState extends ConsumerState<AddScheduleSheet> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString();
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
         });
       }
     }
@@ -105,6 +149,7 @@ class _AddScheduleSheetState extends ConsumerState<AddScheduleSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final categoriesAsync = ref.watch(categoriesProvider);
+    final isEditing = widget.initialBlock != null;
 
     return Container(
       padding: EdgeInsets.only(
@@ -136,7 +181,7 @@ class _AddScheduleSheetState extends ConsumerState<AddScheduleSheet> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Tambah Blok Jadwal',
+                isEditing ? 'Ubah Blok Jadwal' : 'Tambah Blok Jadwal',
                 style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
@@ -281,7 +326,7 @@ class _AddScheduleSheetState extends ConsumerState<AddScheduleSheet> {
               const SizedBox(height: 24),
 
               CustomButton(
-                text: 'Simpan ke Jadwal',
+                text: isEditing ? 'Simpan Perubahan' : 'Simpan ke Jadwal',
                 isLoading: _isLoading,
                 onPressed: _handleSubmit,
               ),
@@ -292,4 +337,3 @@ class _AddScheduleSheetState extends ConsumerState<AddScheduleSheet> {
     );
   }
 }
-

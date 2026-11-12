@@ -5,6 +5,12 @@ import '../../../app/theme/app_colors.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/dashboard_provider.dart';
+import 'widgets/breathing_exercise_dialog.dart';
+import 'widgets/circadian_ring_chart.dart';
+import 'widgets/quick_checkin_sheet.dart';
+import 'widgets/quick_exercise_sheet.dart';
+import 'widgets/quick_sleep_sheet.dart';
+import 'widgets/quick_water_sheet.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -93,67 +99,152 @@ class DashboardScreen extends ConsumerWidget {
                   _buildBalanceScoreCard(context, data.balanceScore),
                   const SizedBox(height: 16),
 
-                  // 2. 24-Hour Time Stewardship Card
-                  _buildTimeAllocationCard(context, schedule),
+                  // 2. Circadian 24-Hour Donut Ring
+                  CircadianRingChart(schedule: schedule),
                   const SizedBox(height: 16),
 
-                  // 3. Quick Vitals Grid (Sleep & Water)
+                  // 3. Section Title with Edit Hint
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Ringkasan Kebugaran Hari Ini',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const Text(
+                        'Ketuk kartu untuk atur ✏️',
+                        style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // 4. Quick Vitals Grid (Sleep & Water) - Fully Tappable to Edit!
                   Row(
                     children: [
                       Expanded(
-                        child: _buildVitalCard(
-                          context,
-                          title: 'Tidur',
-                          icon: Icons.bedtime_outlined,
-                          accentColor: const Color(0xFF005F3F),
-                          value: '${(wellness.sleepDurationMinutes / 60).toStringAsFixed(1)} Jam',
-                          target: 'Target ${(goals.dailySleepGoalMinutes / 60).toStringAsFixed(0)} Jam',
-                          progress: goals.dailySleepGoalMinutes > 0
-                              ? (wellness.sleepDurationMinutes / goals.dailySleepGoalMinutes).clamp(0.0, 1.0)
-                              : 0.0,
+                        child: InkWell(
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => QuickSleepSheet(
+                                date: selectedDate,
+                                currentMinutes: wellness.sleepDurationMinutes,
+                                currentQuality: wellness.sleepQuality ?? 85,
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: _buildVitalCard(
+                            context,
+                            title: 'Tidur Semalam',
+                            icon: Icons.bedtime_outlined,
+                            accentColor: const Color(0xFF005F3F),
+                            value: '${(wellness.sleepDurationMinutes / 60).toStringAsFixed(1)} Jam',
+                            target: 'Target ${(goals.dailySleepGoalMinutes / 60).toStringAsFixed(0)} Jam',
+                            progress: goals.dailySleepGoalMinutes > 0
+                                ? (wellness.sleepDurationMinutes / goals.dailySleepGoalMinutes).clamp(0.0, 1.0)
+                                : 0.0,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildWaterCard(context, ref, wellness.waterIntakeMl, goals.dailyWaterGoalMl),
+                        child: InkWell(
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => QuickWaterSheet(
+                                date: selectedDate,
+                                currentMl: wellness.waterIntakeMl,
+                                goalMl: goals.dailyWaterGoalMl,
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: _buildWaterCard(context, ref, wellness.waterIntakeMl, goals.dailyWaterGoalMl),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
 
-                  // 4. Movement & Mood Row
+                  // 5. Movement & Mood Row - Fully Tappable!
                   Row(
                     children: [
                       Expanded(
-                        child: _buildVitalCard(
-                          context,
-                          title: 'Aktivitas Fisik',
-                          icon: Icons.directions_run_rounded,
-                          accentColor: const Color(0xFF0D7A53),
-                          value: '${wellness.exerciseDurationMinutes} Menit',
-                          target: 'Target ${goals.dailyExerciseGoalMinutes}m',
-                          progress: goals.dailyExerciseGoalMinutes > 0
-                              ? (wellness.exerciseDurationMinutes / goals.dailyExerciseGoalMinutes).clamp(0.0, 1.0)
-                              : 0.0,
+                        child: InkWell(
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => QuickExerciseSheet(
+                                date: selectedDate,
+                                currentExerciseMinutes: wellness.exerciseDurationMinutes,
+                                currentSteps: wellness.dailySteps,
+                                goalMinutes: goals.dailyExerciseGoalMinutes,
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: _buildVitalCard(
+                            context,
+                            title: 'Aktivitas Fisik',
+                            icon: Icons.directions_run_rounded,
+                            accentColor: const Color(0xFF0D7A53),
+                            value: '${wellness.exerciseDurationMinutes} Menit',
+                            target: 'Target ${goals.dailyExerciseGoalMinutes}m • ${wellness.dailySteps} lkg',
+                            progress: goals.dailyExerciseGoalMinutes > 0
+                                ? (wellness.exerciseDurationMinutes / goals.dailyExerciseGoalMinutes).clamp(0.0, 1.0)
+                                : 0.0,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildVitalCard(
-                          context,
-                          title: 'Kondisi Mood',
-                          icon: Icons.mood_rounded,
-                          accentColor: const Color(0xFF3F6656),
-                          value: wellness.mood,
-                          target: 'Energi ${wellness.energyLevel}%',
-                          progress: wellness.energyLevel / 100.0,
+                        child: InkWell(
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => QuickCheckinSheet(
+                                date: selectedDate,
+                                currentMood: wellness.mood,
+                                currentEnergy: wellness.energyLevel,
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: _buildVitalCard(
+                            context,
+                            title: 'Kondisi Mood',
+                            icon: Icons.mood_rounded,
+                            accentColor: const Color(0xFF3F6656),
+                            value: wellness.mood,
+                            target: 'Energi ${wellness.energyLevel}%',
+                            progress: wellness.energyLevel / 100.0,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-                  // 5. Daily Wellness Tip
+                  // 6. Relaxation Breathing Exercise Banner
+                  _buildBreathingBanner(context),
+                  const SizedBox(height: 20),
+
+                  // 7. Daily Habit Checklist
+                  _buildHabitChecklist(context, wellness, schedule, goals),
+                  const SizedBox(height: 20),
+
+                  // 8. Daily Wellness Tip
                   if (data.tips.isNotEmpty) ...[
                     _buildTipCard(context, data.tips.first),
                     const SizedBox(height: 24),
@@ -232,7 +323,6 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 16),
-          // Circular Score Badge
           Container(
             width: 72,
             height: 72,
@@ -251,73 +341,6 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeAllocationCard(BuildContext context, dynamic schedule) {
-    final theme = Theme.of(context);
-    final allocated = schedule.allocatedMinutes as int;
-    final remaining = schedule.remainingMinutes as int;
-    final percent = schedule.allocatedPercentage as int;
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.surfaceContainerHigh),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.schedule_rounded, size: 20, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Alokasi 24 Jam (1.440m)',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              Text(
-                '$percent% Terisi',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: (percent / 100.0).clamp(0.0, 1.0),
-              minHeight: 10,
-              backgroundColor: AppColors.surfaceContainerLow,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Terjadwal: ${(allocated / 60).toStringAsFixed(1)} Jam',
-                style: theme.textTheme.bodySmall,
-              ),
-              Text(
-                'Waktu Luang: ${(remaining / 60).toStringAsFixed(1)} Jam',
-                style: theme.textTheme.bodySmall?.copyWith(color: AppColors.secondary),
-              ),
-            ],
           ),
         ],
       ),
@@ -348,8 +371,36 @@ class DashboardScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-              Icon(icon, size: 18, color: accentColor),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 16, color: accentColor),
+                  const SizedBox(width: 6),
+                  Text(title, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit_outlined, size: 10, color: accentColor),
+                    const SizedBox(width: 2),
+                    Text(
+                      'Atur',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: accentColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -379,7 +430,6 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildWaterCard(BuildContext context, WidgetRef ref, int currentMl, int goalMl) {
     final theme = Theme.of(context);
-    final selectedDate = ref.watch(selectedDateProvider);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -394,8 +444,36 @@ class DashboardScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Air Minum', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-              const Icon(Icons.water_drop_rounded, size: 18, color: Colors.blueAccent),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.water_drop_rounded, size: 16, color: Colors.blueAccent),
+                  const SizedBox(width: 6),
+                  Text('Air Minum', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blueAccent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit_outlined, size: 10, color: Colors.blueAccent),
+                    SizedBox(width: 2),
+                    Text(
+                      'Atur',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueAccent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -408,53 +486,154 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text('Target ${goalMl}ml', style: theme.textTheme.bodySmall),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () async {
-                    await ref.read(dashboardRepositoryProvider).addWater(selectedDate, 250);
-                    ref.invalidate(dailyAnalyticsProvider);
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      '+250ml',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
-                    ),
-                  ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: goalMl > 0 ? (currentMl / goalMl).clamp(0.0, 1.0) : 0.0,
+              minHeight: 6,
+              backgroundColor: AppColors.surfaceContainerLow,
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.blueAccent),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBreathingBanner(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.surfaceContainerHigh),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.secondaryContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.self_improvement_rounded, size: 28, color: AppColors.primary),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Latihan Pernapasan 1 Menit',
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  'Tenangkan pikiran dan pulihkan fokus dengan Box Breathing.',
+                  style: theme.textTheme.bodySmall?.copyWith(color: AppColors.outline),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              backgroundColor: AppColors.primary,
+            ),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (_) => const BreathingExerciseDialog(),
+              );
+            },
+            child: const Text('Mulai', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHabitChecklist(
+    BuildContext context,
+    dynamic wellness,
+    dynamic schedule,
+    dynamic goals,
+  ) {
+    final theme = Theme.of(context);
+
+    final bool sleepDone = wellness.sleepDurationMinutes >= (goals.dailySleepGoalMinutes * 0.85);
+    final bool waterDone = wellness.waterIntakeMl >= (goals.dailyWaterGoalMl * 0.7);
+    final bool movementDone = wellness.exerciseDurationMinutes >= 20;
+    final bool scheduleDone = schedule.allocatedMinutes >= 480;
+    final bool moodDone = wellness.mood != null && wellness.mood != 'Calm';
+
+    final int completedCount = [sleepDone, waterDone, movementDone, scheduleDone, moodDone]
+        .where((b) => b)
+        .length;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.surfaceContainerHigh),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Habit Checklist Harian',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: InkWell(
-                  onTap: () async {
-                    await ref.read(dashboardRepositoryProvider).addWater(selectedDate, 500);
-                    ref.invalidate(dailyAnalyticsProvider);
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      '+500ml',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
-                    ),
-                  ),
+              Text(
+                '$completedCount/5 Selesai',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 14),
+          _buildHabitItem('Tidur berkualitas tercapai (≥ ${(goals.dailySleepGoalMinutes / 60).toStringAsFixed(0)} jam)', sleepDone),
+          _buildHabitItem('Hidrasi harian terpenuhi (${wellness.waterIntakeMl} ml)', waterDone),
+          _buildHabitItem('Aktivitas fisik / gerak (≥ 20 menit)', movementDone),
+          _buildHabitItem('Jadwal 24 jam telah direncanakan (${(schedule.allocatedMinutes / 60).toStringAsFixed(1)} jam)', scheduleDone),
+          _buildHabitItem('Check-in mood & energi telah dicatat', moodDone),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHabitItem(String title, bool isDone) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(
+            isDone ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            size: 18,
+            color: isDone ? AppColors.primary : AppColors.outlineVariant,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isDone ? FontWeight.w600 : FontWeight.normal,
+                color: isDone ? AppColors.onSurface : AppColors.outline,
+                decoration: isDone ? TextDecoration.none : null,
+              ),
+            ),
           ),
         ],
       ),
@@ -507,4 +686,3 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 }
-
