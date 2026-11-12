@@ -12,6 +12,28 @@ class ScheduleBlockModel {
   final bool crossesMidnight;
   final ActivityCategoryModel? category;
 
+  int get startMinutes {
+    try {
+      final parts = startTime.split(':');
+      return (int.parse(parts[0]) * 60) + int.parse(parts[1]);
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  int get endMinutes {
+    try {
+      final parts = endTime.split(':');
+      final val = (int.parse(parts[0]) * 60) + int.parse(parts[1]);
+      if (crossesMidnight && val <= startMinutes) {
+        return val + 1440;
+      }
+      return val;
+    } catch (_) {
+      return startMinutes + durationMinutes;
+    }
+  }
+
   ScheduleBlockModel({
     required this.id,
     required this.activityId,

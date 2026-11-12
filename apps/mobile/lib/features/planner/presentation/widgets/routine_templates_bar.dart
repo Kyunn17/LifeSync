@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
-import '../providers/planner_provider.dart';
+import '../../providers/planner_provider.dart';
 
 class RoutineTemplatesBar extends ConsumerStatefulWidget {
   final String date;

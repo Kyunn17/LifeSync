@@ -15,7 +15,6 @@ class _BreathingExerciseDialogState extends State<BreathingExerciseDialog>
   Timer? _timer;
   int _secondsRemaining = 60;
   String _phase = 'Tarik Napas';
-  bool _isPlaying = true;
 
   @override
   void initState() {
@@ -35,7 +34,6 @@ class _BreathingExerciseDialogState extends State<BreathingExerciseDialog>
         timer.cancel();
         setState(() {
           _secondsRemaining = 0;
-          _isPlaying = false;
         });
         return;
       }

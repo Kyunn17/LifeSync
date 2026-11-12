@@ -104,10 +104,10 @@ class PlannerRepository {
         '${ApiEndpoints.schedules}/$id',
         data: {
           if (title != null) 'title': title.trim(),
-          if (activityId != null) 'activityId': activityId,
-          if (date != null) 'date': date,
-          if (startTime != null) 'startTime': startTime,
-          if (endTime != null) 'endTime': endTime,
+          'activityId': ?activityId,
+          'date': ?date,
+          'startTime': ?startTime,
+          'endTime': ?endTime,
           if (description != null) 'description': description.trim(),
         },
       );
