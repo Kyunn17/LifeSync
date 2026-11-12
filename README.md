@@ -1,7 +1,8 @@
-# LifeSync Wellness
+# LifeSync Wellness Platform
 
-**LifeSync Wellness** is a modern digital wellness and daily 24-hour lifestyle management platform built with a Bun monorepo architecture, reproducing the **LifeSync Wellness Platform** design system (`Sanctuary Flow`).
+**LifeSync Wellness Platform** is an all-in-one digital wellness and daily 24-hour lifestyle management platform designed to help users build balance, track circadian routines, and nurture personal growth without comparison. Built with a modern Bun monorepo and cross-platform Flutter mobile architecture adhering to the **Sanctuary Flow** design system.
 
+> *"Your life, in better balance."*  
 > **Note:** LifeSync Wellness is a digital wellness and lifestyle management platform, **not** a medical diagnosis application.
 
 ---
@@ -9,9 +10,10 @@
 ## 1. Architecture & Monorepo Structure
 
 ```text
-lifesync/
+LifeSync/
 ├── apps/
-│   ├── web/                    # Next.js 15 (App Router), TypeScript, Tailwind CSS v4, shadcn/ui, Recharts
+│   ├── mobile/                 # Flutter 3.50+ Android/iOS Mobile App (Riverpod, Dio, GoRouter, fl_chart)
+│   ├── web/                    # Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Recharts
 │   └── api/                    # Express.js REST API, TypeScript, Better Auth, RBAC, Zod validation
 ├── packages/
 │   ├── db/                     # Drizzle ORM + Neon Serverless PostgreSQL schema, migrations & seed
@@ -29,133 +31,164 @@ lifesync/
 
 ## 2. Technology Stack
 
-- **Frontend (`apps/web`)**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Recharts, React Hook Form, Zod, Lucide React, Material Symbols Outlined
-- **Backend (`apps/api`)**: Express.js, TypeScript, REST API architecture, Better Auth (`better-auth`), Zod validation
-- **Database (`packages/db`)**: PostgreSQL on Neon Serverless (`@neondatabase/serverless`), Drizzle ORM (`drizzle-orm`, `drizzle-kit`)
-- **Runtime & Tooling**: Bun runtime & workspaces, `bun test` integration suite
+### Mobile Application (`apps/mobile`)
+- **Framework**: Flutter 3.50+ / Dart 3.7+
+- **State Management**: Flutter Riverpod (`flutter_riverpod: ^2.6.1`)
+- **Networking**: Dio (`dio: ^5.7.0`) with `AuthInterceptor` (Session Cookie & Bearer sync)
+- **Navigation & Routing**: GoRouter (`go_router: ^14.6.2`) with `StatefulShellRoute` (5 persistent navigation branches)
+- **Local Storage**: `flutter_secure_storage` & `shared_preferences`
+- **Charts & Data Viz**: `fl_chart: ^0.69.2`
+- **Typography & UI**: Google Fonts (*Plus Jakarta Sans* & *Inter*), Material 3 Sanctuary Flow styling
+
+### Web Frontend (`apps/web`)
+- **Framework**: Next.js 15 (App Router), React 19, TypeScript
+- **Styling & UI**: Tailwind CSS v4, shadcn/ui, Lucide React, Material Symbols
+- **Visualizations**: Recharts, Circadian Ribbon Timeline, 24-Hour Ring Chart
+- **Form Management**: React Hook Form, Zod
+
+### Backend API (`apps/api`)
+- **Runtime & Server**: Bun, Express.js 4, TypeScript
+- **Authentication**: Better Auth (`better-auth`) with session cookie management, 5-digit OTP verification, and RBAC
+- **Validation**: Zod with `@lifesync/shared` schemas
+- **Production Host**: Railway (`https://lifesyncapi-production.up.railway.app`)
+
+### Database (`packages/db`)
+- **Database Engine**: Neon Serverless PostgreSQL
+- **ORM & Migrations**: Drizzle ORM (`drizzle-orm`, `drizzle-kit`)
+- **Tables**: 11 normalized tables covering auth, sessions, profiles, categories, daily schedules, health logs, check-ins, water logs, and wellness tips
 
 ---
 
-## 3. Core Features
+## 3. Core Applications & Features
 
-1. **Authentication & RBAC (`USER` / `ADMIN`)**:
-   - Powered by Better Auth with session cookie authentication (`httpOnly`, `sameSite: lax`).
-   - All newly registered accounts automatically receive the `USER` role (`input: false` on role/ban fields prevents privilege escalation during sign-up).
-   - Strict server-side `requireAuth` and `requireRole("ADMIN")` middleware on Express routes.
-2. **24-Hour Daily Time Allocation (`/schedule`)**:
-   - Organize daily 24 hours (`1,440 minutes`) into scheduled activities across 10 default categories (`Sleep`, `Work`, `Study`, `Exercise`, `Meals`, `Commute`, `Entertainment`, `Personal Time`, `Rest`, `Other`) or custom user categories.
-   - Server-side overlap detection (`409 SCHEDULE_OVERLAP`) with full support for midnight-crossing activities (e.g., `22:30` to `06:30`) and unallocated free time.
-   - Interactive 24-hour circadian ring visualization, category breakdown, and vertical timeline stream.
-3. **Daily Wellness Tracking (`/wellness`)**:
-   - Log sleep duration (`minutes`) & quality (`1-100`), exercise duration, daily steps, resting heart rate, water intake (`ml` with quick `+250ml` / `+500ml` logging), and daily mood/energy check-ins.
-4. **Personalized Dashboard & Biometric Insights (`/dashboard`, `/insights`)**:
-   - Real-time daily wellness score, 24-hour balance bar, sleep/movement/hydration cards, quick check-in widget, and 7-day trend charts.
-   - Weekly and 30-day analytics with previous-week delta comparisons and dynamic circadian optimization insights.
-5. **Admin Governance Console (`/admin`) & Profile Settings (`/settings`)**:
-   - **Admin Console**: Platform adoption metrics, user role/status governance (`USER`/`ADMIN`, active/suspended), system activity category management, and curated wellness tips management. Strictly preserves user privacy (never exposes private user schedules or personal health logs).
-   - **Settings**: Personal profile, chronotype & lifestyle goals (`sleep`, `exercise`, `water`, `steps`), and account security.
+### A. Mobile Application (`apps/mobile`)
+1. **Beranda Interaktif (Home Dashboard)**:
+   - **Skor Keseimbangan Harian (*Daily Balance Score*)**: Ringkasan performa circadian 24 jam real-time.
+   - **Kartu Metrik Interaktif**: Ketuk untuk mengatur langsung (*Sleep Sheet*, *Water Sheet*, *Exercise Sheet*, *Check-in Sheet*).
+   - **Latihan Pernapasan 1 Menit (*Box Breathing Exercise*)**: Animasi visual relaksasi 4-4-4-4 untuk menurunkan stres.
+   - **Daftar Kebiasaan Harian (*Habit Checklist*)** & Tips Harian (*Wellness Tips*).
+2. **Rencana 24 Jam (*24-Hour Circadian Planner*)**:
+   - **Pita Sirkadian 24 Jam (*Continuous Circadian Ribbon Bar*)**: Garis waktu kontinu 00:00 - 24:00 dengan penanda waktu langsung (*Live Time Marker*), blok berkode warna kategori, dan celah waktu luang (*free time gaps*).
+   - **Template Rutinitas Cepat (*1-Click Presets*)**: *"Salin Kemarin"*, *"Hari Kerja"*, dan *"Akhir Pekan"*.
+   - **Isi Slot Luang Otomatis**: Mendeteksi celah kosong (>= 30 menit) dan langsung membuka form jadwal.
+   - **Manajemen Blok**: Tambah, ubah, bagi menjadi 2 blok (*Split*), dan hapus.
+3. **Pencatatan Kesehatan (*Wellness Hub*)**:
+   - Monitor tidur, olahraga, langkah kaki, hidrasi air, mood (8 varian emosi), dan level energi (0-100%).
+4. **Wawasan & Tren (*Insights*)**:
+   - Grafik tren tidur 7 hari (*fl_chart*), statistik rata-rata mingguan, dan observasi gaya hidup.
+5. **Profil & Pengaturan Akun (*Profile*)**:
+   - Pengaturan target tidur, air minum, olahraga, pergantian bahasa, serta manajemen akun & logout aman.
+
+### B. Web Frontend (`apps/web`)
+- Dashboard analitik circadian lengkap dengan diagram cincin 24 jam.
+- Perencana jadwal dengan drag/filter slot waktu dan template hari kerja.
+- Konsol administrasi (**Admin Console** di `/admin`) untuk tata kelola pengguna, kategori sistem, dan kurasi tips wellness.
 
 ---
 
-## 4. Database Schema (`packages/db`)
+## 4. Visual Identity — *Sanctuary Flow*
+
+The LifeSync platform is styled with a calm, premium wellness aesthetic:
+- **Primary Color**: Forest Green (`#0D7A53`)
+- **Secondary / Accent**: Soft Sage (`#BEE9D4` / `#486557`)
+- **Neutral Light**: Crisp white surfaces (`#FFFFFF`) and warm grey canvas (`#F7FAF8`)
+- **Typography**: *Plus Jakarta Sans* (Headings & Numbers) and *Inter* (Body & Micro-copy)
+
+---
+
+## 5. Database Schema (`packages/db`)
 
 11 normalized PostgreSQL tables managed via Drizzle ORM:
 
 | Table | Purpose |
 | :--- | :--- |
-| `user` | Core user identity, `role` (`USER` \| `ADMIN`), and `banned` flag (Better Auth compatible) |
+| `user` | Core user identity, `role` (`USER` \| `ADMIN`), and `banned` flag |
 | `session` | Active user sessions with token, expiration, IP, and user agent |
 | `account` | Credential/OAuth account records and hashed passwords |
-| `verification` | Verification tokens for email/password flows |
+| `verification` | Verification tokens for email/password and OTP flows |
 | `profile` | 1:1 user wellness goals (sleep, water, exercise, steps), chronotype, and timezone |
 | `activities` | System default (`is_default = true`) and user-custom (`user_id`) activity categories |
 | `daily_schedules` | 24-hour scheduled activity blocks (`date`, `start_time`, `end_time`, `duration_minutes`, `crosses_midnight`) |
-| `health_logs` | Daily consolidated sleep, exercise, steps, water, mood, energy, and resting HR per user/date |
+| `health_logs` | Daily consolidated sleep, exercise, steps, water, mood, energy, and resting HR |
 | `daily_checkins` | Timestamped mood, energy, and reflection check-in entries |
 | `water_logs` | Individual hydration intake entries (`amount_ml`, `logged_at`) |
 | `health_tips` | Curated wellness & circadian rhythm tips managed by administrators |
 
 ---
 
-## 5. Environment Configuration
-
-Copy `.env.example` to `.env` in `apps/api`, `packages/db`, and `apps/web`:
-
-### Backend (`apps/api/.env` & `packages/db/.env`)
-
-```env
-DATABASE_URL="postgresql://user:password@ep-example-pooler.region.aws.neon.tech/neondb?sslmode=require"
-DIRECT_URL="postgresql://user:password@ep-example.region.aws.neon.tech/neondb?sslmode=require"
-BETTER_AUTH_SECRET="replace-with-a-secure-32-char-random-secret-key"
-BETTER_AUTH_URL="http://localhost:3001"
-FRONTEND_URL="http://localhost:3000"
-PORT=3001
-```
-
-### Frontend (`apps/web/.env`)
-
-```env
-NEXT_PUBLIC_API_URL="http://localhost:3001"
-```
-
----
-
 ## 6. Getting Started
 
+### Prerequisites
+- [Bun](https://bun.sh/) (v1.2+)
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (v3.50+ / Dart 3.7+)
+- [Android Studio & Android SDK](https://developer.android.com/studio) (API 34+ / NDK 28)
+
+### Installation & Local Setup
+
 ```bash
-# 1. Install dependencies across all workspaces
+# 1. Clone repository
+git clone https://github.com/your-username/LifeSync.git
+cd LifeSync
+
+# 2. Install workspace dependencies
 bun install
 
-# 2. Run PostgreSQL migrations against Neon
+# 3. Setup environment variables
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env
+```
+
+### Running Backend & Web
+
+```bash
+# Run database migrations against Neon PostgreSQL
 bun run db:migrate
 
-# 3. Seed the 10 default activity categories and curated wellness tips
+# Seed default categories & tips
 bun run db:seed
 
-# 4. Start both Backend API (port 3001) and Frontend Web App (port 3000)
+# Start backend (port 3001) & web app (port 3000)
 bun run dev
 ```
 
----
-
-## 7. REST API Overview (`apps/api`)
-
-- **Auth**: `ALL /api/auth/*` (Better Auth sign-up, sign-in, sign-out, session)
-- **Users**:
-  - `GET /api/users/me` — Current authenticated user + wellness profile
-  - `PATCH /api/users/me` — Update personal profile & daily wellness targets
-  - `GET /api/users/:id` — User profile (restricted to owner or `ADMIN`)
-- **Activity Categories**:
-  - `GET /api/activities` — List system defaults + user's custom categories
-  - `POST /api/activities` — Create custom category
-  - `PATCH /api/activities/:id` / `DELETE /api/activities/:id` — Update/delete custom category
-- **24-Hour Daily Schedules**:
-  - `GET /api/schedules?date=YYYY-MM-DD` — Blocks, allocated/remaining minutes, and category distribution
-  - `POST /api/schedules` — Schedule block with overlap validation (`409 SCHEDULE_OVERLAP`)
-  - `PATCH /api/schedules/:id` / `DELETE /api/schedules/:id` — Update/remove block (owner-isolated)
-- **Wellness Tracking**:
-  - `GET /api/health?date=YYYY-MM-DD` / `POST /api/health` / `PATCH /api/health/:id`
-  - `GET /api/water?date=YYYY-MM-DD` / `POST /api/water` / `DELETE /api/water/:id`
-  - `GET /api/checkins?date=YYYY-MM-DD` / `POST /api/checkins`
-  - `GET /api/tips`
-- **Analytics & Insights**:
-  - `GET /api/analytics/daily?date=YYYY-MM-DD`
-  - `GET /api/analytics/weekly?date=YYYY-MM-DD`
-  - `GET /api/analytics/monthly?date=YYYY-MM-DD`
-- **Admin Governance (`ADMIN` role required)**:
-  - `GET /api/admin/stats`
-  - `GET /api/admin/users` / `PATCH /api/admin/users/:id`
-  - `GET /api/admin/categories` / `POST /api/admin/categories` / `PATCH /api/admin/categories/:id` / `DELETE /api/admin/categories/:id`
-  - `GET /api/admin/tips` / `POST /api/admin/tips` / `PATCH /api/admin/tips/:id` / `DELETE /api/admin/tips/:id`
-
----
-
-## 8. Verification & Automated Tests
+### Running Flutter Mobile Application
 
 ```bash
-# Typecheck all packages and applications
+cd apps/mobile
+
+# Install Flutter dependencies
+flutter pub get
+
+# Run on connected Android device or emulator
+flutter run
+
+# Build Debug APK
+flutter build apk --debug
+# Output: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+```
+
+---
+
+## 7. Verification & Testing
+
+```bash
+# Typecheck TypeScript monorepo packages (shared, db, web, api)
 bun run typecheck
 
-# Run the backend unit & integration test suite (17 tests covering auth, RBAC, overlap validation, and user isolation)
+# Run backend test suite
 bun run test
+
+# Run Flutter mobile unit & widget tests
+cd apps/mobile
+flutter test
+
+# Run Flutter static analysis
+flutter analyze
 ```
+
+---
+
+## 8. License
+
+LifeSync Wellness Platform is developed for digital health and circadian balance management.  
+All rights reserved © 2026 LifeSync Wellness.
