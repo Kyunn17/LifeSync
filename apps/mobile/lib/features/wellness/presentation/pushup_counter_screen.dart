@@ -13,6 +13,26 @@ import 'widgets/pose_painter.dart';
 
 enum PushupDetectionMode { sideAngle, floorProximity }
 
+enum PushupDifficulty {
+  easy('Mudah / Santai', 120.0, 138.0, 0.40, 0.28),
+  standard('Standar', 110.0, 142.0, 0.46, 0.32),
+  strict('Ketat (Strict)', 95.0, 155.0, 0.54, 0.35);
+
+  final String label;
+  final double downAngle;
+  final double upAngle;
+  final double floorDownRatio;
+  final double floorUpRatio;
+
+  const PushupDifficulty(
+    this.label,
+    this.downAngle,
+    this.upAngle,
+    this.floorDownRatio,
+    this.floorUpRatio,
+  );
+}
+
 class PushupCounterScreen extends ConsumerStatefulWidget {
   const PushupCounterScreen({super.key});
 
@@ -39,12 +59,28 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
   Size _imageSize = Size.zero;
   InputImageRotation _imageRotation = InputImageRotation.rotation0deg;
 
-  // Push-up state machine
+  // Configuration
   PushupDetectionMode _mode = PushupDetectionMode.sideAngle;
+  PushupDifficulty _difficulty = PushupDifficulty.standard;
+
+  // Push-up state machine & anti-noise debounce
   int _repCount = 0;
   bool _isDown = false;
-  double _currentMetric = 0; // Elbow angle in degrees OR shoulder width ratio
+  double _currentMetric = 160.0; // Smoothed angle or proximity ratio
+  double _depthProgress = 0.0; // 0.0 (top) to 1.0 (bottom)
   String _guidanceText = 'Posisikan tubuh dalam bingkai kamera';
+  String _activeArmLabel = 'Mencari pose tubuh...';
+
+  // State timers to reject camera shake / fast noise
+  DateTime? _downStartTime;
+  DateTime _lastRepTime = DateTime.now();
+  int _consecutiveDownFrames = 0;
+  int _consecutiveUpFrames = 0;
+
+  // Smoothing filter
+  final List<double> _metricHistory = [];
+  static const int _historySize = 4;
+
   int _elapsedSeconds = 0;
   Timer? _sessionTimer;
   bool _isSaving = false;
@@ -89,7 +125,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
         setState(() {
           _hasPermission = false;
           _isInitializing = false;
-          _errorMessage = 'Izin kamera diperlukan untuk mendeteksi gerakan push-up secara otomatis.';
+          _errorMessage =
+              'Izin kamera diperlukan untuk mendeteksi gerakan push-up secara otomatis.';
         });
       }
       return;
@@ -108,7 +145,7 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
         return;
       }
 
-      // Prefer front camera by default so user can see the counter
+      // Default to front camera
       final frontIndex = _cameras.indexWhere(
         (c) => c.lensDirection == CameraLensDirection.front,
       );
@@ -174,22 +211,11 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
     if (controller == null) return null;
 
     final camera = _cameras[_selectedCameraIndex];
-    final sensorOrientation = camera.sensorOrientation;
 
-    InputImageRotation? rotation;
-    if (Platform.isIOS) {
-      rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
-    } else if (Platform.isAndroid) {
-      var rotationCompensation = _orientations[controller.value.deviceOrientation] ?? 0;
-      if (camera.lensDirection == CameraLensDirection.front) {
-        rotationCompensation = (sensorOrientation + rotationCompensation) % 360;
-      } else {
-        rotationCompensation = (sensorOrientation - rotationCompensation + 360) % 360;
-      }
-      rotation = InputImageRotationValue.fromRawValue(rotationCompensation);
-    }
-
-    if (rotation == null) return null;
+    // Lock image rotation to camera sensor orientation to avoid orientation flipping on floor tilt
+    final rotation =
+        InputImageRotationValue.fromRawValue(camera.sensorOrientation) ??
+            InputImageRotation.rotation0deg;
 
     final format = InputImageFormatValue.fromRawValue(image.format.raw);
     if (format == null ||
@@ -212,13 +238,6 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
     );
   }
 
-  static const _orientations = {
-    DeviceOrientation.portraitUp: 0,
-    DeviceOrientation.landscapeLeft: 90,
-    DeviceOrientation.portraitDown: 180,
-    DeviceOrientation.landscapeRight: 270,
-  };
-
   Future<void> _processCameraImage(CameraImage image) async {
     if (_isProcessingFrame || _isSaving) return;
     _isProcessingFrame = true;
@@ -235,7 +254,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
 
       _evaluatePushupPose(
         poses,
-        inputImage.metadata?.size ?? Size(image.width.toDouble(), image.height.toDouble()),
+        inputImage.metadata?.size ??
+            Size(image.width.toDouble(), image.height.toDouble()),
         inputImage.metadata?.rotation ?? InputImageRotation.rotation0deg,
       );
     } catch (_) {
@@ -245,122 +265,244 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
     }
   }
 
-  void _evaluatePushupPose(List<Pose> poses, Size imgSize, InputImageRotation rotation) {
-    String guidance = _guidanceText;
-    double metric = _currentMetric;
-    bool downState = _isDown;
-    int reps = _repCount;
+  double _smoothMetric(double rawValue) {
+    _metricHistory.add(rawValue);
+    if (_metricHistory.length > _historySize) {
+      _metricHistory.removeAt(0);
+    }
+    final sum = _metricHistory.reduce((a, b) => a + b);
+    return sum / _metricHistory.length;
+  }
 
+  void _evaluatePushupPose(
+    List<Pose> poses,
+    Size imgSize,
+    InputImageRotation rotation,
+  ) {
     if (poses.isEmpty) {
-      guidance = 'Tubuh belum terdeteksi. Pastikan pencahayaan cukup.';
-    } else {
-      final pose = poses.first;
-
-      if (_mode == PushupDetectionMode.sideAngle) {
-        final lShoulder = pose.landmarks[PoseLandmarkType.leftShoulder];
-        final lElbow = pose.landmarks[PoseLandmarkType.leftElbow];
-        final lWrist = pose.landmarks[PoseLandmarkType.leftWrist];
-
-        final rShoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
-        final rElbow = pose.landmarks[PoseLandmarkType.rightElbow];
-        final rWrist = pose.landmarks[PoseLandmarkType.rightWrist];
-
-        double? leftAngle;
-        double leftConf = 0;
-        if (lShoulder != null && lElbow != null && lWrist != null) {
-          leftConf = (lShoulder.likelihood + lElbow.likelihood + lWrist.likelihood) / 3;
-          if (leftConf >= 0.45) {
-            leftAngle = _calculateAngle(lShoulder, lElbow, lWrist);
-          }
-        }
-
-        double? rightAngle;
-        double rightConf = 0;
-        if (rShoulder != null && rElbow != null && rWrist != null) {
-          rightConf = (rShoulder.likelihood + rElbow.likelihood + rWrist.likelihood) / 3;
-          if (rightConf >= 0.45) {
-            rightAngle = _calculateAngle(rShoulder, rElbow, rWrist);
-          }
-        }
-
-        final angle = (leftConf >= rightConf) ? (leftAngle ?? rightAngle) : (rightAngle ?? leftAngle);
-
-        if (angle == null) {
-          guidance = 'Arahkan bahu, siku & tangan agar terlihat di kamera';
-        } else {
-          metric = angle;
-          if (angle <= 95) {
-            if (!downState) {
-              HapticFeedback.selectionClick();
-            }
-            downState = true;
-            guidance = 'Bagus! Sekarang dorong naik ⬆️';
-          } else if (angle >= 155) {
-            if (downState) {
-              reps += 1;
-              downState = false;
-              HapticFeedback.mediumImpact();
-              guidance = 'Mantap! +1 Repetisi 🔥';
-            } else {
-              guidance = 'Siap! Turunkan badan hingga siku menekuk';
-            }
-          } else {
-            guidance = downState ? 'Terus dorong ke atas...' : 'Turun lebih rendah lagi ⬇️';
-          }
-        }
-      } else {
-        // Floor Proximity Mode: HP diletakkan di lantai di bawah dada/wajah
-        final lShoulder = pose.landmarks[PoseLandmarkType.leftShoulder];
-        final rShoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
-
-        if (lShoulder == null ||
-            rShoulder == null ||
-            lShoulder.likelihood < 0.45 ||
-            rShoulder.likelihood < 0.45) {
-          guidance = 'Letakkan HP di lantai di bawah bahu/wajah Anda';
-        } else {
-          final isRotated = rotation == InputImageRotation.rotation90deg ||
-              rotation == InputImageRotation.rotation270deg;
-          final effectiveWidth = isRotated ? imgSize.height : imgSize.width;
-          final shoulderSpan = (lShoulder.x - rShoulder.x).abs();
-          final ratio = effectiveWidth > 0 ? (shoulderSpan / effectiveWidth) : 0.0;
-          metric = ratio * 100;
-
-          if (ratio >= 0.46) {
-            if (!downState) {
-              HapticFeedback.selectionClick();
-            }
-            downState = true;
-            guidance = 'Posisi bawah tercapai! Dorong naik ⬆️';
-          } else if (ratio <= 0.34) {
-            if (downState) {
-              reps += 1;
-              downState = false;
-              HapticFeedback.mediumImpact();
-              guidance = 'Mantap! +1 Repetisi 🔥';
-            } else {
-              guidance = 'Siap! Turunkan dada mendekati kamera';
-            }
-          } else {
-            guidance = downState ? 'Dorong naik ke posisi plank...' : 'Turunkan badan mendekati HP ⬇️';
-          }
-        }
-      }
+      setState(() {
+        _detectedPoses = [];
+        _guidanceText = 'Tubuh belum terdeteksi. Posisikan diri dalam kamera.';
+        _activeArmLabel = 'Tidak ada pose';
+        _depthProgress = 0.0;
+      });
+      return;
     }
 
-    setState(() {
-      _detectedPoses = poses;
-      _imageSize = imgSize;
-      _imageRotation = rotation;
-      _currentMetric = metric;
-      _isDown = downState;
-      _repCount = reps;
-      _guidanceText = guidance;
-    });
+    final pose = poses.first;
+    final now = DateTime.now();
+
+    if (_mode == PushupDetectionMode.sideAngle) {
+      // 1. Check landmarks for both left and right arms
+      final lShoulder = pose.landmarks[PoseLandmarkType.leftShoulder];
+      final lElbow = pose.landmarks[PoseLandmarkType.leftElbow];
+      final lWrist = pose.landmarks[PoseLandmarkType.leftWrist];
+
+      final rShoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
+      final rElbow = pose.landmarks[PoseLandmarkType.rightElbow];
+      final rWrist = pose.landmarks[PoseLandmarkType.rightWrist];
+
+      double? leftAngle;
+      double leftConf = 0;
+      if (lShoulder != null && lElbow != null && lWrist != null) {
+        leftConf = (lShoulder.likelihood + lElbow.likelihood + lWrist.likelihood) / 3;
+        if (leftConf >= 0.50) {
+          leftAngle = _calculateAngle(lShoulder, lElbow, lWrist);
+        }
+      }
+
+      double? rightAngle;
+      double rightConf = 0;
+      if (rShoulder != null && rElbow != null && rWrist != null) {
+        rightConf = (rShoulder.likelihood + rElbow.likelihood + rWrist.likelihood) / 3;
+        if (rightConf >= 0.50) {
+          rightAngle = _calculateAngle(rShoulder, rElbow, rWrist);
+        }
+      }
+
+      // Pick the arm with higher visibility/confidence
+      double? rawAngle;
+      String armLabel;
+      if (leftConf >= 0.50 && leftConf >= rightConf) {
+        rawAngle = leftAngle;
+        armLabel = 'Lengan Kiri (${(leftConf * 100).toInt()}%)';
+      } else if (rightConf >= 0.50) {
+        rawAngle = rightAngle;
+        armLabel = 'Lengan Kanan (${(rightConf * 100).toInt()}%)';
+      } else {
+        rawAngle = leftAngle ?? rightAngle;
+        armLabel = 'Mendeteksi siluet...';
+      }
+
+      if (rawAngle == null) {
+        setState(() {
+          _detectedPoses = poses;
+          _imageSize = imgSize;
+          _imageRotation = rotation;
+          _guidanceText = 'Pastikan bahu, siku & tangan tampak di kamera';
+          _activeArmLabel = 'Lengan terhalang';
+          _depthProgress = 0.0;
+        });
+        return;
+      }
+
+      final smoothedAngle = _smoothMetric(rawAngle);
+      final downThreshold = _difficulty.downAngle;
+      final upThreshold = _difficulty.upAngle;
+
+      // Calculate depth progress: 0.0 (fully up) to 1.0 (down)
+      final progress = ((upThreshold - smoothedAngle) / (upThreshold - downThreshold))
+          .clamp(0.0, 1.0);
+
+      String guidance = _guidanceText;
+      bool downState = _isDown;
+      int reps = _repCount;
+
+      // State Machine with Anti-Shake Debouncing
+      if (smoothedAngle <= downThreshold) {
+        _consecutiveDownFrames++;
+        _consecutiveUpFrames = 0;
+
+        // Require at least 2 consecutive frames in DOWN position to reject single-frame noise
+        if (_consecutiveDownFrames >= 2 && !downState) {
+          downState = true;
+          _downStartTime = now;
+          HapticFeedback.selectionClick();
+        }
+        guidance = 'Posisi bawah tercapai! Dorong naik ⬆️';
+      } else if (smoothedAngle >= upThreshold) {
+        _consecutiveUpFrames++;
+        _consecutiveDownFrames = 0;
+
+        // Transition from DOWN -> UP = 1 Real Pushup
+        if (downState && _consecutiveUpFrames >= 2) {
+          final timeSinceLastRep = now.difference(_lastRepTime).inMilliseconds;
+          final timeInDown = _downStartTime != null
+              ? now.difference(_downStartTime!).inMilliseconds
+              : 500;
+
+          // Anti-cheat & anti-camera-shake:
+          // A real human push-up takes at least 650ms total, and at least 100ms at bottom!
+          if (timeSinceLastRep >= 650 && timeInDown >= 100) {
+            reps += 1;
+            downState = false;
+            _lastRepTime = now;
+            _downStartTime = null;
+            HapticFeedback.heavyImpact();
+            guidance = 'Mantap! +1 Repetisi 🔥';
+          } else {
+            // Rapid camera shake rejected
+            downState = false;
+          }
+        } else if (!downState) {
+          guidance = 'Siap! Turunkan badan hingga siku menekuk ⬇️';
+        }
+      } else {
+        // Between up and down thresholds
+        if (downState) {
+          guidance = 'Dorong lengan sampai lurus ke atas...';
+        } else if (progress > 0.4) {
+          guidance = 'Bagus, turun lebih rendah lagi ⬇️';
+        } else {
+          guidance = 'Mulai turunkan badan perlahan...';
+        }
+      }
+
+      setState(() {
+        _detectedPoses = poses;
+        _imageSize = imgSize;
+        _imageRotation = rotation;
+        _currentMetric = smoothedAngle;
+        _depthProgress = progress;
+        _isDown = downState;
+        _repCount = reps;
+        _guidanceText = guidance;
+        _activeArmLabel = armLabel;
+      });
+    } else {
+      // 2. Floor Proximity Mode (HP diletakkan di lantai di bawah dada)
+      final lShoulder = pose.landmarks[PoseLandmarkType.leftShoulder];
+      final rShoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
+      final nose = pose.landmarks[PoseLandmarkType.nose];
+
+      if (lShoulder == null || rShoulder == null || lShoulder.likelihood < 0.45 || rShoulder.likelihood < 0.45) {
+        setState(() {
+          _detectedPoses = poses;
+          _imageSize = imgSize;
+          _imageRotation = rotation;
+          _guidanceText = 'Letakkan HP terlentang di lantai tepat di bawah dada/wajah';
+          _activeArmLabel = 'Bahu belum terlihat';
+          _depthProgress = 0.0;
+        });
+        return;
+      }
+
+      final isRotated = rotation == InputImageRotation.rotation90deg ||
+          rotation == InputImageRotation.rotation270deg;
+      final effectiveWidth = isRotated ? imgSize.height : imgSize.width;
+      final shoulderSpan = (lShoulder.x - rShoulder.x).abs();
+      final rawRatio = effectiveWidth > 0 ? (shoulderSpan / effectiveWidth) : 0.0;
+      final smoothedRatio = _smoothMetric(rawRatio);
+
+      final downRatio = _difficulty.floorDownRatio;
+      final upRatio = _difficulty.floorUpRatio;
+
+      final progress = ((smoothedRatio - upRatio) / (downRatio - upRatio)).clamp(0.0, 1.0);
+
+      String guidance = _guidanceText;
+      bool downState = _isDown;
+      int reps = _repCount;
+
+      if (smoothedRatio >= downRatio) {
+        _consecutiveDownFrames++;
+        _consecutiveUpFrames = 0;
+
+        if (_consecutiveDownFrames >= 2 && !downState) {
+          downState = true;
+          _downStartTime = now;
+          HapticFeedback.selectionClick();
+        }
+        guidance = 'Dekat lantai tercapai! Dorong naik ⬆️';
+      } else if (smoothedRatio <= upRatio) {
+        _consecutiveUpFrames++;
+        _consecutiveDownFrames = 0;
+
+        if (downState && _consecutiveUpFrames >= 2) {
+          final timeSinceLastRep = now.difference(_lastRepTime).inMilliseconds;
+          if (timeSinceLastRep >= 650) {
+            reps += 1;
+            downState = false;
+            _lastRepTime = now;
+            _downStartTime = null;
+            HapticFeedback.heavyImpact();
+            guidance = 'Mantap! +1 Repetisi 🔥';
+          } else {
+            downState = false;
+          }
+        } else if (!downState) {
+          guidance = 'Siap! Turunkan dada mendekati kamera HP ⬇️';
+        }
+      } else {
+        guidance = downState ? 'Dorong naik kembali ke posisi plank...' : 'Dekatkan dada ke arah kamera...';
+      }
+
+      setState(() {
+        _detectedPoses = poses;
+        _imageSize = imgSize;
+        _imageRotation = rotation;
+        _currentMetric = smoothedRatio * 100;
+        _depthProgress = progress;
+        _isDown = downState;
+        _repCount = reps;
+        _guidanceText = guidance;
+        _activeArmLabel = 'Mode Lantai • Wajah ${nose != null ? 'Terdeteksi' : 'Bahu'}';
+      });
+    }
   }
 
   double _calculateAngle(PoseLandmark a, PoseLandmark b, PoseLandmark c) {
-    final radians = math.atan2(c.y - b.y, c.x - b.x) - math.atan2(a.y - b.y, a.x - b.x);
+    final radians =
+        math.atan2(c.y - b.y, c.x - b.x) - math.atan2(a.y - b.y, a.x - b.x);
     double angle = (radians * 180.0 / math.pi).abs();
     if (angle > 180.0) {
       angle = 360.0 - angle;
@@ -390,7 +532,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
       final newStreak = ref.read(pushupStatsProvider).currentStreak;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Keren! $_repCount push-up disimpan • Streak: $newStreak Hari 🔥'),
+          content: Text(
+              'Keren! $_repCount push-up disimpan • Streak: $newStreak Hari 🔥'),
           backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
         ),
@@ -416,7 +559,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                 children: [
                   CircularProgressIndicator(color: AppColors.primaryLight),
                   SizedBox(height: 12),
-                  Text('Menyiapkan AI Kamera...', style: TextStyle(color: Colors.white)),
+                  Text('Menyiapkan AI Kamera...',
+                      style: TextStyle(color: Colors.white)),
                 ],
               ),
             )
@@ -427,7 +571,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.videocam_off_rounded, size: 56, color: Colors.white54),
+                    const Icon(Icons.videocam_off_rounded,
+                        size: 56, color: Colors.white54),
                     const SizedBox(height: 16),
                     Text(
                       _errorMessage ?? 'Izin kamera dibutuhkan.',
@@ -440,14 +585,17 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                         await openAppSettings();
                         _initCameraAndPermissions();
                       },
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                      child: const Text('Buka Pengaturan Izin', style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary),
+                      child: const Text('Buka Pengaturan Izin',
+                          style: TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),
               ),
             )
-          else if (_cameraController != null && _cameraController!.value.isInitialized)
+          else if (_cameraController != null &&
+              _cameraController!.value.isInitialized)
             Center(
               child: AspectRatio(
                 aspectRatio: 1 / _cameraController!.value.aspectRatio,
@@ -461,7 +609,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                           poses: _detectedPoses,
                           imageSize: _imageSize,
                           rotation: _imageRotation,
-                          cameraLensDirection: _cameras[_selectedCameraIndex].lensDirection,
+                          cameraLensDirection:
+                              _cameras[_selectedCameraIndex].lensDirection,
                           isDownPosition: _isDown,
                         ),
                       ),
@@ -470,24 +619,27 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
               ),
             ),
 
-          // 2. Top Controls Overlay
+          // 2. Top Bar & Sensitivity Controls
           SafeArea(
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       CircleAvatar(
                         backgroundColor: Colors.black54,
                         child: IconButton(
-                          icon: const Icon(Icons.close_rounded, color: Colors.white),
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white),
                           onPressed: () => Navigator.pop(context),
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.black54,
                           borderRadius: BorderRadius.circular(20),
@@ -514,7 +666,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                         CircleAvatar(
                           backgroundColor: Colors.black54,
                           child: IconButton(
-                            icon: const Icon(Icons.cameraswitch_rounded, color: Colors.white),
+                            icon: const Icon(Icons.cameraswitch_rounded,
+                                color: Colors.white),
                             onPressed: _switchCamera,
                           ),
                         )
@@ -524,9 +677,9 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                   ),
                 ),
 
-                // Mode Switcher Pill
+                // Mode Tabs
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: Colors.black54,
@@ -542,6 +695,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                         onTap: () => setState(() {
                           _mode = PushupDetectionMode.sideAngle;
                           _isDown = false;
+                          _depthProgress = 0.0;
+                          _metricHistory.clear();
                         }),
                       ),
                       _buildModeTab(
@@ -550,7 +705,50 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                         onTap: () => setState(() {
                           _mode = PushupDetectionMode.floorProximity;
                           _isDown = false;
+                          _depthProgress = 0.0;
+                          _metricHistory.clear();
                         }),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Difficulty / Sensitivity Pill
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black45,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Sensitivitas: ',
+                        style: TextStyle(color: Colors.white60, fontSize: 11),
+                      ),
+                      DropdownButton<PushupDifficulty>(
+                        value: _difficulty,
+                        dropdownColor: const Color(0xFF1E293B),
+                        isDense: true,
+                        underline: const SizedBox(),
+                        style: const TextStyle(
+                            color: AppColors.primaryLight,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold),
+                        icon: const Icon(Icons.arrow_drop_down,
+                            color: AppColors.primaryLight, size: 16),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _difficulty = val);
+                        },
+                        items: PushupDifficulty.values.map((d) {
+                          return DropdownMenuItem(
+                            value: d,
+                            child: Text(d.label),
+                          );
+                        }).toList(),
                       ),
                     ],
                   ),
@@ -558,43 +756,112 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
 
                 const Spacer(),
 
-                // 3. Bottom Live Counter & Controls HUD
+                // 3. Live Depth Meter (Progress Bar across screen)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _activeArmLabel,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Kedalaman: ${(_depthProgress * 100).toInt()}%',
+                            style: TextStyle(
+                              color: _isDown
+                                  ? const Color(0xFF34D399)
+                                  : Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: _depthProgress,
+                          minHeight: 8,
+                          backgroundColor: Colors.white24,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            _isDown
+                                ? const Color(0xFF34D399)
+                                : AppColors.primaryLight,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 4. Bottom Live Counter & Controls HUD
                 Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.78),
+                    color: Colors.black.withValues(alpha: 0.82),
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(
-                      color: _isDown ? const Color(0xFF34D399) : Colors.white24,
+                      color:
+                          _isDown ? const Color(0xFF34D399) : Colors.white24,
                       width: _isDown ? 2 : 1,
                     ),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Guidance Pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      // Guidance Text Pill
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           color: _isDown
-                              ? const Color(0xFF10B981).withValues(alpha: 0.25)
+                              ? const Color(0xFF10B981).withValues(alpha: 0.3)
                               : Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          _guidanceText,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _isDown ? const Color(0xFF6EE7B7) : Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _isDown
+                                  ? Icons.arrow_upward_rounded
+                                  : Icons.fitness_center_rounded,
+                              size: 16,
+                              color: _isDown
+                                  ? const Color(0xFF34D399)
+                                  : Colors.white,
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                _guidanceText,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: _isDown
+                                      ? const Color(0xFF6EE7B7)
+                                      : Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
 
-                      // Giant Counter + Metrics Row
+                      // Giant Counter + Live Angle Gauge
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
@@ -610,7 +877,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                               ),
                               const Text(
                                 'Durasi',
-                                style: TextStyle(color: Colors.white60, fontSize: 11),
+                                style: TextStyle(
+                                    color: Colors.white60, fontSize: 11),
                               ),
                             ],
                           ),
@@ -619,8 +887,10 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                               Text(
                                 '$_repCount',
                                 style: TextStyle(
-                                  color: _isDown ? const Color(0xFF34D399) : Colors.white,
-                                  fontSize: 56,
+                                  color: _isDown
+                                      ? const Color(0xFF34D399)
+                                      : Colors.white,
+                                  fontSize: 54,
                                   fontWeight: FontWeight.w900,
                                   height: 1.0,
                                 ),
@@ -642,21 +912,26 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                                 _mode == PushupDetectionMode.sideAngle
                                     ? '${_currentMetric.toStringAsFixed(0)}°'
                                     : '${_currentMetric.toStringAsFixed(0)}%',
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: _isDown
+                                      ? const Color(0xFF34D399)
+                                      : Colors.white,
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
-                                _mode == PushupDetectionMode.sideAngle ? 'Sudut Siku' : 'Kedekatan',
-                                style: const TextStyle(color: Colors.white60, fontSize: 11),
+                                _mode == PushupDetectionMode.sideAngle
+                                    ? 'Sudut Siku'
+                                    : 'Kedekatan',
+                                style: const TextStyle(
+                                    color: Colors.white60, fontSize: 11),
                               ),
                             ],
                           ),
                         ],
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
 
                       // Action Buttons
                       Row(
@@ -670,7 +945,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
                               side: const BorderSide(color: Colors.white30),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -684,7 +960,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -698,10 +975,14 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Icon(Icons.check_circle_outline_rounded),
+                                  : const Icon(
+                                      Icons.check_circle_outline_rounded),
                               label: Text(
-                                _repCount > 0 ? 'Simpan ($_repCount Push-Up)' : 'Tutup',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                _repCount > 0
+                                    ? 'Simpan ($_repCount Push-Up)'
+                                    : 'Tutup',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                             ),
                           ),
@@ -743,4 +1024,3 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
     );
   }
 }
-
