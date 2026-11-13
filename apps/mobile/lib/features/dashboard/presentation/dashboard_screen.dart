@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../wellness/providers/pushup_provider.dart';
+import '../../wellness/providers/step_counter_provider.dart';
 import '../providers/dashboard_provider.dart';
 import 'widgets/breathing_exercise_dialog.dart';
 import 'widgets/circadian_ring_chart.dart';
@@ -21,6 +24,8 @@ class DashboardScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).user;
     final selectedDate = ref.watch(selectedDateProvider);
     final analyticsAsync = ref.watch(dailyAnalyticsProvider);
+    final stepState = ref.watch(stepCounterProvider);
+    final pushupStats = ref.watch(pushupStatsProvider);
 
     final displayDate = DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(
       DateTime.tryParse(selectedDate) ?? DateTime.now(),
@@ -179,6 +184,9 @@ class DashboardScreen extends ConsumerWidget {
                       Expanded(
                         child: InkWell(
                           onTap: () {
+                            final combinedSteps = stepState.todaySteps > wellness.dailySteps
+                                ? stepState.todaySteps
+                                : wellness.dailySteps;
                             showModalBottomSheet(
                               context: context,
                               isScrollControlled: true,
@@ -186,7 +194,7 @@ class DashboardScreen extends ConsumerWidget {
                               builder: (_) => QuickExerciseSheet(
                                 date: selectedDate,
                                 currentExerciseMinutes: wellness.exerciseDurationMinutes,
-                                currentSteps: wellness.dailySteps,
+                                currentSteps: combinedSteps,
                                 goalMinutes: goals.dailyExerciseGoalMinutes,
                               ),
                             );
@@ -198,7 +206,7 @@ class DashboardScreen extends ConsumerWidget {
                             icon: Icons.directions_run_rounded,
                             accentColor: const Color(0xFF0D7A53),
                             value: '${wellness.exerciseDurationMinutes} Menit',
-                            target: 'Target ${goals.dailyExerciseGoalMinutes}m • ${wellness.dailySteps} lkg',
+                            target: 'Target ${goals.dailyExerciseGoalMinutes}m • ${stepState.todaySteps > wellness.dailySteps ? stepState.todaySteps : wellness.dailySteps} lkg',
                             progress: goals.dailyExerciseGoalMinutes > 0
                                 ? (wellness.exerciseDurationMinutes / goals.dailyExerciseGoalMinutes).clamp(0.0, 1.0)
                                 : 0.0,
@@ -234,7 +242,13 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
+
+                  // 5b. Live Step Sensor & AI Push-Up Streak Cards
+                  _buildLiveStepBanner(context, ref, stepState, goals.dailyStepsGoal),
+                  const SizedBox(height: 12),
+                  _buildPushupStreakBanner(context, pushupStats),
+                  const SizedBox(height: 16),
 
                   // 6. Relaxation Breathing Exercise Banner
                   _buildBreathingBanner(context),
@@ -682,6 +696,228 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLiveStepBanner(
+    BuildContext context,
+    WidgetRef ref,
+    StepCounterState stepState,
+    int goalSteps,
+  ) {
+    final theme = Theme.of(context);
+    final isWalking = stepState.pedestrianStatus == 'walking';
+    final progress = goalSteps > 0 ? (stepState.todaySteps / goalSteps).clamp(0.0, 1.0) : 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isWalking ? AppColors.primary : AppColors.surfaceContainerHigh,
+          width: isWalking ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  isWalking ? Icons.directions_walk_rounded : Icons.sensors_rounded,
+                  size: 22,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Sensor Langkah Otomatis',
+                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 8),
+                        if (stepState.hasPermission)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isWalking
+                                  ? const Color(0xFF10B981).withValues(alpha: 0.18)
+                                  : AppColors.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              isWalking ? 'Berjalan' : 'Aktif',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isWalking ? const Color(0xFF059669) : AppColors.outline,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      stepState.hasPermission
+                          ? '${stepState.todaySteps} / $goalSteps langkah hari ini'
+                          : 'Aktifkan sensor agar langkah kaki terhitung otomatis',
+                      style: theme.textTheme.bodySmall?.copyWith(color: AppColors.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              if (!stepState.hasPermission)
+                FilledButton(
+                  onPressed: () => ref.read(stepCounterProvider.notifier).requestPermissionAndStart(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Aktifkan', style: TextStyle(fontSize: 12)),
+                )
+              else
+                IconButton(
+                  tooltip: 'Sinkronkan Langkah',
+                  icon: const Icon(Icons.sync_rounded, color: AppColors.primary, size: 20),
+                  onPressed: () async {
+                    await ref.read(stepCounterProvider.notifier).syncStepsToBackend();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Langkah kaki berhasil disinkronkan ke server!'),
+                          backgroundColor: AppColors.primary,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                ),
+            ],
+          ),
+          if (stepState.hasPermission) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: AppColors.surfaceContainerLow,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPushupStreakBanner(BuildContext context, PushupStatsState stats) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: () => context.push('/pushup-counter'),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0A4D36), Color(0xFF0D7A53)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.2),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.camera_alt_rounded, size: 24, color: Colors.white),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'AI Push-Up Streak',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orangeAccent.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.6)),
+                        ),
+                        child: Text(
+                          '🔥 ${stats.currentStreak} Hari',
+                          style: const TextStyle(
+                            color: Colors.orangeAccent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Hari ini: ${stats.todayReps}x • Rekor terbaik: ${stats.bestSessionReps}x',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Mulai',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

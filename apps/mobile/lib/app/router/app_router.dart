@@ -10,6 +10,7 @@ import '../../features/insights/presentation/insights_screen.dart';
 import '../../features/navigation/main_navigation_shell.dart';
 import '../../features/planner/presentation/planner_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/wellness/presentation/pushup_counter_screen.dart';
 import '../../features/wellness/presentation/wellness_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -64,6 +65,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/verify-otp',
         builder: (context, state) => const VerifyOtpScreen(),
+      ),
+      GoRoute(
+        path: '/pushup-counter',
+        builder: (context, state) => const PushupCounterScreen(),
       ),
 
       // Main Navigation Shell with 5 branches

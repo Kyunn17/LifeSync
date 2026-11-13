@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../../shared/widgets/status_banner.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
+import '../providers/pushup_provider.dart';
+import '../providers/step_counter_provider.dart';
 import '../providers/wellness_provider.dart';
 
 const List<String> kMoodTypes = [
@@ -40,6 +43,8 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
   Widget build(BuildContext context) {
     final selectedDate = ref.watch(selectedDateProvider);
     final healthLogAsync = ref.watch(todayHealthLogProvider);
+    final stepState = ref.watch(stepCounterProvider);
+    final pushupStats = ref.watch(pushupStatsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -157,12 +162,58 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                         ],
                       ),
                       Slider(
-                        value: _dailySteps.toDouble(),
+                        value: _dailySteps.toDouble().clamp(0.0, 30000.0),
                         min: 0,
                         max: 30000,
                         divisions: 60,
                         activeColor: AppColors.primaryDark,
                         onChanged: (val) => setState(() => _dailySteps = val.toInt()),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                if (!stepState.hasPermission) {
+                                  await ref.read(stepCounterProvider.notifier).requestPermissionAndStart();
+                                } else {
+                                  setState(() {
+                                    if (stepState.todaySteps > _dailySteps) {
+                                      _dailySteps = stepState.todaySteps;
+                                    }
+                                  });
+                                }
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppColors.primary),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: const Icon(Icons.sensors_rounded, size: 16),
+                              label: Text(
+                                stepState.hasPermission
+                                    ? 'Sensor: ${stepState.todaySteps} lkg'
+                                    : 'Aktifkan Sensor',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: () => context.push('/pushup-counter'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                              label: Text(
+                                'Push-Up (${pushupStats.currentStreak}🔥)',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
