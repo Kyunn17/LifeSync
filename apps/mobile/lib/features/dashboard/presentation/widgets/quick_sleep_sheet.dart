@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../shared/widgets/custom_button.dart';
+import '../../../../shared/widgets/status_banner.dart';
+import '../../../insights/providers/insights_provider.dart';
 import '../../../wellness/providers/wellness_provider.dart';
 import '../../providers/dashboard_provider.dart';
 
@@ -25,6 +27,7 @@ class _QuickSleepSheetState extends ConsumerState<QuickSleepSheet> {
   late double _sleepHours;
   late double _sleepQuality;
   bool _isLoading = false;
+  String? _errorMessage;
 
   final List<double> _presets = [5.5, 6.0, 7.0, 7.5, 8.0, 8.5, 9.0];
 
@@ -37,7 +40,10 @@ class _QuickSleepSheetState extends ConsumerState<QuickSleepSheet> {
   }
 
   Future<void> _handleSave() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
       final currentLog = await ref.read(wellnessRepositoryProvider).getHealthLog(widget.date);
 
@@ -55,10 +61,16 @@ class _QuickSleepSheetState extends ConsumerState<QuickSleepSheet> {
 
       ref.invalidate(dailyAnalyticsProvider);
       ref.invalidate(todayHealthLogProvider);
+      ref.invalidate(weeklyAnalyticsProvider);
 
       if (mounted) Navigator.pop(context, true);
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Gagal menyimpan: ${e.toString().replaceAll('ServerFailure: ', '')}';
+        });
+      }
     }
   }
 
@@ -172,6 +184,11 @@ class _QuickSleepSheetState extends ConsumerState<QuickSleepSheet> {
             onChanged: (val) => setState(() => _sleepQuality = val),
           ),
           const SizedBox(height: 20),
+
+          if (_errorMessage != null) ...[
+            StatusBanner(message: _errorMessage!, type: BannerType.error),
+            const SizedBox(height: 12),
+          ],
 
           CustomButton(
             text: 'Simpan Catatan Tidur',

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../shared/widgets/custom_button.dart';
+import '../../../../shared/widgets/status_banner.dart';
+import '../../../insights/providers/insights_provider.dart';
 import '../../../wellness/providers/wellness_provider.dart';
 import '../../providers/dashboard_provider.dart';
 
@@ -24,6 +26,7 @@ class QuickWaterSheet extends ConsumerStatefulWidget {
 class _QuickWaterSheetState extends ConsumerState<QuickWaterSheet> {
   late double _totalWaterMl;
   bool _isLoading = false;
+  String? _errorMessage;
 
   final List<int> _quickPresets = [500, 1000, 1500, 2000, 2500, 3000];
 
@@ -34,13 +37,16 @@ class _QuickWaterSheetState extends ConsumerState<QuickWaterSheet> {
   }
 
   Future<void> _handleSave() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
       final currentLog = await ref.read(wellnessRepositoryProvider).getHealthLog(widget.date);
 
       await ref.read(wellnessRepositoryProvider).upsertHealthLog(
             date: widget.date,
-            sleepDurationMinutes: currentLog?.sleepDurationMinutes ?? 420,
+            sleepDurationMinutes: currentLog?.sleepDurationMinutes ?? 0,
             sleepQuality: currentLog?.sleepQuality ?? 85,
             exerciseDurationMinutes: currentLog?.exerciseDurationMinutes ?? 0,
             dailySteps: currentLog?.dailySteps ?? 0,
@@ -52,10 +58,16 @@ class _QuickWaterSheetState extends ConsumerState<QuickWaterSheet> {
 
       ref.invalidate(dailyAnalyticsProvider);
       ref.invalidate(todayHealthLogProvider);
+      ref.invalidate(weeklyAnalyticsProvider);
 
       if (mounted) Navigator.pop(context, true);
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Gagal menyimpan: ${e.toString().replaceAll('ServerFailure: ', '')}';
+        });
+      }
     }
   }
 
@@ -193,6 +205,11 @@ class _QuickWaterSheetState extends ConsumerState<QuickWaterSheet> {
             }).toList(),
           ),
           const SizedBox(height: 24),
+
+          if (_errorMessage != null) ...[
+            StatusBanner(message: _errorMessage!, type: BannerType.error),
+            const SizedBox(height: 12),
+          ],
 
           CustomButton(
             text: 'Simpan Asupan Air',

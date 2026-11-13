@@ -4,12 +4,135 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../dashboard/providers/dashboard_provider.dart';
+import '../../insights/providers/insights_provider.dart';
 import '../../nutrition/providers/nutrition_provider.dart';
 import '../../wellness/providers/pushup_provider.dart';
 import '../../wellness/providers/step_counter_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
+
+  Future<void> _openEditGoalDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    required String title,
+    required String fieldKey,
+    required String unit,
+    required int initialValue,
+    required List<int> presets,
+    required int minValue,
+    required int maxValue,
+    double multiplier = 1,
+  }) async {
+    final controller = TextEditingController(
+      text: multiplier == 1
+          ? initialValue.toString()
+          : (initialValue / multiplier).toStringAsFixed(1),
+    );
+    bool isSaving = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: controller,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                autofocus: true,
+                decoration: InputDecoration(
+                  suffixText: unit,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: presets.map((val) {
+                  final label = multiplier == 1
+                      ? '$val $unit'
+                      : '${(val / multiplier).toStringAsFixed(1)} $unit';
+                  return ActionChip(
+                    label: Text(label),
+                    onPressed: () {
+                      controller.text = multiplier == 1
+                          ? val.toString()
+                          : (val / multiplier).toStringAsFixed(1);
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      final parsed = double.tryParse(controller.text.trim().replaceAll(',', '.'));
+                      if (parsed == null) return;
+                      final targetInt = (parsed * multiplier).round();
+                      if (targetInt < minValue || targetInt > maxValue) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Nilai harus antara $minValue dan $maxValue'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                        return;
+                      }
+
+                      setDialogState(() => isSaving = true);
+                      try {
+                        await ref
+                            .read(authStateProvider.notifier)
+                            .updateProfileGoals({fieldKey: targetInt});
+                        ref.invalidate(dailyAnalyticsProvider);
+                        ref.invalidate(weeklyAnalyticsProvider);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('$title berhasil diperbarui!'),
+                              backgroundColor: AppColors.primary,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setDialogState(() => isSaving = false);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Gagal memperbarui: $e'),
+                              backgroundColor: AppColors.error,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: Text(isSaving ? 'Menyimpan...' : 'Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -203,9 +326,21 @@ class ProfileScreen extends ConsumerWidget {
                     iconColor: AppColors.tertiary,
                     iconBg: AppColors.tertiaryFixed,
                     label: 'Target Tidur Optimal',
-                    subtitle: 'Durasi pemulihan malam',
+                    subtitle: 'Durasi pemulihan malam (ketuk untuk ubah)',
                     value:
                         '${((profile?.dailySleepGoalMinutes ?? 480) / 60).toStringAsFixed(1)} Jam',
+                    onTap: () => _openEditGoalDialog(
+                      context,
+                      ref,
+                      title: 'Target Tidur Optimal',
+                      fieldKey: 'dailySleepGoalMinutes',
+                      unit: 'Jam',
+                      initialValue: profile?.dailySleepGoalMinutes ?? 480,
+                      presets: [360, 420, 480, 540],
+                      minValue: 120,
+                      maxValue: 960,
+                      multiplier: 60,
+                    ),
                   ),
                   _buildDivider(),
                   _buildGoalRow(
@@ -213,8 +348,19 @@ class ProfileScreen extends ConsumerWidget {
                     iconColor: const Color(0xFF0284C7),
                     iconBg: const Color(0xFFE0F2FE),
                     label: 'Target Hidrasi Harian',
-                    subtitle: 'Kebutuhan cairan tubuh',
+                    subtitle: 'Kebutuhan cairan tubuh (ketuk untuk ubah)',
                     value: '${profile?.dailyWaterGoalMl ?? 2500} ml',
+                    onTap: () => _openEditGoalDialog(
+                      context,
+                      ref,
+                      title: 'Target Hidrasi Harian',
+                      fieldKey: 'dailyWaterGoalMl',
+                      unit: 'ml',
+                      initialValue: profile?.dailyWaterGoalMl ?? 2500,
+                      presets: [1500, 2000, 2500, 3000, 3500],
+                      minValue: 500,
+                      maxValue: 10000,
+                    ),
                   ),
                   _buildDivider(),
                   _buildGoalRow(
@@ -222,8 +368,19 @@ class ProfileScreen extends ConsumerWidget {
                     iconColor: AppColors.primary,
                     iconBg: AppColors.secondaryFixed.withValues(alpha: 0.5),
                     label: 'Target Langkah Kaki',
-                    subtitle: 'Sensor Pedometer Otomatis',
+                    subtitle: 'Sensor Pedometer Otomatis (ketuk untuk ubah)',
                     value: '${profile?.dailyStepsGoal ?? 10000} lkg',
+                    onTap: () => _openEditGoalDialog(
+                      context,
+                      ref,
+                      title: 'Target Langkah Kaki',
+                      fieldKey: 'dailyStepsGoal',
+                      unit: 'lkg',
+                      initialValue: profile?.dailyStepsGoal ?? 10000,
+                      presets: [5000, 8000, 10000, 12000],
+                      minValue: 1000,
+                      maxValue: 100000,
+                    ),
                   ),
                   _buildDivider(),
                   _buildGoalRow(
@@ -231,8 +388,19 @@ class ProfileScreen extends ConsumerWidget {
                     iconColor: AppColors.primaryContainer,
                     iconBg: AppColors.secondaryFixed.withValues(alpha: 0.4),
                     label: 'Target Durasi Olahraga',
-                    subtitle: 'Aktivitas fisik harian',
+                    subtitle: 'Aktivitas fisik harian (ketuk untuk ubah)',
                     value: '${profile?.dailyExerciseGoalMinutes ?? 45} mnt',
+                    onTap: () => _openEditGoalDialog(
+                      context,
+                      ref,
+                      title: 'Target Durasi Olahraga',
+                      fieldKey: 'dailyExerciseGoalMinutes',
+                      unit: 'mnt',
+                      initialValue: profile?.dailyExerciseGoalMinutes ?? 45,
+                      presets: [20, 30, 45, 60, 90],
+                      minValue: 0,
+                      maxValue: 600,
+                    ),
                   ),
                   _buildDivider(),
                   _buildGoalRow(

@@ -133,7 +133,7 @@ class PlannerRepository {
       throw const ServerFailure('Jadwal minimal 30 menit untuk dibagi.');
     }
     final half = (block.durationMinutes / 2).floor();
-    final midMin = block.startMinutes + half;
+    final midMin = (block.startMinutes + half) % 1440;
     final h = (midMin ~/ 60).toString().padLeft(2, '0');
     final m = (midMin % 60).toString().padLeft(2, '0');
     final midTimeStr = '$h:$m';

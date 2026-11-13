@@ -5,6 +5,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../shared/models/schedule_block_model.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
+import '../../insights/providers/insights_provider.dart';
 import '../providers/planner_provider.dart';
 import 'add_schedule_sheet.dart';
 import 'widgets/circadian_ribbon_bar.dart';
@@ -71,6 +72,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     if (confirmed == true) {
       await ref.read(plannerRepositoryProvider).deleteSchedule(block.id);
       ref.invalidate(scheduleSummaryProvider);
+      ref.invalidate(dailyAnalyticsProvider);
+      ref.invalidate(weeklyAnalyticsProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -98,6 +101,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     try {
       await ref.read(plannerRepositoryProvider).splitSchedule(block);
       ref.invalidate(scheduleSummaryProvider);
+      ref.invalidate(dailyAnalyticsProvider);
+      ref.invalidate(weeklyAnalyticsProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

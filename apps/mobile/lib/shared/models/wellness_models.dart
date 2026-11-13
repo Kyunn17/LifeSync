@@ -32,9 +32,9 @@ class HealthLogModel {
     return HealthLogModel(
       id: json['id']?.toString(),
       date: json['date']?.toString() ?? '',
-      sleepDurationMinutes: (json['sleepDurationMinutes'] as num?)?.toInt() ?? 0,
+      sleepDurationMinutes: ((json['sleepDurationMinutes'] ?? json['sleepMinutes']) as num?)?.toInt() ?? 0,
       sleepQuality: (json['sleepQuality'] as num?)?.toInt(),
-      exerciseDurationMinutes: (json['exerciseDurationMinutes'] as num?)?.toInt() ?? 0,
+      exerciseDurationMinutes: ((json['exerciseDurationMinutes'] ?? json['exerciseMinutes']) as num?)?.toInt() ?? 0,
       dailySteps: (json['dailySteps'] as num?)?.toInt() ?? 0,
       waterIntakeMl: (json['waterIntakeMl'] as num?)?.toInt() ?? 0,
       mood: json['mood']?.toString() ?? 'Calm',

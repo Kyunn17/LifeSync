@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../dashboard/providers/dashboard_provider.dart';
+import '../../../insights/providers/insights_provider.dart';
 import '../../providers/planner_provider.dart';
 
 class RoutineTemplatesBar extends ConsumerStatefulWidget {
@@ -42,6 +44,8 @@ class _RoutineTemplatesBarState extends ConsumerState<RoutineTemplatesBar> {
       }
 
       ref.invalidate(scheduleSummaryProvider);
+      ref.invalidate(dailyAnalyticsProvider);
+      ref.invalidate(weeklyAnalyticsProvider);
       widget.onApplied();
 
       if (mounted) {

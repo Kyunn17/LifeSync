@@ -6,6 +6,7 @@ import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../../shared/widgets/status_banner.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
+import '../../insights/providers/insights_provider.dart';
 import '../../nutrition/providers/nutrition_provider.dart';
 import '../providers/pushup_provider.dart';
 import '../providers/step_counter_provider.dart';
@@ -38,7 +39,8 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
   double _energyLevel = 75;
   bool _isSaving = false;
   String? _statusMessage;
-  bool _initialized = false;
+  String? _lastSyncedDate;
+  String? _lastSyncedHash;
 
   @override
   Widget build(BuildContext context) {
@@ -82,14 +84,27 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
         ),
         error: (err, _) => Center(child: Text('Gagal memuat: $err')),
         data: (log) {
-          if (!_initialized && log != null) {
-            _sleepHours = (log.sleepDurationMinutes / 60.0).clamp(0.0, 16.0);
-            _sleepQuality = (log.sleepQuality ?? 85).toDouble();
-            _exerciseMinutes = log.exerciseDurationMinutes;
-            _dailySteps = log.dailySteps;
-            _selectedMood = log.mood;
-            _energyLevel = log.energyLevel.toDouble();
-            _initialized = true;
+          final currentHash = log == null
+              ? 'null'
+              : '${log.date}_${log.sleepDurationMinutes}_${log.sleepQuality}_${log.exerciseDurationMinutes}_${log.dailySteps}_${log.mood}_${log.energyLevel}';
+          if (_lastSyncedDate != selectedDate || _lastSyncedHash != currentHash) {
+            _lastSyncedDate = selectedDate;
+            _lastSyncedHash = currentHash;
+            if (log != null) {
+              _sleepHours = (log.sleepDurationMinutes / 60.0).clamp(0.0, 14.0);
+              _sleepQuality = (log.sleepQuality ?? 85).toDouble().clamp(10.0, 100.0);
+              _exerciseMinutes = log.exerciseDurationMinutes.clamp(0, 180);
+              _dailySteps = log.dailySteps;
+              _selectedMood = kMoodTypes.contains(log.mood) ? log.mood : 'Calm';
+              _energyLevel = log.energyLevel.toDouble().clamp(10.0, 100.0);
+            } else {
+              _sleepHours = 7.5;
+              _sleepQuality = 85;
+              _exerciseMinutes = 30;
+              _dailySteps = 6000;
+              _selectedMood = 'Calm';
+              _energyLevel = 75;
+            }
           }
 
           return SingleChildScrollView(
@@ -374,12 +389,15 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                             sleepQuality: _sleepQuality.toInt(),
                             exerciseDurationMinutes: _exerciseMinutes,
                             dailySteps: _dailySteps,
+                            waterIntakeMl: log?.waterIntakeMl ?? 0,
                             mood: _selectedMood,
                             energyLevel: _energyLevel.toInt(),
+                            notes: log?.notes,
                           );
 
                       ref.invalidate(todayHealthLogProvider);
                       ref.invalidate(dailyAnalyticsProvider);
+                      ref.invalidate(weeklyAnalyticsProvider);
 
                       setState(() {
                         _isSaving = false;

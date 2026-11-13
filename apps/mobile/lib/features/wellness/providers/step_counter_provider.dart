@@ -5,6 +5,7 @@ import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
+import '../../insights/providers/insights_provider.dart';
 import 'wellness_provider.dart';
 
 class StepCounterState {
@@ -169,7 +170,7 @@ class StepCounterNotifier extends StateNotifier<StepCounterState> {
       if (finalSteps > existingSteps) {
         await wellnessRepo.upsertHealthLog(
           date: today,
-          sleepDurationMinutes: currentLog?.sleepDurationMinutes ?? 420,
+          sleepDurationMinutes: currentLog?.sleepDurationMinutes ?? 0,
           sleepQuality: currentLog?.sleepQuality ?? 85,
           exerciseDurationMinutes: currentLog?.exerciseDurationMinutes ?? 0,
           dailySteps: finalSteps,
@@ -181,6 +182,7 @@ class StepCounterNotifier extends StateNotifier<StepCounterState> {
         _lastSyncedSteps = finalSteps;
         _ref.invalidate(dailyAnalyticsProvider);
         _ref.invalidate(todayHealthLogProvider);
+        _ref.invalidate(weeklyAnalyticsProvider);
       } else {
         _lastSyncedSteps = existingSteps;
       }

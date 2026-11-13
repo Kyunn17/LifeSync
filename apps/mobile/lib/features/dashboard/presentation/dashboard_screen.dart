@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../insights/providers/insights_provider.dart';
 import '../../wellness/providers/pushup_provider.dart';
 import '../../wellness/providers/step_counter_provider.dart';
 import '../../wellness/providers/wellness_provider.dart';
@@ -751,24 +752,37 @@ class DashboardScreen extends ConsumerWidget {
               ),
               GestureDetector(
                 onTap: () async {
-                  final currentLog = await ref
-                      .read(wellnessRepositoryProvider)
-                      .getHealthLog(selectedDate);
-                  await ref.read(wellnessRepositoryProvider).upsertHealthLog(
-                        date: selectedDate,
-                        sleepDurationMinutes:
-                            currentLog?.sleepDurationMinutes ?? 420,
-                        sleepQuality: currentLog?.sleepQuality ?? 85,
-                        exerciseDurationMinutes:
-                            currentLog?.exerciseDurationMinutes ?? 0,
-                        dailySteps: currentLog?.dailySteps ?? 0,
-                        waterIntakeMl: currentMl + 250,
-                        mood: currentLog?.mood ?? 'Calm',
-                        energyLevel: currentLog?.energyLevel ?? 75,
-                        notes: currentLog?.notes,
+                  try {
+                    final currentLog = await ref
+                        .read(wellnessRepositoryProvider)
+                        .getHealthLog(selectedDate);
+                    await ref.read(wellnessRepositoryProvider).upsertHealthLog(
+                          date: selectedDate,
+                          sleepDurationMinutes:
+                              currentLog?.sleepDurationMinutes ?? 0,
+                          sleepQuality: currentLog?.sleepQuality ?? 85,
+                          exerciseDurationMinutes:
+                              currentLog?.exerciseDurationMinutes ?? 0,
+                          dailySteps: currentLog?.dailySteps ?? 0,
+                          waterIntakeMl: currentMl + 250,
+                          mood: currentLog?.mood ?? 'Calm',
+                          energyLevel: currentLog?.energyLevel ?? 75,
+                          notes: currentLog?.notes,
+                        );
+                    ref.invalidate(dailyAnalyticsProvider);
+                    ref.invalidate(todayHealthLogProvider);
+                    ref.invalidate(weeklyAnalyticsProvider);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Gagal menambah air: $e'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
-                  ref.invalidate(dailyAnalyticsProvider);
-                  ref.invalidate(todayHealthLogProvider);
+                    }
+                  }
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(

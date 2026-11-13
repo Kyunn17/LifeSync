@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
+import '../../insights/providers/insights_provider.dart';
 import 'wellness_provider.dart';
 
 class PushupStatsState {
@@ -131,7 +132,7 @@ class PushupStatsNotifier extends StateNotifier<PushupStatsState> {
 
       await wellnessRepo.upsertHealthLog(
         date: today,
-        sleepDurationMinutes: currentLog?.sleepDurationMinutes ?? 420,
+        sleepDurationMinutes: currentLog?.sleepDurationMinutes ?? 0,
         sleepQuality: currentLog?.sleepQuality ?? 85,
         exerciseDurationMinutes: currentExercise + addedMinutes,
         dailySteps: currentLog?.dailySteps ?? 0,
@@ -143,6 +144,7 @@ class PushupStatsNotifier extends StateNotifier<PushupStatsState> {
 
       _ref.invalidate(dailyAnalyticsProvider);
       _ref.invalidate(todayHealthLogProvider);
+      _ref.invalidate(weeklyAnalyticsProvider);
     } catch (_) {
       // Local streak still saved even if offline
     }

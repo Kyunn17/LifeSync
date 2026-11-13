@@ -137,6 +137,19 @@ class AuthRepository {
     }
   }
 
+  Future<UserModel> updateProfile(Map<String, dynamic> payload) async {
+    try {
+      await apiClient.dio.patch(ApiEndpoints.me, data: payload);
+      return await getMe();
+    } on DioException catch (e) {
+      final msg = e.response?.data?['error']?['message'] ?? 'Gagal memperbarui target profil.';
+      throw AuthFailure(msg.toString());
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw const AuthFailure('Gagal memperbarui profil.');
+    }
+  }
+
   Future<void> signOut() async {
     try {
       await apiClient.dio.post(ApiEndpoints.signOut);

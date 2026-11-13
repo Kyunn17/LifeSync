@@ -5,6 +5,8 @@ import '../../../shared/models/schedule_block_model.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import '../../../shared/widgets/status_banner.dart';
+import '../../dashboard/providers/dashboard_provider.dart';
+import '../../insights/providers/insights_provider.dart';
 import '../providers/planner_provider.dart';
 
 class AddScheduleSheet extends ConsumerStatefulWidget {
@@ -131,6 +133,8 @@ class _AddScheduleSheetState extends ConsumerState<AddScheduleSheet> {
       }
 
       ref.invalidate(scheduleSummaryProvider);
+      ref.invalidate(dailyAnalyticsProvider);
+      ref.invalidate(weeklyAnalyticsProvider);
 
       if (mounted) {
         Navigator.pop(context, true);

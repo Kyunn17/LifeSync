@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
+import '../../../../shared/widgets/status_banner.dart';
+import '../../../insights/providers/insights_provider.dart';
 import '../../../wellness/presentation/wellness_screen.dart';
+import '../../../wellness/providers/wellness_provider.dart';
 import '../../providers/dashboard_provider.dart';
 
 class QuickCheckinSheet extends ConsumerStatefulWidget {
@@ -27,6 +30,7 @@ class _QuickCheckinSheetState extends ConsumerState<QuickCheckinSheet> {
   late double _energyLevel;
   final _reflectionController = TextEditingController();
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -42,7 +46,10 @@ class _QuickCheckinSheetState extends ConsumerState<QuickCheckinSheet> {
   }
 
   Future<void> _handleSave() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
       await ref.read(dashboardRepositoryProvider).logCheckin(
             date: widget.date,
@@ -51,9 +58,16 @@ class _QuickCheckinSheetState extends ConsumerState<QuickCheckinSheet> {
             reflection: _reflectionController.text.trim(),
           );
       ref.invalidate(dailyAnalyticsProvider);
+      ref.invalidate(todayHealthLogProvider);
+      ref.invalidate(weeklyAnalyticsProvider);
       if (mounted) Navigator.pop(context, true);
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Gagal menyimpan: ${e.toString().replaceAll('ServerFailure: ', '')}';
+        });
+      }
     }
   }
 
@@ -154,6 +168,10 @@ class _QuickCheckinSheetState extends ConsumerState<QuickCheckinSheet> {
               maxLines: 2,
             ),
             const SizedBox(height: 24),
+            if (_errorMessage != null) ...[
+              StatusBanner(message: _errorMessage!, type: BannerType.error),
+              const SizedBox(height: 12),
+            ],
             CustomButton(
               text: 'Simpan Check-In',
               isLoading: _isLoading,
