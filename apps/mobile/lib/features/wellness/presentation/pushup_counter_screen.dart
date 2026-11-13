@@ -545,9 +545,10 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
   @override
   Widget build(BuildContext context) {
     final stats = ref.watch(pushupStatsProvider);
+    final kcalBurned = (_repCount * 0.45).toStringAsFixed(1);
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.inverseSurface,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -557,10 +558,12 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(color: AppColors.primaryLight),
+                  CircularProgressIndicator(color: AppColors.secondaryFixed),
                   SizedBox(height: 12),
-                  Text('Menyiapkan AI Kamera...',
-                      style: TextStyle(color: Colors.white)),
+                  Text(
+                    'Menyiapkan AI Kamera ML Kit...',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
             )
@@ -571,8 +574,11 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.videocam_off_rounded,
-                        size: 56, color: Colors.white54),
+                    const Icon(
+                      Icons.videocam_off_rounded,
+                      size: 56,
+                      color: Colors.white54,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       _errorMessage ?? 'Izin kamera dibutuhkan.',
@@ -586,9 +592,12 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                         _initCameraAndPermissions();
                       },
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary),
-                      child: const Text('Buka Pengaturan Izin',
-                          style: TextStyle(color: Colors.white)),
+                        backgroundColor: AppColors.primaryContainer,
+                      ),
+                      child: const Text(
+                        'Buka Pengaturan Izin',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
@@ -619,78 +628,101 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
               ),
             ),
 
-          // 2. Top Bar & Sensitivity Controls
+          // 2. Top & Bottom Cinematic Vignette Overlays
+          IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.65),
+                    Colors.transparent,
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.78),
+                  ],
+                  stops: const [0.0, 0.25, 0.65, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // 3. Full Stitch HUD Overlay
           SafeArea(
             child: Column(
               children: [
+                // Top Telemetry Bar
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.black54,
-                        child: IconButton(
-                          icon: const Icon(Icons.close_rounded,
-                              color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
-                        ),
+                      _buildHudCircleBtn(
+                        icon: Icons.close_rounded,
+                        onTap: () => Navigator.pop(context),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
+                          horizontal: 14,
+                          vertical: 7,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white24),
+                          color: Colors.black.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: AppColors.secondaryFixed
+                                .withValues(alpha: 0.35),
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.local_fire_department_rounded,
-                                size: 18, color: Colors.orangeAccent),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Streak: ${stats.currentStreak} Hari',
-                              style: const TextStyle(
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: AppColors.secondaryFixed,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 7),
+                            const Text(
+                              'ML KIT POSE • LIVE',
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.0,
                               ),
                             ),
                           ],
                         ),
                       ),
                       if (_cameras.length > 1)
-                        CircleAvatar(
-                          backgroundColor: Colors.black54,
-                          child: IconButton(
-                            icon: const Icon(Icons.cameraswitch_rounded,
-                                color: Colors.white),
-                            onPressed: _switchCamera,
-                          ),
+                        _buildHudCircleBtn(
+                          icon: Icons.cameraswitch_rounded,
+                          onTap: _switchCamera,
                         )
                       else
-                        const SizedBox(width: 40),
+                        const SizedBox(width: 42),
                     ],
                   ),
                 ),
 
-                // Mode Tabs
+                // Mode Selector Pill (Side Angle vs Floor Proximity)
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.black.withValues(alpha: 0.52),
+                    borderRadius: BorderRadius.circular(999),
                     border: Border.all(color: Colors.white24),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildModeTab(
-                        label: '📐 Sandaran (Siku)',
+                        label: '📐 Sandaran (Sudut Siku)',
                         selected: _mode == PushupDetectionMode.sideAngle,
                         onTap: () => setState(() {
                           _mode = PushupDetectionMode.sideAngle;
@@ -712,90 +744,185 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
-                // Difficulty / Sensitivity Pill
+                // Top-Center Posture Pill + Oversized Rep Counter (Stitch HUD)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black45,
-                    borderRadius: BorderRadius.circular(14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 5,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Sensitivitas: ',
-                        style: TextStyle(color: Colors.white60, fontSize: 11),
-                      ),
-                      DropdownButton<PushupDifficulty>(
-                        value: _difficulty,
-                        dropdownColor: const Color(0xFF1E293B),
-                        isDense: true,
-                        underline: const SizedBox(),
-                        style: const TextStyle(
-                            color: AppColors.primaryLight,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold),
-                        icon: const Icon(Icons.arrow_drop_down,
-                            color: AppColors.primaryLight, size: 16),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _difficulty = val);
-                        },
-                        items: PushupDifficulty.values.map((d) {
-                          return DropdownMenuItem(
-                            value: d,
-                            child: Text(d.label),
-                          );
-                        }).toList(),
+                  decoration: BoxDecoration(
+                    color: _isDown
+                        ? AppColors.primaryContainer.withValues(alpha: 0.85)
+                        : Colors.black.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: _isDown
+                          ? AppColors.secondaryFixed
+                          : Colors.white24,
+                    ),
+                  ),
+                  child: Text(
+                    _isDown
+                        ? 'POSISI BAWAH VALID • DORONG NAIK ⬆️'
+                        : 'SIAP • ${_activeArmLabel.toUpperCase()}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: _isDown ? AppColors.secondaryFixed : Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$_repCount',
+                  style: TextStyle(
+                    fontSize: 72,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                    letterSpacing: -2,
+                    color: _isDown ? AppColors.secondaryFixed : Colors.white,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        blurRadius: 18,
                       ),
                     ],
+                  ),
+                ),
+                const Text(
+                  'REPS • REPETISI SELESAI',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.6,
+                    color: AppColors.secondaryFixed,
                   ),
                 ),
 
                 const Spacer(),
 
-                // 3. Live Depth Meter (Progress Bar across screen)
+                // Mid-Stage Left/Right HUD Wings (Angle Gauge & Vertical Depth Bar)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _activeArmLabel,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
+                      // Left Wing: Elbow Angle / Proximity Gauge Card
+                      Container(
+                        width: 108,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              _mode == PushupDetectionMode.sideAngle
+                                  ? 'SUDUT SIKU'
+                                  : 'JARAK DADA',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                                color: Colors.white70,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'Kedalaman: ${(_depthProgress * 100).toInt()}%',
-                            style: TextStyle(
-                              color: _isDown
-                                  ? const Color(0xFF34D399)
-                                  : Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
+                            const SizedBox(height: 6),
+                            Text(
+                              _mode == PushupDetectionMode.sideAngle
+                                  ? '${_currentMetric.toStringAsFixed(0)}°'
+                                  : '${_currentMetric.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: _isDown
+                                    ? AppColors.secondaryFixed
+                                    : Colors.white,
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _isDown
+                                    ? AppColors.primaryContainer
+                                    : Colors.white12,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                _isDown ? 'VALID' : ' PANTAU ',
+                                style: const TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: LinearProgressIndicator(
-                          value: _depthProgress,
-                          minHeight: 8,
-                          backgroundColor: Colors.white24,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            _isDown
-                                ? const Color(0xFF34D399)
-                                : AppColors.primaryLight,
-                          ),
+
+                      // Right Wing: Vertical Depth Meter Bar
+                      Container(
+                        width: 78,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'KEDALAMAN',
+                              style: TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 82,
+                              width: 16,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(99),
+                                child: RotatedBox(
+                                  quarterTurns: -1,
+                                  child: LinearProgressIndicator(
+                                    value: _depthProgress,
+                                    backgroundColor: Colors.white24,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      _isDown
+                                          ? AppColors.secondaryFixed
+                                          : AppColors.primaryContainer,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '${(_depthProgress * 100).toInt()}%',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.secondaryFixed,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -803,140 +930,113 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                 ),
                 const SizedBox(height: 12),
 
-                // 4. Bottom Live Counter & Controls HUD
+                // 4. Bottom Docked Telemetry & Controls Card (Stitch HUD)
                 Container(
-                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  padding: const EdgeInsets.all(18),
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.82),
+                    color: const Color(0xFF141B2B).withValues(alpha: 0.88),
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(
-                      color:
-                          _isDown ? const Color(0xFF34D399) : Colors.white24,
-                      width: _isDown ? 2 : 1,
+                      color: _isDown
+                          ? AppColors.secondaryFixed
+                          : Colors.white.withValues(alpha: 0.16),
+                      width: _isDown ? 1.8 : 1,
                     ),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Guidance Text Pill
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
+                      // 3-Option Segmented Difficulty Selector (Stitch Design)
+                      Container(
+                        padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
-                          color: _isDown
-                              ? const Color(0xFF10B981).withValues(alpha: 0.3)
-                              : Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.black.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _isDown
-                                  ? Icons.arrow_upward_rounded
-                                  : Icons.fitness_center_rounded,
-                              size: 16,
-                              color: _isDown
-                                  ? const Color(0xFF34D399)
-                                  : Colors.white,
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                _guidanceText,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: _isDown
-                                      ? const Color(0xFF6EE7B7)
-                                      : Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
+                          children: PushupDifficulty.values.map((d) {
+                            final isSel = _difficulty == d;
+                            return Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _difficulty = d),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSel
+                                        ? AppColors.primaryContainer
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    d.label,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: isSel
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
+                                      color: isSel
+                                          ? Colors.white
+                                          : Colors.white70,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            );
+                          }).toList(),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
 
-                      // Giant Counter + Live Angle Gauge
+                      // 3-Column Live Telemetry Strip (Streak, Durasi, Kalori)
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          Column(
-                            children: [
-                              Text(
-                                _formatDuration(_elapsedSeconds),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const Text(
-                                'Durasi',
-                                style: TextStyle(
-                                    color: Colors.white60, fontSize: 11),
-                              ),
-                            ],
+                          _buildTelemetryCell(
+                            icon: Icons.local_fire_department_rounded,
+                            iconColor: Colors.orangeAccent,
+                            label: 'STREAK',
+                            value: '${stats.currentStreak} Hari',
                           ),
-                          Column(
-                            children: [
-                              Text(
-                                '$_repCount',
-                                style: TextStyle(
-                                  color: _isDown
-                                      ? const Color(0xFF34D399)
-                                      : Colors.white,
-                                  fontSize: 54,
-                                  fontWeight: FontWeight.w900,
-                                  height: 1.0,
-                                ),
-                              ),
-                              const Text(
-                                'PUSH-UP',
-                                style: TextStyle(
-                                  color: AppColors.primaryLight,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.5,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(width: 8),
+                          _buildTelemetryCell(
+                            icon: Icons.timer_outlined,
+                            iconColor: AppColors.secondaryFixed,
+                            label: 'DURASI',
+                            value: _formatDuration(_elapsedSeconds),
                           ),
-                          Column(
-                            children: [
-                              Text(
-                                _mode == PushupDetectionMode.sideAngle
-                                    ? '${_currentMetric.toStringAsFixed(0)}°'
-                                    : '${_currentMetric.toStringAsFixed(0)}%',
-                                style: TextStyle(
-                                  color: _isDown
-                                      ? const Color(0xFF34D399)
-                                      : Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                _mode == PushupDetectionMode.sideAngle
-                                    ? 'Sudut Siku'
-                                    : 'Kedekatan',
-                                style: const TextStyle(
-                                    color: Colors.white60, fontSize: 11),
-                              ),
-                            ],
+                          const SizedBox(width: 8),
+                          _buildTelemetryCell(
+                            icon: Icons.bolt_rounded,
+                            iconColor: const Color(0xFF38BDF8),
+                            label: 'ENERGI',
+                            value: '$kcalBurned kkal',
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
-                      // Action Buttons
+                      // Guidance text
+                      Text(
+                        _guidanceText,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white70,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Action Row: +1 Manual, Reset, Selesai & Simpan Sesi
                       Row(
                         children: [
-                          // Manual +1 fallback
                           OutlinedButton(
                             onPressed: () {
                               HapticFeedback.lightImpact();
@@ -944,26 +1044,41 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                             },
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.white30),
+                              side: const BorderSide(color: Colors.white24),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
+                                horizontal: 14,
+                                vertical: 14,
                               ),
                             ),
                             child: const Text('+1'),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed: () {
+                              setState(() {
+                                _repCount = 0;
+                                _elapsedSeconds = 0;
+                              });
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: const BorderSide(color: Colors.white24),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 14,
+                              ),
+                            ),
+                            child: const Icon(Icons.refresh_rounded, size: 18),
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: _isSaving ? null : _finishAndSave,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
+                                backgroundColor: AppColors.primaryContainer,
                                 foregroundColor: Colors.white,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
                                 ),
                               ),
                               icon: _isSaving
@@ -976,13 +1091,17 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                                       ),
                                     )
                                   : const Icon(
-                                      Icons.check_circle_outline_rounded),
+                                      Icons.check_circle_outline_rounded,
+                                      size: 18,
+                                    ),
                               label: Text(
                                 _repCount > 0
-                                    ? 'Simpan ($_repCount Push-Up)'
-                                    : 'Tutup',
+                                    ? 'Simpan Sesi ($_repCount)'
+                                    : 'Selesai',
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ),
@@ -999,6 +1118,71 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
     );
   }
 
+  Widget _buildHudCircleBtn({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildTelemetryCell({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 12, color: iconColor),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white60,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildModeTab({
     required String label,
     required bool selected,
@@ -1009,15 +1193,15 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          color: selected ? AppColors.primaryContainer : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           label,
           style: TextStyle(
             color: selected ? Colors.white : Colors.white70,
             fontSize: 11,
-            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
           ),
         ),
       ),

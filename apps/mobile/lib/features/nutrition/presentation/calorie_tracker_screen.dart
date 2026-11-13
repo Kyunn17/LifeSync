@@ -20,21 +20,25 @@ class CalorieTrackerScreen extends ConsumerWidget {
     ref.read(dailyNutritionProvider.notifier).loadDailyMeals(newDateStr);
   }
 
-  void _openCalorieGoalDialog(BuildContext context, WidgetRef ref, int currentGoal) {
+  void _openCalorieGoalDialog(
+    BuildContext context,
+    WidgetRef ref,
+    int currentGoal,
+  ) {
     final controller = TextEditingController(text: currentGoal.toString());
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         title: const Text('Target Kalori Harian'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Sesuaikan target kalori harian Anda (kkal):',
-              style: TextStyle(fontSize: 13, color: AppColors.outline),
+              'Sesuaikan pagu kebutuhan energi harian Anda (kkal):',
+              style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -43,12 +47,15 @@ class CalorieTrackerScreen extends ConsumerWidget {
               autofocus: true,
               decoration: InputDecoration(
                 suffixText: 'kkal',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
             ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
+              runSpacing: 6,
               children: [1800, 2000, 2200, 2500].map((k) {
                 return ActionChip(
                   label: Text('$k kkal'),
@@ -68,11 +75,13 @@ class CalorieTrackerScreen extends ConsumerWidget {
             onPressed: () {
               final newGoal = int.tryParse(controller.text.trim());
               if (newGoal != null && newGoal > 500) {
-                ref.read(dailyNutritionProvider.notifier).updateCalorieGoal(newGoal);
+                ref
+                    .read(dailyNutritionProvider.notifier)
+                    .updateCalorieGoal(newGoal);
               }
               Navigator.pop(ctx);
             },
-            child: const Text('Simpan'),
+            child: const Text('Simpan Target'),
           ),
         ],
       ),
@@ -94,57 +103,145 @@ class CalorieTrackerScreen extends ConsumerWidget {
     final selectedDate = ref.watch(selectedDateProvider);
     final nutrition = ref.watch(dailyNutritionProvider);
 
-    final displayDate = DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(
+    final displayDate = DateFormat('EEE, d MMM yyyy', 'id_ID').format(
       DateTime.tryParse(selectedDate) ?? DateTime.now(),
     );
 
+    final consumed = nutrition.consumedCalories.toInt();
+    final remaining = nutrition.remainingCalories.toInt();
+    final target = nutrition.targetCalories;
+    final progress = nutrition.calorieProgress.clamp(0.0, 1.0);
+
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Calorie & Nutrition Tracker'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        toolbarHeight: 64,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'KESEIMBANGAN METABOLIK',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+                color: AppColors.primary,
+              ),
+            ),
+            Text(
+              'Pelacak Nutrisi & Kalori',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppColors.onSurface,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          InkWell(
+            onTap: () => _openCalorieGoalDialog(context, ref, target),
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: AppColors.secondaryFixed.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.flag_rounded,
+                    size: 14,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$target kkal',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
+        children: [
+          // 0. Interactive Pill Date Navigator Bar (Stitch Design)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: AppColors.bentoShadow,
+              border: Border.all(
+                color: AppColors.outlineVariant.withValues(alpha: 0.25),
+              ),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
+                  visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.chevron_left_rounded),
                   onPressed: () => _changeDate(ref, -1),
                 ),
-                Text(
-                  displayDate,
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_rounded,
+                        size: 13,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        displayDate,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
+                  visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.chevron_right_rounded),
                   onPressed: () => _changeDate(ref, 1),
                 ),
               ],
             ),
           ),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
-        children: [
-          // 1. Calorie Summary Hero Card
+          const SizedBox(height: 16),
+
+          // 1. Keseimbangan Energi Hero Bento Card (Stitch Design)
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0A4D36), Color(0xFF0D7A53)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: AppColors.bentoShadow,
+              border: Border.all(
+                color: AppColors.outlineVariant.withValues(alpha: 0.25),
               ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.25),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,45 +249,71 @@ class CalorieTrackerScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.local_fire_department_rounded, size: 14, color: Colors.orangeAccent),
-                          SizedBox(width: 4),
-                          Text(
-                            'NUTRISI HARIAN',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.8,
-                            ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(11),
                           ),
-                        ],
-                      ),
+                          child: const Icon(
+                            Icons.local_fire_department_rounded,
+                            size: 19,
+                            color: Color(0xFFD97706),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Keseimbangan Energi',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.onSurface,
+                              ),
+                            ),
+                            const Text(
+                              'Asupan kalori vs target harian',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                     InkWell(
-                      onTap: () => _openCalorieGoalDialog(context, ref, nutrition.targetCalories),
-                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => _openCalorieGoalDialog(context, ref, target),
+                      borderRadius: BorderRadius.circular(999),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(10),
+                          color: AppColors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(999),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.edit_outlined, size: 12, color: Colors.white),
+                            Icon(
+                              Icons.tune_rounded,
+                              size: 13,
+                              color: AppColors.primary,
+                            ),
                             SizedBox(width: 4),
                             Text(
-                              'Target',
-                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              'Ubah Target',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
                             ),
                           ],
                         ),
@@ -198,53 +321,160 @@ class CalorieTrackerScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // Numbers Display
+                // Center Ring + Right Stacked Stat Pills
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      '${nutrition.consumedCalories.toInt()}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 38,
-                        fontWeight: FontWeight.w900,
-                        height: 1.0,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        '/ ${nutrition.targetCalories} kkal',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.75),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                    SizedBox(
+                      width: 122,
+                      height: 122,
+                      child: Stack(
+                        alignment: Alignment.center,
                         children: [
-                          const Text(
-                            'Sisa Kalori',
-                            style: TextStyle(color: Colors.white70, fontSize: 10),
+                          SizedBox(
+                            width: 122,
+                            height: 122,
+                            child: CircularProgressIndicator(
+                              value: progress,
+                              strokeWidth: 11,
+                              strokeCap: StrokeCap.round,
+                              backgroundColor: AppColors.surfaceContainerLow,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                consumed > target
+                                    ? AppColors.error
+                                    : AppColors.primaryContainer,
+                              ),
+                            ),
                           ),
-                          Text(
-                            '${nutrition.remainingCalories.toInt()} kkal',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'SISA HARI INI',
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.6,
+                                  color: AppColors.outline,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$remaining',
+                                style: const TextStyle(
+                                  fontSize: 25,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.onSurface,
+                                  height: 1.0,
+                                ),
+                              ),
+                              const Text(
+                                'kkal lagi',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'KALORI MASUK',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.outline,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Tercatat Hari Ini',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  '$consumed kkal',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'PAGU MAKSIMAL',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.outline,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Target Energi',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  '$target kkal',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.onSurface,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -252,52 +482,9 @@ class CalorieTrackerScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
 
-                // Linear Calorie Progress
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: nutrition.calorieProgress,
-                    minHeight: 8,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      nutrition.consumedCalories > nutrition.targetCalories
-                          ? Colors.orangeAccent
-                          : Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // 2. Macronutrients Card (Protein, Karbo, Lemak)
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.surfaceContainerHigh),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Distribusi Makronutrisi',
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Total ${(nutrition.consumedProteins + nutrition.consumedCarbs + nutrition.consumedFat).toStringAsFixed(0)}g',
-                      style: const TextStyle(fontSize: 11, color: AppColors.outline),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                // Distribusi Makronutrien Bar
                 MacroProgressBar(
                   proteins: nutrition.consumedProteins,
                   carbs: nutrition.consumedCarbs,
@@ -308,7 +495,30 @@ class CalorieTrackerScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // 3. Four Meal Sections
+          // 2. Section Header for 4 Meal Sessions
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Jurnal Waktu Makan',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.onSurface,
+                ),
+              ),
+              Text(
+                '${nutrition.meals.length} Item Hari Ini',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // 3. Four Meal Session Bento Cards
           ...MealType.values.map((mealType) {
             final meals = nutrition.getMealsByType(mealType);
             final subtotalKcal = nutrition.getCaloriesByType(mealType);
@@ -317,67 +527,147 @@ class CalorieTrackerScreen extends ConsumerWidget {
               margin: const EdgeInsets.only(bottom: 14),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.surfaceContainerHigh),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: AppColors.bentoShadow,
+                border: Border.all(
+                  color: AppColors.outlineVariant.withValues(alpha: 0.25),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Meal Header Row
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 14, 12),
                     child: Row(
                       children: [
-                        Text(mealType.icon, style: const TextStyle(fontSize: 20)),
-                        const SizedBox(width: 10),
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Center(
+                            child: Text(
+                              mealType.icon,
+                              style: const TextStyle(fontSize: 22),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 mealType.label,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                  color: AppColors.onSurface,
+                                ),
                               ),
                               Text(
-                                '${subtotalKcal.toInt()} kkal',
+                                '${subtotalKcal.toInt()} kkal tercatat',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        FilledButton.tonalIcon(
-                          onPressed: () => _openAddFoodSheet(context, mealType),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        InkWell(
+                          onTap: () => _openAddFoodSheet(context, mealType),
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondaryFixed
+                                  .withValues(alpha: 0.55),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.add_rounded,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Tambah',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          icon: const Icon(Icons.add, size: 16),
-                          label: const Text('Tambah', style: TextStyle(fontSize: 12)),
                         ),
                       ],
                     ),
                   ),
 
-                  // Meal Items List or Empty state
                   if (meals.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                      child: Text(
-                        'Belum ada makanan dicatat untuk ${mealType.label.toLowerCase()}.',
-                        style: const TextStyle(fontSize: 12, color: AppColors.outline),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: InkWell(
+                        onTap: () => _openAddFoodSheet(context, mealType),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainerLow
+                                .withValues(alpha: 0.65),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppColors.outlineVariant
+                                  .withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.add_circle_outline_rounded,
+                                size: 15,
+                                color: AppColors.outline,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Belum ada catatan ${mealType.label.toLowerCase()} — Ketuk untuk catat',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     )
                   else
                     ...meals.map((entry) {
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
                         decoration: BoxDecoration(
                           border: Border(
-                            top: BorderSide(color: AppColors.surfaceContainerLow),
+                            top: BorderSide(
+                              color: AppColors.outlineVariant
+                                  .withValues(alpha: 0.2),
+                            ),
                           ),
                         ),
                         child: Row(
@@ -388,24 +678,41 @@ class CalorieTrackerScreen extends ConsumerWidget {
                                 children: [
                                   Text(
                                     entry.food.name,
-                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13.5,
+                                      color: AppColors.onSurface,
+                                    ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     '${entry.servings}x porsi • P: ${entry.totalProteins.toStringAsFixed(1)}g • K: ${entry.totalCarbs.toStringAsFixed(1)}g • L: ${entry.totalFat.toStringAsFixed(1)}g',
-                                    style: const TextStyle(fontSize: 11, color: AppColors.outline),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                             Text(
                               '${entry.totalCalories.toInt()} kkal',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                color: AppColors.primary,
+                              ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.outline),
+                              icon: const Icon(
+                                Icons.delete_outline_rounded,
+                                size: 18,
+                                color: AppColors.outline,
+                              ),
                               onPressed: () async {
-                                await ref.read(dailyNutritionProvider.notifier).removeMeal(entry.id);
+                                await ref
+                                    .read(dailyNutritionProvider.notifier)
+                                    .removeMeal(entry.id);
                               },
                             ),
                           ],
@@ -421,4 +728,3 @@ class CalorieTrackerScreen extends ConsumerWidget {
     );
   }
 }
-

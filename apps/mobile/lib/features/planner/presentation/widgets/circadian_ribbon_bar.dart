@@ -125,11 +125,14 @@ class CircadianRibbonBar extends StatelessWidget {
     final nowMinutes = now.hour * 60 + now.minute;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.surfaceContainerHigh),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: AppColors.bentoShadow,
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.25),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,20 +142,50 @@ class CircadianRibbonBar extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.timelapse_rounded, size: 18, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Pita Sirkadian 24 Jam',
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondaryFixed.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: const Icon(
+                      Icons.timelapse_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pita Sirkadian 24 Jam',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                      const Text(
+                        'Ketuk celah kosong untuk isi jadwal',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
               if (isToday)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(999),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -162,16 +195,16 @@ class CircadianRibbonBar extends StatelessWidget {
                         height: 6,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.primary,
+                          color: AppColors.secondaryFixed,
                         ),
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        'Sekarang ${_formatMinutes(nowMinutes)}',
+                        '${_formatMinutes(nowMinutes)} Sekarang',
                         style: const TextStyle(
                           fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
                         ),
                       ),
                     ],
@@ -179,48 +212,109 @@ class CircadianRibbonBar extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
-          // Ribbon Bar with live indicator pin
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: SizedBox(
-                  height: 28,
-                  child: Row(
-                    children: intervals.map((interval) {
-                      final flex = interval.durationMin.clamp(1, 1440);
+          // Ribbon Bar inside a padded rounded track
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: SizedBox(
+                    height: 34,
+                    child: Row(
+                      children: intervals.map((interval) {
+                        final flex = interval.durationMin.clamp(1, 1440);
 
-                      if (interval.isFree) {
+                        if (interval.isFree) {
+                          return Expanded(
+                            flex: flex,
+                            child: InkWell(
+                              onTap: () {
+                                final startStr =
+                                    _formatMinutes(interval.startMin);
+                                final endStr = interval.endMin == 1440
+                                    ? '00:00'
+                                    : _formatMinutes(interval.endMin);
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => AddScheduleSheet(
+                                    date: selectedDate,
+                                    prefillStartTime: startStr,
+                                    prefillEndTime: endStr,
+                                  ),
+                                ).then((_) => onScheduleChanged?.call());
+                              },
+                              child: Container(
+                                color: AppColors.surfaceContainerLow,
+                                child: Center(
+                                  child: interval.durationMin >= 120
+                                      ? Text(
+                                          'Luang ${(interval.durationMin / 60).toStringAsFixed(0)}j',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.outline
+                                                .withValues(alpha: 0.7),
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final catColor =
+                            interval.block?.category?.color ?? AppColors.primary;
                         return Expanded(
                           flex: flex,
                           child: InkWell(
                             onTap: () {
-                              final startStr = _formatMinutes(interval.startMin);
-                              final endStr = interval.endMin == 1440 ? '00:00' : _formatMinutes(interval.endMin);
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => AddScheduleSheet(
-                                  date: selectedDate,
-                                  prefillStartTime: startStr,
-                                  prefillEndTime: endStr,
-                                ),
-                              ).then((_) => onScheduleChanged?.call());
+                              if (interval.block != null) {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => AddScheduleSheet(
+                                    date: selectedDate,
+                                    initialBlock: interval.block,
+                                  ),
+                                ).then((_) => onScheduleChanged?.call());
+                              }
                             },
                             child: Container(
-                              color: AppColors.surfaceContainerLow,
+                              decoration: BoxDecoration(
+                                color: catColor,
+                                border: Border(
+                                  right: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.35),
+                                    width: 1.2,
+                                  ),
+                                ),
+                              ),
                               child: Center(
-                                child: interval.durationMin >= 90
-                                    ? Text(
-                                        'Luang ${(interval.durationMin / 60).toStringAsFixed(1)}j',
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.outline.withValues(alpha: 0.6),
+                                child: interval.durationMin >= 75
+                                    ? Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 3,
+                                        ),
+                                        child: Text(
+                                          interval.block?.title ?? '',
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                          ),
                                         ),
                                       )
                                     : null,
@@ -228,103 +322,93 @@ class CircadianRibbonBar extends StatelessWidget {
                             ),
                           ),
                         );
-                      }
+                      }).toList(),
+                    ),
+                  ),
+                ),
 
-                      final catColor = interval.block?.category?.color ?? AppColors.primary;
-                      return Expanded(
-                        flex: flex,
-                        child: InkWell(
-                          onTap: () {
-                            if (interval.block != null) {
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => AddScheduleSheet(
-                                  date: selectedDate,
-                                  initialBlock: interval.block,
-                                ),
-                              ).then((_) => onScheduleChanged?.call());
-                            }
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: catColor,
-                              border: Border(
-                                right: BorderSide(
-                                  color: Colors.white.withValues(alpha: 0.3),
-                                  width: 1,
-                                ),
+                // Live Time Marker Pin
+                if (isToday)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final markerLeft =
+                          (nowMinutes / 1440.0) * constraints.maxWidth;
+                      return Positioned(
+                        left: markerLeft.clamp(0.0, constraints.maxWidth - 3),
+                        top: -5,
+                        bottom: -5,
+                        child: Container(
+                          width: 3.5,
+                          decoration: BoxDecoration(
+                            color: AppColors.onSurface,
+                            borderRadius: BorderRadius.circular(99),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 4,
                               ),
-                            ),
-                            child: Center(
-                              child: interval.durationMin >= 60
-                                  ? Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                                      child: Text(
-                                        interval.block?.title ?? '',
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    )
-                                  : null,
-                            ),
+                            ],
                           ),
                         ),
                       );
-                    }).toList(),
+                    },
                   ),
-                ),
-              ),
-
-              // Live Time Marker Pin
-              if (isToday)
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final markerLeft = (nowMinutes / 1440.0) * constraints.maxWidth;
-                    return Positioned(
-                      left: markerLeft.clamp(0.0, constraints.maxWidth - 2),
-                      top: -4,
-                      bottom: -4,
-                      child: Container(
-                        width: 3,
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent,
-                          borderRadius: BorderRadius.circular(2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.redAccent.withValues(alpha: 0.4),
-                              blurRadius: 4,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
 
           // Hour Ticks
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text('00:00', style: TextStyle(fontSize: 9, color: AppColors.outline)),
-              Text('06:00', style: TextStyle(fontSize: 9, color: AppColors.outline)),
-              Text('12:00', style: TextStyle(fontSize: 9, color: AppColors.outline)),
-              Text('18:00', style: TextStyle(fontSize: 9, color: AppColors.outline)),
-              Text('24:00', style: TextStyle(fontSize: 9, color: AppColors.outline)),
-            ],
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '00:00',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.outline,
+                  ),
+                ),
+                Text(
+                  '06:00',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.outline,
+                  ),
+                ),
+                Text(
+                  '12:00',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.outline,
+                  ),
+                ),
+                Text(
+                  '18:00',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.outline,
+                  ),
+                ),
+                Text(
+                  '24:00',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.outline,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 }
-

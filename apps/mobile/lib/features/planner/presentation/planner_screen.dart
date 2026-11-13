@@ -20,13 +20,6 @@ class PlannerScreen extends ConsumerStatefulWidget {
 class _PlannerScreenState extends ConsumerState<PlannerScreen> {
   String _selectedCategoryFilter = 'ALL';
 
-  void _changeDate(int deltaDays) {
-    final currentStr = ref.read(selectedDateProvider);
-    final dt = DateTime.tryParse(currentStr) ?? DateTime.now();
-    final newDt = dt.add(Duration(days: deltaDays));
-    ref.read(selectedDateProvider.notifier).state = DateFormat('yyyy-MM-dd').format(newDt);
-  }
-
   Future<void> _pickCalendarDate() async {
     final currentStr = ref.read(selectedDateProvider);
     final currentDt = DateTime.tryParse(currentStr) ?? DateTime.now();
@@ -50,7 +43,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     );
 
     if (picked != null) {
-      ref.read(selectedDateProvider.notifier).state = DateFormat('yyyy-MM-dd').format(picked);
+      ref.read(selectedDateProvider.notifier).state =
+          DateFormat('yyyy-MM-dd').format(picked);
     }
   }
 
@@ -127,7 +121,6 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
   }
 
   void _fillNextBuffer(List<ScheduleBlockModel> blocks, String selectedDate) {
-    // Find gaps
     final List<Map<String, int>> intervals = [];
     for (final b in blocks) {
       intervals.add({'start': b.startMinutes, 'end': b.endMinutes});
@@ -177,80 +170,105 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     );
   }
 
+  List<DateTime> _buildWeekDays(DateTime selectedDt) {
+    // Center around selectedDt (3 days before to 3 days after)
+    return List.generate(
+      7,
+      (index) => selectedDt.subtract(Duration(days: 3 - index)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final selectedDate = ref.watch(selectedDateProvider);
     final summaryAsync = ref.watch(scheduleSummaryProvider);
+    final selectedDt = DateTime.tryParse(selectedDate) ?? DateTime.now();
 
-    final displayDate = DateFormat('EEE, d MMM yyyy', 'id_ID').format(
-      DateTime.tryParse(selectedDate) ?? DateTime.now(),
+    final displayDate = DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(
+      selectedDt,
     );
+    final weekDays = _buildWeekDays(selectedDt);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Rencana 24 Jam'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left_rounded),
-                  onPressed: () => _changeDate(-1),
+        toolbarHeight: 68,
+        titleSpacing: 20,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'RITME SIRKADIAN TUBUH',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Rencana 24 Jam',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppColors.onSurface,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          InkWell(
+            onTap: _pickCalendarDate,
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: AppColors.outlineVariant.withValues(alpha: 0.35),
                 ),
-                InkWell(
-                  onTap: _pickCalendarDate,
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.calendar_month_outlined, size: 16, color: AppColors.primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          displayDate,
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.calendar_month_rounded,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    DateFormat('d MMM yyyy', 'id_ID').format(selectedDt),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.onSurface,
                     ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right_rounded),
-                  onPressed: () => _changeDate(1),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => AddScheduleSheet(date: selectedDate),
-          );
-        },
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Tambah Blok'),
+        ],
       ),
       body: summaryAsync.when(
-        loading: () => const LoadingIndicator(message: 'Menyelaraskan alokasi waktu 24 jam...'),
+        loading: () => const LoadingIndicator(
+          message: 'Menyelaraskan alokasi waktu 24 jam...',
+        ),
         error: (err, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline_rounded, size: 48, color: Colors.redAccent),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 48,
+                  color: Colors.redAccent,
+                ),
                 const SizedBox(height: 12),
                 Text('Gagal memuat jadwal: $err', textAlign: TextAlign.center),
                 const SizedBox(height: 16),
@@ -267,13 +285,19 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           final remainingMinutes = summary.remainingMinutes;
           final remainingHours = (remainingMinutes / 60.0).clamp(0.0, 24.0);
 
-          // Filtering
           final filteredBlocks = _selectedCategoryFilter == 'ALL'
               ? blocks
-              : blocks.where((b) => b.category?.name == _selectedCategoryFilter || b.activityId == _selectedCategoryFilter).toList();
+              : blocks
+                  .where(
+                    (b) =>
+                        b.category?.name == _selectedCategoryFilter ||
+                        b.activityId == _selectedCategoryFilter,
+                  )
+                  .toList();
 
-          // Extract unique categories for filter chips
-          final Map<String, String> categoryOptions = {'ALL': 'Semua (${blocks.length})'};
+          final Map<String, String> categoryOptions = {
+            'ALL': 'Semua (${blocks.length})',
+          };
           for (final b in blocks) {
             final catName = b.category?.name ?? 'Lainnya';
             categoryOptions[catName] = catName;
@@ -282,102 +306,254 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           return RefreshIndicator(
             onRefresh: () async => ref.refresh(scheduleSummaryProvider.future),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               children: [
+                // 0. 7-Day Horizontal Mini Calendar Strip (Stitch Design)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: weekDays.map((day) {
+                    final dayStr = DateFormat('yyyy-MM-dd').format(day);
+                    final isSelected = dayStr == selectedDate;
+                    final dayLabel =
+                        DateFormat('EEE', 'id_ID').format(day).substring(0, 3);
+
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          ref.read(selectedDateProvider.notifier).state =
+                              dayStr;
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            gradient:
+                                isSelected ? AppColors.primaryGradient : null,
+                            color: isSelected ? null : AppColors.surface,
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.primary
+                                          .withValues(alpha: 0.25),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ]
+                                : null,
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.transparent
+                                  : AppColors.outlineVariant
+                                      .withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                dayLabel,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: isSelected
+                                      ? AppColors.secondaryFixed
+                                      : AppColors.outline,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${day.day}',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                width: 5,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isSelected
+                                      ? AppColors.secondaryFixed
+                                      : AppColors.outlineVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    displayDate,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
                 // 1. Continuous Circadian Ribbon (24-Hour Visual Timeline)
                 CircadianRibbonBar(
                   blocks: blocks,
                   selectedDate: selectedDate,
-                  onScheduleChanged: () => ref.invalidate(scheduleSummaryProvider),
+                  onScheduleChanged: () =>
+                      ref.invalidate(scheduleSummaryProvider),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
 
                 // 2. Routine Starter Templates (One-Click Day Filler)
                 RoutineTemplatesBar(
                   date: selectedDate,
                   onApplied: () => ref.invalidate(scheduleSummaryProvider),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
 
-                // 3. Time Allocation & Free Buffer Card
+                // 3. AI Smart Gap Detector & 24-Hour Allocation Bento Card
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.surfaceContainerHigh),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.surface,
+                        AppColors.surfaceContainerLow.withValues(alpha: 0.8),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: AppColors.bentoShadow,
+                    border: Border.all(
+                      color: AppColors.primaryContainer.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Alokasi 24 Jam',
-                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Sisa ${remainingHours.toStringAsFixed(1)} Jam Waktu Luang',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: remainingHours > 0 ? AppColors.primary : Colors.orange,
-                                ),
-                              ),
-                            ],
-                          ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            width: 40,
+                            height: 40,
                             decoration: BoxDecoration(
-                              color: AppColors.surfaceContainerLow,
-                              borderRadius: BorderRadius.circular(12),
+                              gradient: AppColors.primaryGradient,
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                            child: Text(
-                              '${(summary.allocatedMinutes / 60).toStringAsFixed(1)} / 24 Jam',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            child: const Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 20,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Alokasi 24 Jam',
+                                      style:
+                                          theme.textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.onSurface,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.secondaryFixed
+                                            .withValues(alpha: 0.5),
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                      ),
+                                      child: Text(
+                                        '${(summary.allocatedMinutes / 60).toStringAsFixed(1)} / 24 Jam',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  remainingHours > 0
+                                      ? 'Sisa ${remainingHours.toStringAsFixed(1)} Jam Waktu Luang belum teralokasi'
+                                      : 'Seluruh 24 jam telah teralokasi penuh!',
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(99),
                         child: LinearProgressIndicator(
-                          value: (summary.allocatedPercentage / 100.0).clamp(0.0, 1.0),
-                          minHeight: 8,
-                          backgroundColor: AppColors.surfaceContainerLow,
-                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          value: (summary.allocatedPercentage / 100.0)
+                              .clamp(0.0, 1.0),
+                          minHeight: 7,
+                          backgroundColor: Colors.white,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.primaryContainer,
+                          ),
                         ),
                       ),
                       if (remainingMinutes >= 30) ...[
                         const SizedBox(height: 12),
                         InkWell(
                           onTap: () => _fillNextBuffer(blocks, selectedDate),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceContainerLow,
-                              borderRadius: BorderRadius.circular(12),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 10,
+                              horizontal: 14,
                             ),
-                            child: Row(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: AppColors.primaryContainer
+                                    .withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.add_circle_outline_rounded, size: 16, color: AppColors.primary),
+                              children: [
+                                Icon(
+                                  Icons.add_circle_outline_rounded,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                ),
                                 SizedBox(width: 6),
                                 Text(
                                   'Isi Slot Waktu Luang Otomatis',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w800,
                                     color: AppColors.primary,
                                   ),
                                 ),
@@ -389,9 +565,31 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
 
-                // 4. Category Filter Chips (if blocks exist)
+                // 4. Section Header + Category Filter Chips
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Jadwal Blok Harian',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    Text(
+                      '${filteredBlocks.length} Aktivitas',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.outline,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
                 if (blocks.isNotEmpty && categoryOptions.length > 2) ...[
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -403,18 +601,27 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                           child: ChoiceChip(
                             label: Text(entry.value),
                             selected: isSel,
-                            selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                            selectedColor:
+                                AppColors.secondaryFixed.withValues(alpha: 0.5),
                             side: BorderSide(
-                              color: isSel ? AppColors.primary : AppColors.surfaceContainerHigh,
+                              color: isSel
+                                  ? AppColors.primary
+                                  : AppColors.outlineVariant
+                                      .withValues(alpha: 0.35),
                             ),
                             labelStyle: TextStyle(
-                              color: isSel ? AppColors.primary : AppColors.onSurface,
-                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                              color: isSel
+                                  ? AppColors.primary
+                                  : AppColors.onSurface,
+                              fontWeight:
+                                  isSel ? FontWeight.w800 : FontWeight.w600,
                               fontSize: 12,
                             ),
                             onSelected: (val) {
                               if (val) {
-                                setState(() => _selectedCategoryFilter = entry.key);
+                                setState(
+                                  () => _selectedCategoryFilter = entry.key,
+                                );
                               }
                             },
                           ),
@@ -428,32 +635,47 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                 // 5. Schedule Blocks List or Empty Guidance
                 if (blocks.isEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 36,
+                      horizontal: 20,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.surfaceContainerHigh),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: AppColors.bentoShadow,
+                      border: Border.all(
+                        color: AppColors.outlineVariant.withValues(alpha: 0.25),
+                      ),
                     ),
                     child: Column(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: AppColors.surfaceContainerLow,
                           ),
-                          child: const Icon(Icons.calendar_today_rounded, size: 36, color: AppColors.primary),
+                          child: const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 32,
+                            color: AppColors.primary,
+                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         Text(
                           'Jadwal 24 Jam Masih Kosong',
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Gunakan tombol "Template Cepat" di atas untuk mengisi hari kerja atau akhir pekan secara otomatis, atau ketuk tombol "+" di bawah.',
+                          'Gunakan tombol "Preset Rutinitas Cepat" di atas atau ketuk tombol "+ Tambah Blok Aktivitas" di bawah.',
                           textAlign: TextAlign.center,
-                          style: theme.textTheme.bodySmall?.copyWith(color: AppColors.outline),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.onSurfaceVariant,
+                            height: 1.4,
+                          ),
                         ),
                       ],
                     ),
@@ -461,15 +683,21 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                 else
                   ...filteredBlocks.map((block) {
                     final catColor = block.category?.color ?? AppColors.primary;
+                    final catName = block.category?.name ?? 'Aktivitas';
 
-                    return Card(
+                    return Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        side: BorderSide(color: catColor.withValues(alpha: 0.3)),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: AppColors.bentoShadow,
+                        border: Border.all(
+                          color: catColor.withValues(alpha: 0.28),
+                          width: 1.2,
+                        ),
                       ),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(24),
                         onTap: () {
                           showModalBottomSheet(
                             context: context,
@@ -483,122 +711,162 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                         },
                         child: Padding(
                           padding: const EdgeInsets.all(16),
-                          child: Row(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Left Color Indicator Pill
-                              Container(
-                                width: 4,
-                                height: 52,
-                                decoration: BoxDecoration(
-                                  color: catColor,
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 42,
+                                    height: 42,
+                                    decoration: BoxDecoration(
+                                      color: catColor.withValues(alpha: 0.14),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: Icon(
+                                      Icons.schedule_rounded,
+                                      size: 20,
+                                      color: catColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Expanded(
-                                          child: Text(
-                                            block.title,
-                                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                                          ),
-                                        ),
-                                        PopupMenuButton<String>(
-                                          icon: const Icon(Icons.more_vert_rounded, size: 20, color: AppColors.outline),
-                                          onSelected: (val) {
-                                            if (val == 'edit') {
-                                              showModalBottomSheet(
-                                                context: context,
-                                                isScrollControlled: true,
-                                                backgroundColor: Colors.transparent,
-                                                builder: (_) => AddScheduleSheet(
-                                                  date: selectedDate,
-                                                  initialBlock: block,
-                                                ),
-                                              );
-                                            } else if (val == 'split') {
-                                              _handleSplit(block);
-                                            } else if (val == 'delete') {
-                                              _handleDelete(block);
-                                            }
-                                          },
-                                          itemBuilder: (ctx) => [
-                                            const PopupMenuItem(
-                                              value: 'edit',
-                                              child: Row(
-                                                children: [
-                                                  Icon(Icons.edit_outlined, size: 18),
-                                                  SizedBox(width: 8),
-                                                  Text('Ubah Blok'),
-                                                ],
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
+                                            Text(
+                                              '${block.startTime} — ${block.endTime}',
+                                              style: TextStyle(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w800,
+                                                color: catColor,
                                               ),
                                             ),
-                                            if (block.durationMinutes >= 30)
-                                              const PopupMenuItem(
-                                                value: 'split',
-                                                child: Row(
-                                                  children: [
-                                                    Icon(Icons.call_split_rounded, size: 18),
-                                                    SizedBox(width: 8),
-                                                    Text('Bagi Jadi 2 Blok'),
-                                                  ],
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 7,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors
+                                                    .surfaceContainerLow,
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                '${block.durationMinutes} mnt • $catName',
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors
+                                                      .onSurfaceVariant,
                                                 ),
                                               ),
-                                            const PopupMenuItem(
-                                              value: 'delete',
-                                              child: Row(
-                                                children: [
-                                                  Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                                                  SizedBox(width: 8),
-                                                  Text('Hapus', style: TextStyle(color: Colors.redAccent)),
-                                                ],
-                                              ),
                                             ),
+                                            if (block.crossesMidnight)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 7,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.tertiaryFixed,
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                child: const Text(
+                                                  '🌙 Lintas Hari',
+                                                  style: TextStyle(
+                                                    fontSize: 9.5,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: AppColors.tertiary,
+                                                  ),
+                                                ),
+                                              ),
                                           ],
                                         ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.access_time_rounded, size: 14, color: catColor),
-                                        const SizedBox(width: 6),
+                                        const SizedBox(height: 4),
                                         Text(
-                                          '${block.startTime} - ${block.endTime} (${block.durationMinutes} menit)',
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: AppColors.onSurfaceVariant,
-                                            fontWeight: FontWeight.w500,
+                                          block.title,
+                                          style: theme.textTheme.titleMedium
+                                              ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.onSurface,
                                           ),
                                         ),
-                                        if (block.crossesMidnight) ...[
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.surfaceContainerHigh,
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: const Text(
-                                              '+1 hari',
-                                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+                                        if (block.description != null &&
+                                            block.description!.isNotEmpty) ...[
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            block.description!,
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                              color:
+                                                  AppColors.onSurfaceVariant,
                                             ),
                                           ),
                                         ],
                                       ],
                                     ),
-                                    if (block.description != null && block.description!.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        block.description!,
-                                        style: theme.textTheme.bodySmall?.copyWith(color: AppColors.outline),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.only(top: 10),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    top: BorderSide(
+                                      color: AppColors.outlineVariant
+                                          .withValues(alpha: 0.25),
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    _buildActionChip(
+                                      icon: Icons.edit_outlined,
+                                      label: 'Ubah',
+                                      color: AppColors.onSurfaceVariant,
+                                      onTap: () {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          backgroundColor: Colors.transparent,
+                                          builder: (_) => AddScheduleSheet(
+                                            date: selectedDate,
+                                            initialBlock: block,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    if (block.durationMinutes >= 30) ...[
+                                      const SizedBox(width: 8),
+                                      _buildActionChip(
+                                        icon: Icons.call_split_rounded,
+                                        label: 'Bagi 2',
+                                        color: AppColors.primary,
+                                        onTap: () => _handleSplit(block),
                                       ),
                                     ],
+                                    const SizedBox(width: 8),
+                                    _buildActionChip(
+                                      icon: Icons.delete_outline_rounded,
+                                      label: 'Hapus',
+                                      color: AppColors.error,
+                                      onTap: () => _handleDelete(block),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -608,10 +876,63 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                       ),
                     );
                   }),
+
+                const SizedBox(height: 8),
+
+                // Bottom Full-Width CTA Pill Button (Stitch Design)
+                SizedBox(
+                  height: 54,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => AddScheduleSheet(date: selectedDate),
+                      );
+                    },
+                    icon: const Icon(Icons.add_circle_outline_rounded),
+                    label: const Text('Tambah Blok Aktivitas'),
+                  ),
+                ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildActionChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

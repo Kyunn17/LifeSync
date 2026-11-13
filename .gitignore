@@ -29,3 +29,9 @@ yarn-error.log*
 .vscode/
 .idea/
 
+
+# Python & Temporary scripts
+__pycache__/
+*.pyc
+stitch_helper.py
+inspect_stitch.py
