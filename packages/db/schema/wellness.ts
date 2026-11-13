@@ -36,6 +36,7 @@ export const profile = pgTable(
     dailyExerciseGoalMinutes: integer("daily_exercise_goal_minutes")
       .notNull()
       .default(45),
+    dailyCalorieGoal: integer("daily_calorie_goal").notNull().default(2000),
     timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
     notificationsEnabled: boolean("notifications_enabled")
       .notNull()

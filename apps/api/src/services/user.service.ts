@@ -37,6 +37,7 @@ export async function getOrCreateProfile(userId: string) {
     dailyStepsGoal: 10000,
     dailySleepGoalMinutes: 480,
     dailyExerciseGoalMinutes: 45,
+    dailyCalorieGoal: 2000,
     timezone: "UTC",
     notificationsEnabled: true,
     createdAt: new Date(),
@@ -107,6 +108,7 @@ export async function updateUserProfile(
   if (input.dailyStepsGoal !== undefined) profileUpdates.dailyStepsGoal = input.dailyStepsGoal;
   if (input.dailySleepGoalMinutes !== undefined) profileUpdates.dailySleepGoalMinutes = input.dailySleepGoalMinutes;
   if (input.dailyExerciseGoalMinutes !== undefined) profileUpdates.dailyExerciseGoalMinutes = input.dailyExerciseGoalMinutes;
+  if (input.dailyCalorieGoal !== undefined) profileUpdates.dailyCalorieGoal = input.dailyCalorieGoal;
   if (input.bio !== undefined) profileUpdates.bio = input.bio;
   if (input.timezone !== undefined) profileUpdates.timezone = input.timezone;
   if (input.notificationsEnabled !== undefined) profileUpdates.notificationsEnabled = input.notificationsEnabled;

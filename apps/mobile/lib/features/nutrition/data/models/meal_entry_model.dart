@@ -64,14 +64,61 @@ class MealEntry {
     };
   }
 
+  Map<String, dynamic> toApiJson() {
+    return {
+      'id': id,
+      'date': date,
+      'mealType': mealType.key,
+      'foodId': food.id,
+      'foodName': food.name,
+      'brand': food.brand,
+      'calories': food.calories,
+      'proteins': food.proteins,
+      'carbohydrates': food.carbohydrates,
+      'fat': food.fat,
+      'servingSize': food.servingSize,
+      'servings': servings,
+      'imageUrl': food.imageUrl,
+      'source': food.source,
+      'loggedAt': loggedAt.toIso8601String(),
+    };
+  }
+
   factory MealEntry.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey('food') && json['food'] is Map<String, dynamic>) {
+      return MealEntry(
+        id: json['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        date: json['date']?.toString() ?? '',
+        mealType: MealType.fromKey(json['mealType']?.toString() ?? 'snack'),
+        food: FoodItem.fromJson(json['food'] as Map<String, dynamic>),
+        servings: (json['servings'] as num?)?.toDouble() ?? 1.0,
+        loggedAt: DateTime.tryParse(json['loggedAt']?.toString() ?? '') ?? DateTime.now(),
+      );
+    }
+    return MealEntry.fromBackend(json);
+  }
+
+  factory MealEntry.fromBackend(Map<String, dynamic> json) {
+    final food = FoodItem(
+      id: json['foodId']?.toString() ?? json['food_id']?.toString() ?? json['id']?.toString() ?? '',
+      name: json['foodName']?.toString() ?? json['food_name']?.toString() ?? 'Makanan',
+      brand: json['brand']?.toString(),
+      calories: (json['calories'] as num?)?.toDouble() ?? 0.0,
+      proteins: (json['proteins'] as num?)?.toDouble() ?? 0.0,
+      carbohydrates: (json['carbohydrates'] as num?)?.toDouble() ?? 0.0,
+      fat: (json['fat'] as num?)?.toDouble() ?? 0.0,
+      servingSize: json['servingSize']?.toString() ?? json['serving_size']?.toString() ?? '1 porsi',
+      imageUrl: json['imageUrl']?.toString() ?? json['image_url']?.toString(),
+      source: json['source']?.toString() ?? 'manual',
+    );
+
     return MealEntry(
-      id: json['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id: json['id']?.toString() ?? '',
       date: json['date']?.toString() ?? '',
-      mealType: MealType.fromKey(json['mealType']?.toString() ?? 'snack'),
-      food: FoodItem.fromJson(json['food'] as Map<String, dynamic>? ?? {}),
+      mealType: MealType.fromKey(json['mealType']?.toString() ?? json['meal_type']?.toString() ?? 'snack'),
+      food: food,
       servings: (json['servings'] as num?)?.toDouble() ?? 1.0,
-      loggedAt: DateTime.tryParse(json['loggedAt']?.toString() ?? '') ?? DateTime.now(),
+      loggedAt: DateTime.tryParse(json['loggedAt']?.toString() ?? json['logged_at']?.toString() ?? '') ?? DateTime.now(),
     );
   }
 }

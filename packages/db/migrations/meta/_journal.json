@@ -8,6 +8,13 @@
       "when": 1793946504256,
       "tag": "0000_daily_the_initiative",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794540056257,
+      "tag": "0001_chemical_toad",
+      "breakpoints": true
     }
   ]
 }

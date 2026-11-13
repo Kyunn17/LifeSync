@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
 import '../data/models/food_item_model.dart';
 import '../data/models/meal_entry_model.dart';
 import '../data/nutrition_repository.dart';
 
 final nutritionRepositoryProvider = Provider<NutritionRepository>((ref) {
-  return NutritionRepository();
+  final apiClient = ref.watch(apiClientProvider);
+  return NutritionRepository(apiClient: apiClient);
 });
 
 class DailyNutritionState {

@@ -183,6 +183,7 @@ export const updateProfileSchema = z.object({
   dailyStepsGoal: z.number().int().min(1000).max(100000).optional(),
   dailySleepGoalMinutes: z.number().int().min(120).max(960).optional(),
   dailyExerciseGoalMinutes: z.number().int().min(0).max(600).optional(),
+  dailyCalorieGoal: z.number().int().min(500).max(10000).optional(),
   bio: z.string().max(500).optional().nullable(),
   timezone: z.string().max(64).optional(),
   notificationsEnabled: z.boolean().optional(),
@@ -210,6 +211,47 @@ export type WellnessTipInput = z.infer<typeof wellnessTipSchema>;
 
 export const updateWellnessTipSchema = wellnessTipSchema.partial();
 export type UpdateWellnessTipInput = z.infer<typeof updateWellnessTipSchema>;
+
+// Nutrition & Calorie Tracking
+export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
+export type MealType = (typeof MEAL_TYPES)[number];
+
+export const mealLogSchema = z.object({
+  id: z.string().optional(),
+  date: dateStringSchema,
+  mealType: z.enum(MEAL_TYPES),
+  foodId: z.string().optional().nullable(),
+  foodName: z.string().min(1, "Nama makanan wajib diisi").max(160),
+  brand: z.string().max(120).optional().nullable(),
+  calories: z.number().min(0, "Kalori tidak boleh negatif"),
+  proteins: z.number().min(0).default(0),
+  carbohydrates: z.number().min(0).default(0),
+  fat: z.number().min(0).default(0),
+  servingSize: z.string().max(80).default("1 porsi"),
+  servings: z.number().min(0.1).max(50).default(1.0),
+  imageUrl: z.string().optional().nullable(),
+  source: z.string().max(32).default("manual"),
+  loggedAt: z.string().datetime().optional().nullable(),
+});
+
+export type MealLogInput = z.infer<typeof mealLogSchema>;
+
+export const updateMealLogSchema = mealLogSchema.partial();
+export type UpdateMealLogInput = z.infer<typeof updateMealLogSchema>;
+
+export const customFoodSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, "Nama makanan wajib diisi").max(160),
+  brand: z.string().max(120).optional().nullable(),
+  calories: z.number().min(0),
+  proteins: z.number().min(0).default(0),
+  carbohydrates: z.number().min(0).default(0),
+  fat: z.number().min(0).default(0),
+  servingSize: z.string().max(80).default("1 porsi"),
+  imageUrl: z.string().optional().nullable(),
+});
+
+export type CustomFoodInput = z.infer<typeof customFoodSchema>;
 
 export interface ApiResponse<T = unknown> {
   success: boolean;

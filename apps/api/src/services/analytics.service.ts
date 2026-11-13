@@ -55,6 +55,7 @@ export async function getDailyAnalytics(userId: string, date: string) {
     dailyStepsGoal: 10000,
     dailySleepGoalMinutes: 480,
     dailyExerciseGoalMinutes: 45,
+    dailyCalorieGoal: 2000,
     targetWakeTime: "06:30",
     targetSleepTime: "22:30",
   };

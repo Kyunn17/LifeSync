@@ -19,6 +19,7 @@ import {
 } from "./wellness.routes";
 import { analyticsRouter } from "./analytics.routes";
 import { adminRouter } from "./admin.routes";
+import { nutritionRouter } from "./nutrition.routes";
 
 export const apiRouter = Router();
 
@@ -158,5 +159,6 @@ apiRouter.use("/health", healthRouter);
 apiRouter.use("/checkins", checkinRouter);
 apiRouter.use("/water", waterRouter);
 apiRouter.use("/tips", tipsRouter);
+apiRouter.use("/nutrition", nutritionRouter);
 apiRouter.use("/analytics", analyticsRouter);
 apiRouter.use("/admin", adminRouter);

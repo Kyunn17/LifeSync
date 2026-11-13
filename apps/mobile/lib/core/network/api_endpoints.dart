@@ -20,6 +20,11 @@ class ApiEndpoints {
   static const String water = '/api/water';
   static const String tips = '/api/tips';
 
+  // Nutrition
+  static const String nutritionMeals = '/api/nutrition/meals';
+  static const String nutritionCustomFoods = '/api/nutrition/custom-foods';
+  static const String nutritionGoal = '/api/nutrition/goal';
+
   // Analytics
   static const String dailyAnalytics = '/api/analytics/daily';
   static const String weeklyAnalytics = '/api/analytics/weekly';
