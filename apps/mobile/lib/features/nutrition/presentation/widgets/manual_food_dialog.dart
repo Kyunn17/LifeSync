@@ -64,8 +64,8 @@ class _ManualFoodDialogState extends State<ManualFoodDialog> {
       source: 'manual',
     );
 
-    widget.onFoodCreated(food, _selectedMealType, _servings);
     Navigator.pop(context);
+    widget.onFoodCreated(food, _selectedMealType, _servings);
   }
 
   @override

@@ -173,6 +173,8 @@ class NutritionRepository {
 
   // 4. Daily Meals Storage (Backend Sync + Local Cache)
   Future<List<MealEntry>> getMealsForDate(String date) async {
+    final localMeals = await _getLocalMeals(date);
+
     if (apiClient != null) {
       try {
         final res = await apiClient!.dio.get(
@@ -185,9 +187,19 @@ class NutritionRepository {
               .map((j) => MealEntry.fromBackend(j as Map<String, dynamic>))
               .toList();
 
+          // Merge: server is ground truth for existing items, but retain unsynced local meals
+          final Map<String, MealEntry> mergedMap = {};
+          for (final m in localMeals) {
+            mergedMap[m.id] = m;
+          }
+          for (final m in serverMeals) {
+            mergedMap[m.id] = m;
+          }
+
+          final mergedList = mergedMap.values.toList();
           final prefs = await SharedPreferences.getInstance();
           final raw =
-              jsonEncode(serverMeals.map((m) => m.toJson()).toList());
+              jsonEncode(mergedList.map((m) => m.toJson()).toList());
           await prefs.setString('$_mealsPrefix$date', raw);
 
           if (data['targetCalories'] is num) {
@@ -195,12 +207,12 @@ class NutritionRepository {
                 _calorieGoalKey, (data['targetCalories'] as num).toInt());
           }
 
-          return serverMeals;
+          return mergedList;
         }
       } catch (_) {}
     }
 
-    return _getLocalMeals(date);
+    return localMeals;
   }
 
   Future<List<MealEntry>> _getLocalMeals(String date) async {
@@ -231,10 +243,29 @@ class NutritionRepository {
 
     if (apiClient != null) {
       try {
-        await apiClient!.dio.post(
+        final response = await apiClient!.dio.post(
           ApiEndpoints.nutritionMeals,
           data: entry.toApiJson(),
         );
+
+        // If backend returned confirmed record with server id:
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final resData = response.data?['data'];
+          if (resData is Map<String, dynamic> && resData['id'] != null) {
+            final serverId = resData['id'].toString();
+            if (serverId != entry.id) {
+              final currentMeals = await _getLocalMeals(entry.date);
+              final idx = currentMeals.indexWhere((m) => m.id == entry.id);
+              if (idx != -1) {
+                currentMeals[idx] = MealEntry.fromBackend(resData);
+                await prefs.setString(
+                  '$_mealsPrefix${entry.date}',
+                  jsonEncode(currentMeals.map((m) => m.toJson()).toList()),
+                );
+              }
+            }
+          }
+        }
       } catch (_) {}
     }
   }

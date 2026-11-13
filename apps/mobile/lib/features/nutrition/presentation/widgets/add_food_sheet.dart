@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../dashboard/providers/dashboard_provider.dart';
 import '../../data/katalog_nusantara.dart';
 import '../../data/models/food_item_model.dart';
 import '../../data/models/meal_entry_model.dart';
@@ -72,14 +73,19 @@ class _AddFoodSheetState extends ConsumerState<AddFoodSheet> {
     });
   }
 
-  void _handleAddFood(FoodItem food, double servings) {
-    ref.read(dailyNutritionProvider.notifier).addMeal(
+  Future<void> _handleAddFood(FoodItem food, double servings) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+
+    await ref.read(dailyNutritionProvider.notifier).addMeal(
           mealType: _selectedMealType,
           food: food,
           servings: servings,
         );
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    ref.invalidate(dailyAnalyticsProvider);
+
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
           'Ditambahkan: ${food.name} (${(food.calories * servings).toInt()} kkal) ke ${_selectedMealType.label}',
@@ -89,7 +95,7 @@ class _AddFoodSheetState extends ConsumerState<AddFoodSheet> {
       ),
     );
 
-    Navigator.pop(context, true);
+    nav.pop(true);
   }
 
   @override
@@ -412,22 +418,43 @@ class _AddFoodSheetState extends ConsumerState<AddFoodSheet> {
                               ),
                             ],
                           ),
-                          trailing: IconButton(
-                            icon: Icon(
-                              isSelected ? Icons.expand_less_rounded : Icons.add_circle_outline_rounded,
-                              color: AppColors.primary,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                if (_selectedFood?.id == food.id) {
-                                  _selectedFood = null;
-                                } else {
-                                  _selectedFood = food;
-                                  _servings = 1.0;
-                                }
-                              });
-                            },
-                          ),
+                          trailing: isSelected
+                              ? IconButton(
+                                  icon: const Icon(
+                                    Icons.expand_less_rounded,
+                                    color: AppColors.primary,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedFood = null;
+                                    });
+                                  },
+                                )
+                              : FilledButton.tonalIcon(
+                                  onPressed: () => _handleAddFood(food, 1.0),
+                                  style: FilledButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    backgroundColor: AppColors.secondaryFixed
+                                        .withValues(alpha: 0.7),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.add_rounded,
+                                    size: 15,
+                                    color: AppColors.primary,
+                                  ),
+                                  label: const Text(
+                                    'Tambah',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
                         ),
 
                         // Inline portion selector when food is tapped

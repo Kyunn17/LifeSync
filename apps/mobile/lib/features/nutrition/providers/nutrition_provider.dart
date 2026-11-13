@@ -85,14 +85,22 @@ class DailyNutritionNotifier extends StateNotifier<DailyNutritionState> {
       mealType: mealType,
       food: food,
       servings: servings,
-      loggedAt: DateTime.now(),
+      loggedAt: DateTime.now().toUtc(),
     );
+
+    // Optimistic UI update immediately
+    final updatedMeals = List<MealEntry>.from(state.meals)..add(entry);
+    state = state.copyWith(meals: updatedMeals);
 
     await _repo.addMealEntry(entry);
     await loadDailyMeals(state.date);
   }
 
   Future<void> removeMeal(String entryId) async {
+    // Optimistic UI update immediately
+    final updatedMeals = List<MealEntry>.from(state.meals)..removeWhere((m) => m.id == entryId);
+    state = state.copyWith(meals: updatedMeals);
+
     await _repo.removeMealEntry(state.date, entryId);
     await loadDailyMeals(state.date);
   }

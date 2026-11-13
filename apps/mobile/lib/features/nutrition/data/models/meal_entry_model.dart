@@ -60,7 +60,7 @@ class MealEntry {
       'mealType': mealType.key,
       'food': food.toJson(),
       'servings': servings,
-      'loggedAt': loggedAt.toIso8601String(),
+      'loggedAt': loggedAt.toUtc().toIso8601String(),
     };
   }
 
@@ -69,18 +69,18 @@ class MealEntry {
       'id': id,
       'date': date,
       'mealType': mealType.key,
-      'foodId': food.id,
+      if (food.id.isNotEmpty) 'foodId': food.id,
       'foodName': food.name,
-      'brand': food.brand,
+      if (food.brand != null && food.brand!.isNotEmpty) 'brand': food.brand,
       'calories': food.calories,
       'proteins': food.proteins,
       'carbohydrates': food.carbohydrates,
       'fat': food.fat,
-      'servingSize': food.servingSize,
+      'servingSize': food.servingSize.isNotEmpty ? food.servingSize : '1 porsi',
       'servings': servings,
-      'imageUrl': food.imageUrl,
+      if (food.imageUrl != null && food.imageUrl!.isNotEmpty) 'imageUrl': food.imageUrl,
       'source': food.source,
-      'loggedAt': loggedAt.toIso8601String(),
+      'loggedAt': loggedAt.toUtc().toIso8601String(),
     };
   }
 
