@@ -1,20 +1,13 @@
 import type { IncomingMessage, ServerResponse } from "http";
+import { createApp } from "./app";
 
-let appPromise: Promise<any> | null = null;
+let app: any;
 
-async function getApp() {
-  if (!appPromise) {
-    appPromise = (async () => {
-      const { createApp } = await import("../src/app");
-      return createApp();
-    })();
-  }
-  return appPromise;
-}
-
-export default async function handler(req: IncomingMessage, res: ServerResponse) {
+export default function handler(req: IncomingMessage, res: ServerResponse) {
   try {
-    const app = await getApp();
+    if (!app) {
+      app = createApp();
+    }
     return app(req, res);
   } catch (error: any) {
     console.error("[Vercel Serverless Error]:", error);
@@ -28,7 +21,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
           hasBetterAuthSecret: Boolean(process.env.BETTER_AUTH_SECRET),
           betterAuthUrl: process.env.BETTER_AUTH_URL || "(not set)",
-          nodeEnv: process.env.NODE_ENV || "(not set)",
         },
       })
     );

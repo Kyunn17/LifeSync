@@ -9,7 +9,9 @@ let cachedDb: Database | null = null;
 export function createDbClient(databaseUrl?: string): Database {
   const url = databaseUrl || process.env.DATABASE_URL;
   if (!url) {
-    throw new Error("DATABASE_URL environment variable is required");
+    console.error("[Database] WARNING: DATABASE_URL environment variable is missing!");
+    const sql = neon("postgresql://missing_db_url:missing_db_url@localhost:5432/missing");
+    return drizzle(sql, { schema });
   }
   const sql = neon(url);
   return drizzle(sql, { schema });
