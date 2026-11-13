@@ -1,6 +1,18 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "strictNullChecks": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noUncheckedIndexedAccess": true,
     "noEmit": true,
     "paths": {
       "@lifesync/shared": ["../../packages/shared/src/index.ts"],
@@ -8,5 +20,6 @@
       "@lifesync/db/schema": ["../../packages/db/schema/index.ts"]
     }
   },
-  "include": ["src/**/*", "api/**/*"]
+  "include": ["src/**/*", "api/**/*"],
+  "exclude": ["node_modules", "src/__tests__/**/*"]
 }
