@@ -6,6 +6,7 @@ import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../../shared/widgets/status_banner.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
+import '../../nutrition/providers/nutrition_provider.dart';
 import '../providers/pushup_provider.dart';
 import '../providers/step_counter_provider.dart';
 import '../providers/wellness_provider.dart';
@@ -45,6 +46,7 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
     final healthLogAsync = ref.watch(todayHealthLogProvider);
     final stepState = ref.watch(stepCounterProvider);
     final pushupStats = ref.watch(pushupStatsProvider);
+    final nutrition = ref.watch(dailyNutritionProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -214,6 +216,50 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                             ),
                           ),
                         ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 2b. Nutrition & Calorie Card
+                _buildCard(
+                  context,
+                  title: 'Nutrisi & Kalori Harian',
+                  icon: Icons.restaurant_rounded,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Asupan Kalori Tercatat'),
+                          Text(
+                            '${nutrition.consumedCalories.round()} / ${nutrition.targetCalories} kkal',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: nutrition.calorieProgress,
+                          minHeight: 6,
+                          backgroundColor: AppColors.surfaceContainerLow,
+                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => context.push('/calorie-tracker'),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.primary),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          minimumSize: const Size.fromHeight(42),
+                        ),
+                        icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                        label: const Text('Buka Pelacak Kalori & Makanan'),
                       ),
                     ],
                   ),

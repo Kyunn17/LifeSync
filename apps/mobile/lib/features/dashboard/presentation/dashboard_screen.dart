@@ -7,6 +7,7 @@ import '../../../shared/widgets/loading_indicator.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../wellness/providers/pushup_provider.dart';
 import '../../wellness/providers/step_counter_provider.dart';
+import '../../nutrition/providers/nutrition_provider.dart';
 import '../providers/dashboard_provider.dart';
 import 'widgets/breathing_exercise_dialog.dart';
 import 'widgets/circadian_ring_chart.dart';
@@ -26,6 +27,7 @@ class DashboardScreen extends ConsumerWidget {
     final analyticsAsync = ref.watch(dailyAnalyticsProvider);
     final stepState = ref.watch(stepCounterProvider);
     final pushupStats = ref.watch(pushupStatsProvider);
+    final nutrition = ref.watch(dailyNutritionProvider);
 
     final displayDate = DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(
       DateTime.tryParse(selectedDate) ?? DateTime.now(),
@@ -248,6 +250,8 @@ class DashboardScreen extends ConsumerWidget {
                   _buildLiveStepBanner(context, ref, stepState, goals.dailyStepsGoal),
                   const SizedBox(height: 12),
                   _buildPushupStreakBanner(context, pushupStats),
+                  const SizedBox(height: 12),
+                  _buildCalorieTrackerBanner(context, nutrition),
                   const SizedBox(height: 16),
 
                   // 6. Relaxation Breathing Exercise Banner
@@ -913,6 +917,89 @@ class DashboardScreen extends ConsumerWidget {
                   color: AppColors.primary,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCalorieTrackerBanner(BuildContext context, DailyNutritionState nutrition) {
+    final theme = Theme.of(context);
+    final consumed = nutrition.consumedCalories.round();
+    final target = nutrition.targetCalories;
+    final progress = nutrition.calorieProgress;
+
+    return InkWell(
+      onTap: () => context.push('/calorie-tracker'),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.surfaceContainerHigh),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondaryContainer,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.restaurant_rounded, size: 22, color: AppColors.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Pelacak Kalori & Nutrisi',
+                            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '$consumed / $target kkal',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        nutrition.meals.isEmpty
+                            ? 'Catat sarapan, makan siang, atau camilan'
+                            : '${nutrition.meals.length} makanan tercatat • ${nutrition.remainingCalories.round()} kkal tersisa',
+                        style: theme.textTheme.bodySmall?.copyWith(color: AppColors.outline),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.outline, size: 20),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: AppColors.surfaceContainerLow,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  progress > 1.0 ? Colors.redAccent : AppColors.primary,
                 ),
               ),
             ),

@@ -10,6 +10,7 @@ import '../../features/insights/presentation/insights_screen.dart';
 import '../../features/navigation/main_navigation_shell.dart';
 import '../../features/planner/presentation/planner_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/nutrition/presentation/calorie_tracker_screen.dart';
 import '../../features/wellness/presentation/pushup_counter_screen.dart';
 import '../../features/wellness/presentation/wellness_screen.dart';
 
@@ -69,6 +70,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/pushup-counter',
         builder: (context, state) => const PushupCounterScreen(),
+      ),
+      GoRoute(
+        path: '/calorie-tracker',
+        builder: (context, state) => const CalorieTrackerScreen(),
       ),
 
       // Main Navigation Shell with 5 branches
