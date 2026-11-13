@@ -8,5 +8,5 @@
       "@lifesync/db/schema": ["../../packages/db/schema/index.ts"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "api/**/*"]
 }

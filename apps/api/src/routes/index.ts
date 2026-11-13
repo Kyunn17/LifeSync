@@ -130,7 +130,7 @@ apiRouter.post("/verify-direct", async (req, res, next) => {
       .set({
         emailVerified: true,
         updatedAt: new Date(),
-      })
+      } as any)
       .where(eq(user.email, email))
       .returning({
         id: user.id,

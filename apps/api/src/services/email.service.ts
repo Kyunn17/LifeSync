@@ -91,7 +91,7 @@ export async function verifyOtpCode({
       .set({
         emailVerified: true,
         updatedAt: new Date(),
-      })
+      } as any)
       .where(eq(user.email, normalizedEmail));
 
     // Bersihkan kode verifikasi yang sudah dipakai
