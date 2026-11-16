@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bun --watch src/index.ts",
-    "start": "bun src/index.ts",
+    "dev": "bun --watch src/local.ts",
+    "start": "bun src/local.ts",
     "build": "bun build src/serverless.ts --target=node --format=cjs --outfile=api/index.js",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
