@@ -25,6 +25,9 @@ class ScheduleBlockModel {
     try {
       final parts = endTime.split(':');
       final val = (int.parse(parts[0]) * 60) + int.parse(parts[1]);
+      if (val == 0 && startMinutes > 0) {
+        return 1440;
+      }
       if (crossesMidnight && val <= startMinutes) {
         return val + 1440;
       }

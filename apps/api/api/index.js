@@ -83413,6 +83413,21 @@ function parseTimeToMinutes(timeStr) {
   const minutes = parts[1] ?? 0;
   return hours * 60 + minutes;
 }
+function minutesToHHMM(mins) {
+  if (mins >= 1440 || mins <= 0)
+    return "00:00";
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+function shiftIsoDate(dateStr, deltaDays) {
+  const parts = dateStr.split("-").map(Number);
+  const y = parts[0] ?? 2026;
+  const m = parts[1] ?? 1;
+  const d = parts[2] ?? 1;
+  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  return dt.toISOString().slice(0, 10);
+}
 function computeTimeRange(startTime, endTime) {
   const startMinutes = parseTimeToMinutes(startTime);
   const rawEndMinutes = parseTimeToMinutes(endTime);
@@ -83459,31 +83474,67 @@ function computeTimeRange(startTime, endTime) {
     ]
   };
 }
-function intervalsOverlap(a, b) {
-  for (const [aStart, aEnd] of a) {
-    for (const [bStart, bEnd] of b) {
-      if (Math.max(aStart, bStart) < Math.min(aEnd, bEnd)) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-async function checkScheduleOverlap(userId, date, candidateIntervals, excludeScheduleId) {
+async function resolveAndCarveOverlaps(userId, date, newStartMin, newEndMin, excludeScheduleId) {
   const db = getDb();
   const existingBlocks = await db.select().from(dailySchedules).where(excludeScheduleId ? and(eq(dailySchedules.userId, userId), eq(dailySchedules.date, date), ne(dailySchedules.id, excludeScheduleId)) : and(eq(dailySchedules.userId, userId), eq(dailySchedules.date, date)));
   for (const block of existingBlocks) {
-    const parsed = computeTimeRange(block.startTime, block.endTime);
-    if ("error" in parsed)
+    const bStart = block.startMinutes;
+    const bEnd = block.endTime === "00:00" || block.crossesMidnight || block.endMinutes > 1440 ? 1440 : block.endMinutes;
+    if (Math.max(newStartMin, bStart) >= Math.min(newEndMin, bEnd)) {
       continue;
-    if (intervalsOverlap(candidateIntervals, parsed.dayIntervals)) {
-      return {
-        overlaps: true,
-        conflictingBlock: block
-      };
+    }
+    if (newStartMin <= bStart && newEndMin >= bEnd) {
+      await db.delete(dailySchedules).where(and(eq(dailySchedules.id, block.id), eq(dailySchedules.userId, userId)));
+      continue;
+    }
+    if (newStartMin > bStart && newEndMin < bEnd) {
+      await db.update(dailySchedules).set({
+        endTime: minutesToHHMM(newStartMin),
+        endMinutes: newStartMin,
+        durationMinutes: newStartMin - bStart,
+        crossesMidnight: false,
+        updatedAt: new Date
+      }).where(and(eq(dailySchedules.id, block.id), eq(dailySchedules.userId, userId)));
+      await db.insert(dailySchedules).values({
+        id: `sch_${crypto.randomUUID()}`,
+        userId,
+        activityId: block.activityId,
+        title: block.title,
+        description: block.description,
+        date,
+        startTime: minutesToHHMM(newEndMin),
+        endTime: minutesToHHMM(bEnd),
+        startMinutes: newEndMin,
+        endMinutes: bEnd,
+        durationMinutes: bEnd - newEndMin,
+        crossesMidnight: false,
+        createdAt: new Date,
+        updatedAt: new Date
+      });
+      continue;
+    }
+    if (newStartMin > bStart && newStartMin < bEnd) {
+      await db.update(dailySchedules).set({
+        endTime: minutesToHHMM(newStartMin),
+        endMinutes: newStartMin,
+        durationMinutes: newStartMin - bStart,
+        crossesMidnight: false,
+        updatedAt: new Date
+      }).where(and(eq(dailySchedules.id, block.id), eq(dailySchedules.userId, userId)));
+      continue;
+    }
+    if (newEndMin > bStart && newEndMin < bEnd) {
+      await db.update(dailySchedules).set({
+        startTime: minutesToHHMM(newEndMin),
+        startMinutes: newEndMin,
+        endTime: minutesToHHMM(bEnd),
+        endMinutes: bEnd,
+        durationMinutes: bEnd - newEndMin,
+        crossesMidnight: false,
+        updatedAt: new Date
+      }).where(and(eq(dailySchedules.id, block.id), eq(dailySchedules.userId, userId)));
     }
   }
-  return { overlaps: false };
 }
 async function getDailyScheduleSummary(userId, date) {
   const db = getDb();
@@ -83492,18 +83543,27 @@ async function getDailyScheduleSummary(userId, date) {
     category: activities
   }).from(dailySchedules).innerJoin(activities, eq(dailySchedules.activityId, activities.id)).where(and(eq(dailySchedules.userId, userId), eq(dailySchedules.date, date))).orderBy(asc(dailySchedules.startMinutes));
   const userCategories = await listCategoriesForUser(userId);
-  const blocks = rows.map(({ schedule, category }) => ({
-    ...schedule,
-    category: {
-      id: category.id,
-      name: category.name,
-      slug: category.slug,
-      color: category.color,
-      bgColor: category.bgColor,
-      icon: category.icon,
-      targetMinutesPerDay: category.targetMinutesPerDay
-    }
-  }));
+  const blocks = rows.map(({ schedule, category }) => {
+    const isLegacyMidnight = schedule.crossesMidnight || schedule.endMinutes > 1440;
+    const clampedEndMin = isLegacyMidnight ? 1440 : schedule.endMinutes;
+    const clampedDuration = isLegacyMidnight ? Math.max(0, 1440 - schedule.startMinutes) : schedule.durationMinutes;
+    return {
+      ...schedule,
+      endTime: isLegacyMidnight ? "00:00" : schedule.endTime,
+      endMinutes: clampedEndMin,
+      durationMinutes: clampedDuration,
+      crossesMidnight: false,
+      category: {
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        color: category.color,
+        bgColor: category.bgColor,
+        icon: category.icon,
+        targetMinutesPerDay: category.targetMinutesPerDay
+      }
+    };
+  });
   const allocatedMinutes = Math.min(1440, blocks.reduce((sum, b) => sum + b.durationMinutes, 0));
   const remainingMinutes = Math.max(0, 1440 - allocatedMinutes);
   const allocatedPercentage = Math.round(allocatedMinutes / 1440 * 100);
@@ -83567,20 +83627,66 @@ async function createScheduleBlock(userId, input) {
       message: timeRange.error
     };
   }
-  const overlapCheck = await checkScheduleOverlap(userId, input.date, timeRange.dayIntervals);
-  if (overlapCheck.overlaps) {
-    const conflict = overlapCheck.conflictingBlock;
+  const categorySummary = {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    color: category.color,
+    bgColor: category.bgColor,
+    icon: category.icon,
+    targetMinutesPerDay: category.targetMinutesPerDay
+  };
+  if (timeRange.crossesMidnight) {
+    const day1Duration = 1440 - timeRange.startMinutes;
+    await resolveAndCarveOverlaps(userId, input.date, timeRange.startMinutes, 1440);
+    const day1Schedule = {
+      id: `sch_${crypto.randomUUID()}`,
+      userId,
+      activityId: input.activityId,
+      title: input.title.trim(),
+      description: input.description?.trim() || null,
+      date: input.date,
+      startTime: input.startTime,
+      endTime: "00:00",
+      startMinutes: timeRange.startMinutes,
+      endMinutes: 1440,
+      durationMinutes: day1Duration,
+      crossesMidnight: false,
+      createdAt: new Date,
+      updatedAt: new Date
+    };
+    await db.insert(dailySchedules).values(day1Schedule);
+    const nextDate = shiftIsoDate(input.date, 1);
+    const carryEndMin = timeRange.endMinutes - 1440;
+    if (carryEndMin > 0) {
+      await resolveAndCarveOverlaps(userId, nextDate, 0, carryEndMin);
+      const day2Schedule = {
+        id: `sch_${crypto.randomUUID()}`,
+        userId,
+        activityId: input.activityId,
+        title: input.title.trim(),
+        description: input.description?.trim() || null,
+        date: nextDate,
+        startTime: "00:00",
+        endTime: input.endTime,
+        startMinutes: 0,
+        endMinutes: carryEndMin,
+        durationMinutes: carryEndMin,
+        crossesMidnight: false,
+        createdAt: new Date,
+        updatedAt: new Date
+      };
+      await db.insert(dailySchedules).values(day2Schedule);
+    }
     return {
-      error: "SCHEDULE_OVERLAP",
-      message: `This time slot overlaps with "${conflict.title}" (${conflict.startTime} - ${conflict.endTime}).`,
-      details: {
-        conflictingBlockId: conflict.id,
-        conflictingTitle: conflict.title,
-        conflictingStartTime: conflict.startTime,
-        conflictingEndTime: conflict.endTime
+      data: {
+        ...day1Schedule,
+        carriedOverToDate: nextDate,
+        category: categorySummary
       }
     };
   }
+  await resolveAndCarveOverlaps(userId, input.date, timeRange.startMinutes, timeRange.endMinutes);
   const newSchedule = {
     id: `sch_${crypto.randomUUID()}`,
     userId,
@@ -83593,7 +83699,7 @@ async function createScheduleBlock(userId, input) {
     startMinutes: timeRange.startMinutes,
     endMinutes: timeRange.endMinutes,
     durationMinutes: timeRange.durationMinutes,
-    crossesMidnight: timeRange.crossesMidnight,
+    crossesMidnight: false,
     createdAt: new Date,
     updatedAt: new Date
   };
@@ -83601,15 +83707,7 @@ async function createScheduleBlock(userId, input) {
   return {
     data: {
       ...newSchedule,
-      category: {
-        id: category.id,
-        name: category.name,
-        slug: category.slug,
-        color: category.color,
-        bgColor: category.bgColor,
-        icon: category.icon,
-        targetMinutesPerDay: category.targetMinutesPerDay
-      }
+      category: categorySummary
     }
   };
 }
@@ -83647,31 +83745,75 @@ async function updateScheduleBlock(scheduleId, userId, input) {
       message: timeRange.error
     };
   }
-  const overlapCheck = await checkScheduleOverlap(userId, targetDate, timeRange.dayIntervals, scheduleId);
-  if (overlapCheck.overlaps) {
-    const conflict = overlapCheck.conflictingBlock;
+  const nextTitle = input.title !== undefined ? input.title.trim() : existing.title;
+  const nextDescription = input.description !== undefined ? input.description?.trim() || null : existing.description;
+  const categorySummary = {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    color: category.color,
+    bgColor: category.bgColor,
+    icon: category.icon,
+    targetMinutesPerDay: category.targetMinutesPerDay
+  };
+  if (timeRange.crossesMidnight) {
+    await resolveAndCarveOverlaps(userId, targetDate, timeRange.startMinutes, 1440, scheduleId);
+    const updatedValues = {
+      activityId: targetActivityId,
+      title: nextTitle,
+      description: nextDescription,
+      date: targetDate,
+      startTime: targetStartTime,
+      endTime: "00:00",
+      startMinutes: timeRange.startMinutes,
+      endMinutes: 1440,
+      durationMinutes: 1440 - timeRange.startMinutes,
+      crossesMidnight: false,
+      updatedAt: new Date
+    };
+    await db.update(dailySchedules).set(updatedValues).where(and(eq(dailySchedules.id, scheduleId), eq(dailySchedules.userId, userId)));
+    const nextDate = shiftIsoDate(targetDate, 1);
+    const carryEndMin = timeRange.endMinutes - 1440;
+    if (carryEndMin > 0) {
+      await resolveAndCarveOverlaps(userId, nextDate, 0, carryEndMin);
+      await db.insert(dailySchedules).values({
+        id: `sch_${crypto.randomUUID()}`,
+        userId,
+        activityId: targetActivityId,
+        title: nextTitle,
+        description: nextDescription,
+        date: nextDate,
+        startTime: "00:00",
+        endTime: targetEndTime,
+        startMinutes: 0,
+        endMinutes: carryEndMin,
+        durationMinutes: carryEndMin,
+        crossesMidnight: false,
+        createdAt: new Date,
+        updatedAt: new Date
+      });
+    }
     return {
-      error: "SCHEDULE_OVERLAP",
-      message: `Updated time slot overlaps with "${conflict.title}" (${conflict.startTime} - ${conflict.endTime}).`,
-      details: {
-        conflictingBlockId: conflict.id,
-        conflictingTitle: conflict.title,
-        conflictingStartTime: conflict.startTime,
-        conflictingEndTime: conflict.endTime
+      data: {
+        ...existing,
+        ...updatedValues,
+        carriedOverToDate: nextDate,
+        category: categorySummary
       }
     };
   }
+  await resolveAndCarveOverlaps(userId, targetDate, timeRange.startMinutes, timeRange.endMinutes, scheduleId);
   const updatedValues = {
     activityId: targetActivityId,
-    title: input.title !== undefined ? input.title.trim() : existing.title,
-    description: input.description !== undefined ? input.description?.trim() || null : existing.description,
+    title: nextTitle,
+    description: nextDescription,
     date: targetDate,
     startTime: targetStartTime,
     endTime: targetEndTime,
     startMinutes: timeRange.startMinutes,
     endMinutes: timeRange.endMinutes,
     durationMinutes: timeRange.durationMinutes,
-    crossesMidnight: timeRange.crossesMidnight,
+    crossesMidnight: false,
     updatedAt: new Date
   };
   await db.update(dailySchedules).set(updatedValues).where(and(eq(dailySchedules.id, scheduleId), eq(dailySchedules.userId, userId)));
@@ -83679,15 +83821,7 @@ async function updateScheduleBlock(scheduleId, userId, input) {
     data: {
       ...existing,
       ...updatedValues,
-      category: {
-        id: category.id,
-        name: category.name,
-        slug: category.slug,
-        color: category.color,
-        bgColor: category.bgColor,
-        icon: category.icon,
-        targetMinutesPerDay: category.targetMinutesPerDay
-      }
+      category: categorySummary
     }
   };
 }
@@ -83728,10 +83862,6 @@ async function createScheduleController(req, res, next) {
     }
     const result = await createScheduleBlock(req.user.id, req.body);
     if (result.error) {
-      if (result.error === "SCHEDULE_OVERLAP") {
-        sendError(res, 409, "SCHEDULE_OVERLAP", result.message, result.details);
-        return;
-      }
       sendError(res, 400, result.error, result.message);
       return;
     }
@@ -83760,10 +83890,6 @@ async function updateScheduleController(req, res, next) {
       }
       if (result.error === "FORBIDDEN") {
         sendError(res, 403, "FORBIDDEN", result.message);
-        return;
-      }
-      if (result.error === "SCHEDULE_OVERLAP") {
-        sendError(res, 409, "SCHEDULE_OVERLAP", result.message, result.details);
         return;
       }
       sendError(res, 400, result.error, result.message);

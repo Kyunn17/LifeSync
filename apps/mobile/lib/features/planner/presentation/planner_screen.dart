@@ -128,7 +128,10 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
   void _fillNextBuffer(List<ScheduleBlockModel> blocks, String selectedDate) {
     final List<Map<String, int>> intervals = [];
     for (final b in blocks) {
-      intervals.add({'start': b.startMinutes, 'end': b.endMinutes});
+      final end = b.endMinutes.clamp(0, 1440);
+      if (end > b.startMinutes) {
+        intervals.add({'start': b.startMinutes, 'end': end});
+      }
     }
     intervals.sort((a, b) => a['start']!.compareTo(b['start']!));
 
@@ -139,7 +142,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     for (final item in intervals) {
       if (item['start']! > cursor && (item['start']! - cursor) >= 30) {
         freeStart = cursor;
-        freeEnd = item['start']!;
+        freeEnd = (cursor + 60).clamp(0, item['start']!);
         break;
       }
       cursor = cursor > item['end']! ? cursor : item['end']!;
@@ -147,7 +150,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
 
     if (freeStart == null && cursor < 1440 && (1440 - cursor) >= 30) {
       freeStart = cursor;
-      freeEnd = (cursor + 90).clamp(0, 1440);
+      freeEnd = (cursor + 60).clamp(0, 1440);
     }
 
     String? preStart;

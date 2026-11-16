@@ -221,7 +221,7 @@ describe("4. 24-Hour Daily Schedule CRUD, Overlap Prevention & Data Isolation", 
     userAScheduleId = body.data.id;
   });
 
-  test("prevents overlapping schedule block (10:00 - 12:00) with 409 SCHEDULE_OVERLAP", async () => {
+  test("automatically trims overlapping block (09:00 - 11:00 -> 09:00 - 10:00) when creating (10:00 - 12:00)", async () => {
     const res = await fetch(`${baseUrl}/api/schedules`, {
       method: "POST",
       headers: {
@@ -229,7 +229,7 @@ describe("4. 24-Hour Daily Schedule CRUD, Overlap Prevention & Data Isolation", 
         Cookie: userACookie,
       },
       body: JSON.stringify({
-        title: "Conflicting Meeting",
+        title: "Adjusted Meeting",
         activityId: defaultCategoryId,
         date: testDate,
         startTime: "10:00",
@@ -237,16 +237,16 @@ describe("4. 24-Hour Daily Schedule CRUD, Overlap Prevention & Data Isolation", 
       }),
     });
 
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
     const body = (await res.json()) as {
       success: boolean;
-      error: { code: string };
+      data: { id: string; durationMinutes: number };
     };
-    expect(body.success).toBe(false);
-    expect(body.error.code).toBe("SCHEDULE_OVERLAP");
+    expect(body.success).toBe(true);
+    expect(body.data.durationMinutes).toBe(120);
   });
 
-  test("allows midnight-crossing block (22:30 - 06:30) and prevents morning overlap (05:30 - 07:00)", async () => {
+  test("carries over midnight-crossing block (22:30 - 06:30) to next day and leaves same-day morning free (05:30 - 07:00)", async () => {
     const createNightRes = await fetch(`${baseUrl}/api/schedules`, {
       method: "POST",
       headers: {
@@ -262,22 +262,42 @@ describe("4. 24-Hour Daily Schedule CRUD, Overlap Prevention & Data Isolation", 
       }),
     });
     expect(createNightRes.status).toBe(201);
+    const nightBody = (await createNightRes.json()) as {
+      success: boolean;
+      data: { durationMinutes: number; endTime: string; carriedOverToDate?: string };
+    };
+    expect(nightBody.data.endTime).toBe("00:00");
+    expect(nightBody.data.durationMinutes).toBe(90);
+    expect(nightBody.data.carriedOverToDate).toBe("2026-11-07");
 
-    const conflictMorningRes = await fetch(`${baseUrl}/api/schedules`, {
+    // Verify carried-over morning sleep (00:00 - 06:30 = 390m) exists on 2026-11-07
+    const nextDayRes = await fetch(
+      `${baseUrl}/api/schedules?date=2026-11-07`,
+      { headers: { Cookie: userACookie } }
+    );
+    expect(nextDayRes.status).toBe(200);
+    const nextDayBody = (await nextDayRes.json()) as {
+      success: boolean;
+      data: { allocatedMinutes: number };
+    };
+    expect(nextDayBody.data.allocatedMinutes).toBe(390);
+
+    // Same-day morning (05:30 - 07:00) is free and schedules cleanly
+    const morningRes = await fetch(`${baseUrl}/api/schedules`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Cookie: userACookie,
       },
       body: JSON.stringify({
-        title: "Early Jog Overlapping Sleep",
+        title: "Early Jog Morning",
         activityId: defaultCategoryId,
         date: testDate,
         startTime: "05:30",
         endTime: "07:00",
       }),
     });
-    expect(conflictMorningRes.status).toBe(409);
+    expect(morningRes.status).toBe(201);
   });
 
   test("enforces user data isolation: User B cannot PATCH or DELETE User A's schedule block", async () => {
@@ -360,8 +380,8 @@ describe("5. Wellness Tracking, Analytics & Admin Authorization", () => {
     };
     expect(dailyBody.success).toBe(true);
     expect(dailyBody.data.hasAnyRecord).toBe(true);
-    expect(dailyBody.data.schedule.allocatedMinutes).toBe(600); // 120m + 480m
-    expect(dailyBody.data.schedule.remainingMinutes).toBe(840);
+    expect(dailyBody.data.schedule.allocatedMinutes).toBe(360); // 60m + 120m + 90m + 90m
+    expect(dailyBody.data.schedule.remainingMinutes).toBe(1080);
     expect(dailyBody.data.wellness.waterIntakeMl).toBe(2250);
   });
 

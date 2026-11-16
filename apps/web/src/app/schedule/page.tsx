@@ -394,26 +394,11 @@ export default function DailySchedulePage() {
     }> = [];
 
     for (const block of blocks) {
-      if (block.crossesMidnight) {
-        const rawEnd = block.endMinutes - 1440;
-        if (block.startMinutes < 1440) {
-          intervals.push({
-            startMin: block.startMinutes,
-            endMin: 1440,
-            block,
-          });
-        }
-        if (rawEnd > 0) {
-          intervals.push({
-            startMin: 0,
-            endMin: rawEnd,
-            block,
-          });
-        }
-      } else {
+      const clampedEnd = Math.min(1440, block.endMinutes);
+      if (clampedEnd > block.startMinutes) {
         intervals.push({
           startMin: block.startMinutes,
-          endMin: block.endMinutes,
+          endMin: clampedEnd,
           block,
         });
       }
@@ -1099,14 +1084,18 @@ export default function DailySchedulePage() {
                     <button
                       key={seg.id}
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        const suggestedEnd = Math.min(
+                          seg.endMin,
+                          seg.startMin + 60
+                        );
                         openAddModal(
                           formatMinutesToHHMM(seg.startMin),
-                          seg.endMin === 1440
+                          suggestedEnd === 1440
                             ? "00:00"
-                            : formatMinutesToHHMM(seg.endMin)
-                        )
-                      }
+                            : formatMinutesToHHMM(suggestedEnd)
+                        );
+                      }}
                       style={{ width: `${seg.widthPct}%` }}
                       title={`Unallocated Window: ${formatMinutesToHHMM(seg.startMin)} - ${seg.endMin === 1440 ? "24:00" : formatMinutesToHHMM(seg.endMin)} (${formatDurationMinutes(seg.endMin - seg.startMin)}) — Click to schedule`}
                       className="h-full bg-surface-container-low/90 hover:bg-surface-container text-on-surface-variant flex items-center justify-center border-r border-dashed border-outline-variant/40 transition-all overflow-hidden"

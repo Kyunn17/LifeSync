@@ -73,6 +73,31 @@ class _AddScheduleSheetState extends ConsumerState<AddScheduleSheet> {
     return '$h:$m';
   }
 
+  int _toMinutes(TimeOfDay t) => t.hour * 60 + t.minute;
+
+  TimeOfDay _fromMinutes(int total) {
+    final norm = ((total % 1440) + 1440) % 1440;
+    return TimeOfDay(hour: norm ~/ 60, minute: norm % 60);
+  }
+
+  bool get _crossesMidnight {
+    final s = _toMinutes(_startTime);
+    final e = _toMinutes(_endTime);
+    return e > 0 && e < s;
+  }
+
+  void _nudgeStartTime(int deltaMinutes) {
+    setState(() {
+      _startTime = _fromMinutes(_toMinutes(_startTime) + deltaMinutes);
+    });
+  }
+
+  void _applyDuration(int durationMinutes) {
+    setState(() {
+      _endTime = _fromMinutes(_toMinutes(_startTime) + durationMinutes);
+    });
+  }
+
   Future<void> _pickTime({required bool isStart}) async {
     final picked = await showTimePicker(
       context: context,
@@ -319,7 +344,111 @@ class _AddScheduleSheetState extends ConsumerState<AddScheduleSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
+
+              // Quick Start-Time Shift Chips (ensures Start Time is never stuck to previous activity end)
+              Text(
+                'Geser Waktu Mulai (${_formatTimeOfDay(_startTime)})',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  (-30, '-30m'),
+                  (-15, '-15m'),
+                  (15, '+15m'),
+                  (30, '+30m'),
+                  (60, '+1j'),
+                ].map((item) {
+                  return ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    backgroundColor: AppColors.surfaceContainerLow,
+                    label: Text(
+                      item.$2,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    onPressed: () => _nudgeStartTime(item.$1),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
+
+              const Text(
+                'Durasi Cepat',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  (30, '30 mnt'),
+                  (60, '1 Jam'),
+                  (120, '2 Jam'),
+                  (240, '4 Jam'),
+                  (480, '8 Jam Tidur'),
+                ].map((item) {
+                  return ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    backgroundColor: AppColors.surfaceContainerLow,
+                    label: Text(
+                      item.$2,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    onPressed: () => _applyDuration(item.$1),
+                  );
+                }).toList(),
+              ),
+
+              if (_crossesMidnight) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.tertiaryFixed,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.nights_stay_rounded,
+                        size: 18,
+                        color: AppColors.tertiary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Lintas Tengah Malam: ${_formatTimeOfDay(_startTime)}–00:00 dicatat hari ini, dan 00:00–${_formatTimeOfDay(_endTime)} otomatis diteruskan ke hari berikutnya.',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.tertiary,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
 
               CustomTextField(
                 label: 'Catatan (Opsional)',

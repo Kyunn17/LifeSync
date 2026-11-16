@@ -214,6 +214,7 @@ class PlannerRepository {
 
     final List<Map<String, String>> templateBlocks = type == 'workday'
         ? [
+            {'title': 'Tidur Lanjutan Dini Hari', 'startTime': '00:00', 'endTime': '06:30', 'cat': sleepCat},
             {'title': 'Rutinitas Pagi & Sarapan', 'startTime': '07:00', 'endTime': '08:30', 'cat': mealCat},
             {'title': 'Fokus Kerja / Belajar', 'startTime': '09:00', 'endTime': '12:00', 'cat': workCat},
             {'title': 'Makan Siang & Reset', 'startTime': '12:00', 'endTime': '13:00', 'cat': mealCat},
@@ -223,6 +224,7 @@ class PlannerRepository {
             {'title': 'Tidur Malam Nyenyak', 'startTime': '22:30', 'endTime': '06:30', 'cat': sleepCat},
           ]
         : [
+            {'title': 'Tidur Pemulihan Dini Hari', 'startTime': '00:00', 'endTime': '07:30', 'cat': sleepCat},
             {'title': 'Pagi Santai & Sarapan', 'startTime': '08:00', 'endTime': '09:30', 'cat': mealCat},
             {'title': 'Jalan Pagi / Olahraga', 'startTime': '10:00', 'endTime': '11:30', 'cat': exerciseCat},
             {'title': 'Waktu Hobi & Keluarga', 'startTime': '13:00', 'endTime': '16:00', 'cat': personalCat},

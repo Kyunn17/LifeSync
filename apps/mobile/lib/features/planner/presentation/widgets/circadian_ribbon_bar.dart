@@ -45,26 +45,11 @@ class CircadianRibbonBar extends StatelessWidget {
     final List<Map<String, dynamic>> rawList = [];
 
     for (final block in blocks) {
-      if (block.crossesMidnight) {
-        final rawEnd = block.endMinutes - 1440;
-        if (block.startMinutes < 1440) {
-          rawList.add({
-            'start': block.startMinutes,
-            'end': 1440,
-            'block': block,
-          });
-        }
-        if (rawEnd > 0) {
-          rawList.add({
-            'start': 0,
-            'end': rawEnd,
-            'block': block,
-          });
-        }
-      } else {
+      final clampedEnd = block.endMinutes.clamp(0, 1440);
+      if (clampedEnd > block.startMinutes) {
         rawList.add({
           'start': block.startMinutes,
-          'end': block.endMinutes,
+          'end': clampedEnd,
           'block': block,
         });
       }
@@ -239,9 +224,11 @@ class CircadianRibbonBar extends StatelessWidget {
                               onTap: () {
                                 final startStr =
                                     _formatMinutes(interval.startMin);
-                                final endStr = interval.endMin == 1440
+                                final suggestedEnd = (interval.startMin + 60)
+                                    .clamp(0, interval.endMin);
+                                final endStr = suggestedEnd == 1440
                                     ? '00:00'
-                                    : _formatMinutes(interval.endMin);
+                                    : _formatMinutes(suggestedEnd);
                                 showModalBottomSheet(
                                   context: context,
                                   isScrollControlled: true,

@@ -45,16 +45,6 @@ export async function createScheduleController(
     const result = await createScheduleBlock(req.user.id, req.body);
 
     if (result.error) {
-      if (result.error === "SCHEDULE_OVERLAP") {
-        sendError(
-          res,
-          409,
-          "SCHEDULE_OVERLAP",
-          result.message,
-          result.details
-        );
-        return;
-      }
       sendError(res, 400, result.error, result.message);
       return;
     }
@@ -96,16 +86,6 @@ export async function updateScheduleController(
       }
       if (result.error === "FORBIDDEN") {
         sendError(res, 403, "FORBIDDEN", result.message);
-        return;
-      }
-      if (result.error === "SCHEDULE_OVERLAP") {
-        sendError(
-          res,
-          409,
-          "SCHEDULE_OVERLAP",
-          result.message,
-          result.details
-        );
         return;
       }
       sendError(res, 400, result.error, result.message);
