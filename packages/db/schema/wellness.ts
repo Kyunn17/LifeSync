@@ -3,7 +3,9 @@ import {
   text,
   varchar,
   integer,
+  real,
   boolean,
+  jsonb,
   timestamp,
   index,
   uniqueIndex,
@@ -37,6 +39,31 @@ export const profile = pgTable(
       .notNull()
       .default(45),
     dailyCalorieGoal: integer("daily_calorie_goal").notNull().default(2000),
+    dailyPushupGoal: integer("daily_pushup_goal").notNull().default(20),
+    onboardingCompleted: boolean("onboarding_completed")
+      .notNull()
+      .default(false),
+    isAutoCalculated: boolean("is_auto_calculated")
+      .notNull()
+      .default(true),
+    gender: varchar("gender", { length: 16 }).default("MALE"),
+    age: integer("age").default(25),
+    weightKg: real("weight_kg").default(65),
+    heightCm: real("height_cm").default(170),
+    neatLevel: varchar("neat_level", { length: 24 })
+      .notNull()
+      .default("MODERATE"),
+    fitnessGoal: varchar("fitness_goal", { length: 24 })
+      .notNull()
+      .default("MAINTENANCE"),
+    fitnessLevel: varchar("fitness_level", { length: 24 })
+      .notNull()
+      .default("BEGINNER"),
+    medicalConditions: jsonb("medical_conditions")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    customMedicalCondition: text("custom_medical_condition"),
     timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
     notificationsEnabled: boolean("notifications_enabled")
       .notNull()
@@ -187,6 +214,29 @@ export const healthTips = pgTable(
   (table) => [
     index("health_tips_category_idx").on(table.category),
     index("health_tips_is_active_idx").on(table.isActive),
+  ]
+);
+
+export const weightLogs = pgTable(
+  "weight_logs",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    date: varchar("date", { length: 10 }).notNull(),
+    weightKg: real("weight_kg").notNull(),
+    previousWeightKg: real("previous_weight_kg"),
+    deltaKg: real("delta_kg").notNull().default(0),
+    isAnomaly: boolean("is_anomaly").notNull().default(false),
+    anomalyNote: text("anomaly_note"),
+    notes: text("notes"),
+    loggedAt: timestamp("logged_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("weight_logs_user_date_idx").on(table.userId, table.date),
+    index("weight_logs_user_logged_idx").on(table.userId, table.loggedAt),
   ]
 );
 

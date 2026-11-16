@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/pushup_provider.dart';
 import 'widgets/pose_painter.dart';
 
@@ -545,7 +546,12 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
   @override
   Widget build(BuildContext context) {
     final stats = ref.watch(pushupStatsProvider);
-    final kcalBurned = (_repCount * 0.45).toStringAsFixed(1);
+    final profile = ref.watch(authStateProvider).user?.profile;
+    final weightKg = profile?.weightKg ?? 65.0;
+    final pushupGoal = profile?.dailyPushupGoal ?? 20;
+    final totalToday = stats.todayReps + _repCount;
+    final goalReached = totalToday >= pushupGoal;
+    final kcalBurned = (_repCount * 0.45 * (weightKg / 70.0)).toStringAsFixed(1);
 
     return Scaffold(
       backgroundColor: AppColors.inverseSurface,
@@ -991,7 +997,30 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                           }).toList(),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: goalReached
+                              ? AppColors.primary.withValues(alpha: 0.35)
+                              : Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          goalReached
+                              ? '✓ Target Minimum Harian Tercapai ($totalToday / $pushupGoal Rep)'
+                              : 'Target Minimum Harian: $totalToday / $pushupGoal Rep (${weightKg.toStringAsFixed(0)} kg)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: goalReached
+                                ? AppColors.secondaryFixed
+                                : Colors.white70,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
 
                       // 3-Column Live Telemetry Strip (Streak, Durasi, Kalori)
                       Row(

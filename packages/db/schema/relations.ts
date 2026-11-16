@@ -8,6 +8,7 @@ import {
   dailyCheckins,
   waterLogs,
   healthTips,
+  weightLogs,
 } from "./wellness";
 import { mealLogs, customFoods } from "./nutrition";
 
@@ -23,6 +24,7 @@ export const userRelations = relations(user, ({ one, many }) => ({
   healthLogs: many(healthLogs),
   dailyCheckins: many(dailyCheckins),
   waterLogs: many(waterLogs),
+  weightLogs: many(weightLogs),
   authoredTips: many(healthTips),
   mealLogs: many(mealLogs),
   customFoods: many(customFoods),
@@ -106,6 +108,13 @@ export const mealLogsRelations = relations(mealLogs, ({ one }) => ({
 export const customFoodsRelations = relations(customFoods, ({ one }) => ({
   user: one(user, {
     fields: [customFoods.userId],
+    references: [user.id],
+  }),
+}));
+
+export const weightLogsRelations = relations(weightLogs, ({ one }) => ({
+  user: one(user, {
+    fields: [weightLogs.userId],
     references: [user.id],
   }),
 }));

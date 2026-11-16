@@ -11,6 +11,7 @@ import '../../nutrition/providers/nutrition_provider.dart';
 import '../providers/pushup_provider.dart';
 import '../providers/step_counter_provider.dart';
 import '../providers/wellness_provider.dart';
+import 'widgets/weight_tracker_card.dart';
 
 const List<String> kMoodTypes = [
   'Peaceful',
@@ -119,6 +120,10 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
+
+                // 0. Adaptive Weight Tracker & Weekly Diet Evaluation
+                const WeightTrackerCard(),
+                const SizedBox(height: 16),
 
                 // 1. Sleep Section Bento Card
                 _buildCard(

@@ -81319,7 +81319,9 @@ __export(exports_schema, {
   userRelations: () => userRelations,
   verification: () => verification,
   waterLogs: () => waterLogs,
-  waterLogsRelations: () => waterLogsRelations
+  waterLogsRelations: () => waterLogsRelations,
+  weightLogs: () => weightLogs,
+  weightLogsRelations: () => weightLogsRelations
 });
 
 // ../../packages/db/schema/auth.ts
@@ -81383,6 +81385,18 @@ var profile = pgTable("profile", {
   dailySleepGoalMinutes: integer2("daily_sleep_goal_minutes").notNull().default(480),
   dailyExerciseGoalMinutes: integer2("daily_exercise_goal_minutes").notNull().default(45),
   dailyCalorieGoal: integer2("daily_calorie_goal").notNull().default(2000),
+  dailyPushupGoal: integer2("daily_pushup_goal").notNull().default(20),
+  onboardingCompleted: boolean4("onboarding_completed").notNull().default(false),
+  isAutoCalculated: boolean4("is_auto_calculated").notNull().default(true),
+  gender: varchar("gender", { length: 16 }).default("MALE"),
+  age: integer2("age").default(25),
+  weightKg: real("weight_kg").default(65),
+  heightCm: real("height_cm").default(170),
+  neatLevel: varchar("neat_level", { length: 24 }).notNull().default("MODERATE"),
+  fitnessGoal: varchar("fitness_goal", { length: 24 }).notNull().default("MAINTENANCE"),
+  fitnessLevel: varchar("fitness_level", { length: 24 }).notNull().default("BEGINNER"),
+  medicalConditions: jsonb("medical_conditions").$type().notNull().default([]),
+  customMedicalCondition: text("custom_medical_condition"),
   timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
   notificationsEnabled: boolean4("notifications_enabled").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -81483,6 +81497,22 @@ var healthTips = pgTable("health_tips", {
   index("health_tips_category_idx").on(table.category),
   index("health_tips_is_active_idx").on(table.isActive)
 ]);
+var weightLogs = pgTable("weight_logs", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  date: varchar("date", { length: 10 }).notNull(),
+  weightKg: real("weight_kg").notNull(),
+  previousWeightKg: real("previous_weight_kg"),
+  deltaKg: real("delta_kg").notNull().default(0),
+  isAnomaly: boolean4("is_anomaly").notNull().default(false),
+  anomalyNote: text("anomaly_note"),
+  notes: text("notes"),
+  loggedAt: timestamp("logged_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow()
+}, (table) => [
+  index("weight_logs_user_date_idx").on(table.userId, table.date),
+  index("weight_logs_user_logged_idx").on(table.userId, table.loggedAt)
+]);
 // ../../packages/db/schema/nutrition.ts
 var mealLogs = pgTable("meal_logs", {
   id: text("id").primaryKey(),
@@ -81534,6 +81564,7 @@ var userRelations = relations(user, ({ one, many }) => ({
   healthLogs: many(healthLogs),
   dailyCheckins: many(dailyCheckins),
   waterLogs: many(waterLogs),
+  weightLogs: many(weightLogs),
   authoredTips: many(healthTips),
   mealLogs: many(mealLogs),
   customFoods: many(customFoods)
@@ -81606,6 +81637,12 @@ var mealLogsRelations = relations(mealLogs, ({ one }) => ({
 var customFoodsRelations = relations(customFoods, ({ one }) => ({
   user: one(user, {
     fields: [customFoods.userId],
+    references: [user.id]
+  })
+}));
+var weightLogsRelations = relations(weightLogs, ({ one }) => ({
+  user: one(user, {
+    fields: [weightLogs.userId],
     references: [user.id]
   })
 }));
@@ -82008,6 +82045,25 @@ function sendError(res, statusCode, code, message, details) {
 
 // ../../packages/shared/src/index.ts
 var USER_ROLES = ["USER", "ADMIN"];
+var GENDERS = ["MALE", "FEMALE"];
+var NEAT_LEVELS = [
+  "SEDENTARY",
+  "LIGHT",
+  "MODERATE",
+  "ACTIVE",
+  "VERY_ACTIVE"
+];
+var FITNESS_GOALS = [
+  "CUTTING",
+  "MAINTENANCE",
+  "BULKING",
+  "ENDURANCE"
+];
+var FITNESS_LEVELS = [
+  "BEGINNER",
+  "INTERMEDIATE",
+  "ADVANCED"
+];
 var DEFAULT_ACTIVITY_CATEGORIES = [
   {
     name: "Sleep",
@@ -82163,9 +82219,41 @@ var updateProfileSchema = objectType({
   dailySleepGoalMinutes: numberType().int().min(120).max(960).optional(),
   dailyExerciseGoalMinutes: numberType().int().min(0).max(600).optional(),
   dailyCalorieGoal: numberType().int().min(500).max(1e4).optional(),
+  dailyPushupGoal: numberType().int().min(1).max(1000).optional(),
+  onboardingCompleted: booleanType().optional(),
+  isAutoCalculated: booleanType().optional(),
+  gender: enumType(GENDERS).optional(),
+  age: numberType().int().min(10).max(120).optional(),
+  weightKg: numberType().min(20).max(350).optional(),
+  heightCm: numberType().min(80).max(260).optional(),
+  neatLevel: enumType(NEAT_LEVELS).optional(),
+  fitnessGoal: enumType(FITNESS_GOALS).optional(),
+  fitnessLevel: enumType(FITNESS_LEVELS).optional(),
+  medicalConditions: arrayType(stringType().max(80)).max(20).optional(),
+  customMedicalCondition: stringType().max(300).optional().nullable(),
   bio: stringType().max(500).optional().nullable(),
   timezone: stringType().max(64).optional(),
   notificationsEnabled: booleanType().optional()
+});
+var onboardingProfileSchema = objectType({
+  gender: enumType(GENDERS),
+  age: numberType().int().min(10).max(120),
+  weightKg: numberType().min(20).max(350),
+  heightCm: numberType().min(80).max(260),
+  neatLevel: enumType(NEAT_LEVELS),
+  fitnessGoal: enumType(FITNESS_GOALS),
+  fitnessLevel: enumType(FITNESS_LEVELS).default("BEGINNER"),
+  medicalConditions: arrayType(stringType().max(80)).default([]),
+  customMedicalCondition: stringType().max(300).optional().nullable(),
+  targetWakeTime: timeStringSchema.optional(),
+  targetSleepTime: timeStringSchema.optional()
+});
+var weightLogSchema = objectType({
+  date: dateStringSchema,
+  weightKg: numberType().min(20).max(350),
+  confirmAnomaly: booleanType().optional().default(false),
+  anomalyNote: stringType().max(500).optional().nullable(),
+  notes: stringType().max(500).optional().nullable()
 });
 var adminUpdateUserSchema = objectType({
   role: enumType(USER_ROLES).optional(),
@@ -82289,6 +82377,308 @@ function errorHandler(err, _req, res, _next) {
   sendError(res, 500, "INTERNAL_SERVER_ERROR", message);
 }
 
+// src/services/biometrics.service.ts
+var NEAT_MULTIPLIERS = {
+  SEDENTARY: 1.2,
+  LIGHT: 1.375,
+  MODERATE: 1.55,
+  ACTIVE: 1.725,
+  VERY_ACTIVE: 1.9
+};
+var NEAT_STEPS_BASE = {
+  SEDENTARY: 6000,
+  LIGHT: 7500,
+  MODERATE: 9500,
+  ACTIVE: 11500,
+  VERY_ACTIVE: 13000
+};
+var FITNESS_PUSHUP_BASE = {
+  BEGINNER: 15,
+  INTERMEDIATE: 35,
+  ADVANCED: 60
+};
+var FITNESS_EXERCISE_MINUTES = {
+  BEGINNER: 30,
+  INTERMEDIATE: 45,
+  ADVANCED: 60
+};
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+function calculateDynamicMetrics(raw) {
+  const gender = raw.gender === "FEMALE" ? "FEMALE" : "MALE";
+  const age = clamp(Math.round(raw.age ?? 25), 10, 120);
+  const weightKg = clamp(raw.weightKg ?? 65, 20, 350);
+  const heightCm = clamp(raw.heightCm ?? 170, 80, 260);
+  const neatLevel = raw.neatLevel && raw.neatLevel in NEAT_MULTIPLIERS ? raw.neatLevel : "MODERATE";
+  const fitnessGoal = raw.fitnessGoal === "CUTTING" || raw.fitnessGoal === "MAINTENANCE" || raw.fitnessGoal === "BULKING" || raw.fitnessGoal === "ENDURANCE" ? raw.fitnessGoal : "MAINTENANCE";
+  const fitnessLevel = raw.fitnessLevel === "BEGINNER" || raw.fitnessLevel === "INTERMEDIATE" || raw.fitnessLevel === "ADVANCED" ? raw.fitnessLevel : "BEGINNER";
+  const conditions = (raw.medicalConditions ?? []).filter((c) => c && c !== "NONE");
+  const customCondition = raw.customMedicalCondition?.trim() || "";
+  const heightM = heightCm / 100;
+  const bmi = Number((weightKg / (heightM * heightM)).toFixed(1));
+  let bmiCategory = "Normal";
+  if (bmi < 18.5)
+    bmiCategory = "Underweight";
+  else if (bmi < 25)
+    bmiCategory = "Normal";
+  else if (bmi < 30)
+    bmiCategory = "Overweight";
+  else
+    bmiCategory = "Obese";
+  const baseBmr = 10 * weightKg + 6.25 * heightCm - 5 * age;
+  const bmr = Math.round(gender === "MALE" ? baseBmr + 5 : baseBmr - 161);
+  const neatMultiplier = NEAT_MULTIPLIERS[neatLevel];
+  const tdee = Math.round(bmr * neatMultiplier);
+  const hasDiabetes = conditions.includes("DIABETES");
+  const hasPregnancy = conditions.includes("PREGNANCY");
+  const hasCardiac = conditions.includes("HEART_CONDITION");
+  const hasJointPain = conditions.includes("JOINT_PAIN");
+  const hasBackInjury = conditions.includes("BACK_INJURY");
+  const hasAsthma = conditions.includes("ASTHMA");
+  const hasHypertension = conditions.includes("HYPERTENSION");
+  const hasVertigo = conditions.includes("VERTIGO");
+  const needsJointOrCardiacCap = hasCardiac || hasJointPain || hasBackInjury || hasPregnancy;
+  let dailyCalorieGoal = tdee;
+  if (fitnessGoal === "CUTTING") {
+    const deficit = hasDiabetes || hasPregnancy ? 200 : 400;
+    const floor = gender === "MALE" ? 1400 : 1200;
+    dailyCalorieGoal = Math.max(floor, tdee - deficit);
+  } else if (fitnessGoal === "BULKING") {
+    dailyCalorieGoal = tdee + 350;
+  } else if (fitnessGoal === "ENDURANCE") {
+    dailyCalorieGoal = tdee + 200;
+  }
+  const proteinPerKg = fitnessGoal === "BULKING" || fitnessGoal === "CUTTING" ? 1.8 : 1.5;
+  const proteinGrams = Math.round(weightKg * proteinPerKg);
+  const fatGrams = Math.round(dailyCalorieGoal * 0.25 / 9);
+  const carbsGrams = Math.max(50, Math.round((dailyCalorieGoal - proteinGrams * 4 - fatGrams * 9) / 4));
+  let waterBase = Math.round(weightKg * 35 / 50) * 50;
+  if (neatLevel === "MODERATE")
+    waterBase += 300;
+  else if (neatLevel === "ACTIVE" || neatLevel === "VERY_ACTIVE")
+    waterBase += 500;
+  const dailyWaterGoalMl = clamp(waterBase, 1500, 5000);
+  let dailyStepsGoal = NEAT_STEPS_BASE[neatLevel];
+  if (needsJointOrCardiacCap) {
+    dailyStepsGoal = Math.min(dailyStepsGoal, 6000);
+  }
+  const weightScale = clamp(70 / weightKg, 0.7, 1.3);
+  let dailyPushupGoal = Math.max(5, Math.round(FITNESS_PUSHUP_BASE[fitnessLevel] * weightScale));
+  let dailyExerciseGoalMinutes = FITNESS_EXERCISE_MINUTES[fitnessLevel];
+  if (needsJointOrCardiacCap) {
+    dailyPushupGoal = Math.max(5, Math.round(dailyPushupGoal * 0.5));
+    dailyExerciseGoalMinutes = Math.min(dailyExerciseGoalMinutes, 30);
+  }
+  let dailySleepGoalMinutes = 480;
+  if (age < 22)
+    dailySleepGoalMinutes = 510;
+  else if (age >= 60)
+    dailySleepGoalMinutes = 450;
+  const advisories = [];
+  if (hasCardiac || hasHypertension) {
+    advisories.push("Intensitas latihan & langkah disesuaikan agar detak jantung tetap aman (hindari beban mendadak).");
+  }
+  if (hasJointPain || hasBackInjury) {
+    advisories.push("Target langkah dibatasi maks. 6.000 & target push-up dikurangi 50% (gunakan variasi tumpuan lutut/dinding bila nyeri).");
+  }
+  if (hasDiabetes) {
+    advisories.push("Defisit kalori diperhalus agar kadar gula darah tetap stabil sepanjang hari.");
+  }
+  if (hasPregnancy) {
+    advisories.push("Mode kehamilan aktif: defisit kalori ketat dinonaktifkan dan target aktivitas dibuat low-impact.");
+  }
+  if (hasAsthma) {
+    advisories.push("Sediakan pemanasan 5-10 menit sebelum latihan fisik dan hindari pemicu napas pendek.");
+  }
+  if (hasVertigo) {
+    advisories.push("Hindari perubahan posisi kepala mendadak saat push-up; lakukan jeda antar set.");
+  }
+  if (customCondition) {
+    advisories.push(`Catatan kondisi khusus (${customCondition}): sesuaikan ritme latihan dengan kenyamanan tubuh Anda.`);
+  }
+  return {
+    bmi,
+    bmiCategory,
+    bmr,
+    tdee,
+    neatMultiplier,
+    dailyCalorieGoal,
+    macroTargets: {
+      proteinGrams,
+      carbsGrams,
+      fatGrams
+    },
+    dailyWaterGoalMl,
+    dailyStepsGoal,
+    dailyExerciseGoalMinutes,
+    dailyPushupGoal,
+    dailySleepGoalMinutes,
+    advisories
+  };
+}
+async function logUserWeight(userId, input) {
+  const db = getDb();
+  const [existingProfile] = await db.select().from(profile).where(eq(profile.userId, userId)).limit(1);
+  const [latestLog] = await db.select().from(weightLogs).where(eq(weightLogs.userId, userId)).orderBy(desc(weightLogs.date), desc(weightLogs.loggedAt)).limit(1);
+  const previousWeightKg = latestLog?.weightKg ?? existingProfile?.weightKg ?? null;
+  const deltaKg = previousWeightKg !== null ? Number((input.weightKg - previousWeightKg).toFixed(1)) : 0;
+  const isAnomaly = previousWeightKg !== null && Math.abs(deltaKg) >= 10;
+  if (isAnomaly) {
+    const cleanNote = input.anomalyNote?.trim() ?? "";
+    if (!input.confirmAnomaly || cleanNote.length < 3) {
+      return {
+        requiresConfirmation: true,
+        previousWeightKg,
+        newWeightKg: input.weightKg,
+        deltaKg,
+        message: `Perubahan berat badan drastis (${deltaKg >= 0 ? "+" : ""}${deltaKg} kg) terdeteksi. ` + `Mohon konfirmasi apakah berat ${input.weightKg} kg sudah benar dan tuliskan catatan alasannya.`
+      };
+    }
+  }
+  const newLog = {
+    id: `wlog_${crypto.randomUUID()}`,
+    userId,
+    date: input.date,
+    weightKg: input.weightKg,
+    previousWeightKg,
+    deltaKg,
+    isAnomaly,
+    anomalyNote: input.anomalyNote?.trim() || null,
+    notes: input.notes?.trim() || null,
+    loggedAt: new Date,
+    createdAt: new Date
+  };
+  await db.insert(weightLogs).values(newLog);
+  let updatedGoals;
+  if (existingProfile) {
+    const profileUpdate = {
+      weightKg: input.weightKg,
+      updatedAt: new Date
+    };
+    if (existingProfile.isAutoCalculated) {
+      updatedGoals = calculateDynamicMetrics({
+        gender: existingProfile.gender,
+        age: existingProfile.age,
+        weightKg: input.weightKg,
+        heightCm: existingProfile.heightCm,
+        neatLevel: existingProfile.neatLevel,
+        fitnessGoal: existingProfile.fitnessGoal,
+        fitnessLevel: existingProfile.fitnessLevel,
+        medicalConditions: existingProfile.medicalConditions,
+        customMedicalCondition: existingProfile.customMedicalCondition
+      });
+      profileUpdate.dailyCalorieGoal = updatedGoals.dailyCalorieGoal;
+      profileUpdate.dailyWaterGoalMl = updatedGoals.dailyWaterGoalMl;
+      profileUpdate.dailyStepsGoal = updatedGoals.dailyStepsGoal;
+      profileUpdate.dailyExerciseGoalMinutes = updatedGoals.dailyExerciseGoalMinutes;
+      profileUpdate.dailyPushupGoal = updatedGoals.dailyPushupGoal;
+      profileUpdate.dailySleepGoalMinutes = updatedGoals.dailySleepGoalMinutes;
+    }
+    await db.update(profile).set(profileUpdate).where(eq(profile.userId, userId));
+  }
+  return {
+    requiresConfirmation: false,
+    previousWeightKg,
+    newWeightKg: input.weightKg,
+    deltaKg,
+    log: newLog,
+    updatedGoals
+  };
+}
+async function getWeightEvaluation(userId) {
+  const db = getDb();
+  const [userProfile] = await db.select().from(profile).where(eq(profile.userId, userId)).limit(1);
+  const logs = await db.select().from(weightLogs).where(eq(weightLogs.userId, userId)).orderBy(desc(weightLogs.date), desc(weightLogs.loggedAt)).limit(30);
+  const fitnessGoal = userProfile?.fitnessGoal ?? "MAINTENANCE";
+  if (logs.length < 2) {
+    return {
+      logs,
+      evaluation: {
+        fitnessGoal,
+        currentWeightKg: logs[0]?.weightKg ?? userProfile?.weightKg ?? null,
+        baselineWeightKg: null,
+        weeklyDeltaKg: null,
+        status: "INSUFFICIENT_DATA",
+        badge: "Menunggu Data Mingguan",
+        summary: "Catat berat badan secara rutin minimal 2 kali dalam seminggu untuk melihat evaluasi progres diet/kebugaran Anda.",
+        daysTracked: logs.length
+      }
+    };
+  }
+  const latest = logs[0];
+  const latestTime = new Date(`${latest.date}T00:00:00Z`).getTime();
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  let baseline = logs[logs.length - 1];
+  let bestDiff = Infinity;
+  for (let i = 1;i < logs.length; i++) {
+    const candidate = logs[i];
+    const candidateTime = new Date(`${candidate.date}T00:00:00Z`).getTime();
+    const diffFromSevenDays = Math.abs(latestTime - candidateTime - sevenDaysMs);
+    if (diffFromSevenDays < bestDiff) {
+      bestDiff = diffFromSevenDays;
+      baseline = candidate;
+    }
+  }
+  const weeklyDeltaKg = Number((latest.weightKg - baseline.weightKg).toFixed(2));
+  const absDelta = Math.abs(weeklyDeltaKg);
+  let status = "OPTIMAL";
+  let badge = "Progres Stabil";
+  let summary = "";
+  if (fitnessGoal === "CUTTING") {
+    if (weeklyDeltaKg <= -0.15 && weeklyDeltaKg >= -1) {
+      status = "OPTIMAL";
+      badge = "Progres Cutting Ideal";
+      summary = `Penurunan ${absDelta} kg sejak ${baseline.date} sangat bagus dan sehat untuk fase Cutting (rentang ideal -0.2 s/d -0.8 kg/minggu).`;
+    } else if (weeklyDeltaKg < -1) {
+      status = "TOO_FAST";
+      badge = "Defisit Terlalu Cepat";
+      summary = `Penurunan ${absDelta} kg cukup ekstrem. Pastikan asupan protein tercukupi agar massa otot dan energi tidak ikut turun.`;
+    } else {
+      status = "PLATEAU";
+      badge = "Perlu Evaluasi Defisit";
+      summary = `Berat badan berubah ${weeklyDeltaKg >= 0 ? "+" : ""}${weeklyDeltaKg} kg. Coba perhatikan asupan kalori harian atau tambah aktivitas langkah (NEAT).`;
+    }
+  } else if (fitnessGoal === "BULKING") {
+    if (weeklyDeltaKg >= 0.15 && weeklyDeltaKg <= 0.6) {
+      status = "OPTIMAL";
+      badge = "Lean Bulking Optimal";
+      summary = `Kenaikan +${weeklyDeltaKg} kg sejak ${baseline.date} berada pada kecepatan ideal untuk membangun massa otot bersih.`;
+    } else if (weeklyDeltaKg > 0.6) {
+      status = "SLIGHTLY_HIGH";
+      badge = "Surplus Agak Tinggi";
+      summary = `Kenaikan +${weeklyDeltaKg} kg cukup cepat; pertimbangkan sedikit mengecilkan surplus agar penumpukan lemak minimal.`;
+    } else {
+      status = "PLATEAU";
+      badge = "Surplus Belum Tercapai";
+      summary = `Berat badan berubah ${weeklyDeltaKg >= 0 ? "+" : ""}${weeklyDeltaKg} kg. Pastikan kalori dan protein harian melampaui kebutuhan maintenance.`;
+    }
+  } else {
+    if (absDelta <= 0.4) {
+      status = "OPTIMAL";
+      badge = "Berat Badan Stabil";
+      summary = `Fluktuasi ${weeklyDeltaKg >= 0 ? "+" : ""}${weeklyDeltaKg} kg berada di rentang sehat dan stabil sesuai target Maintenance.`;
+    } else {
+      status = "SLIGHTLY_HIGH";
+      badge = "Fluktuasi Terdeteksi";
+      summary = `Terdapat perubahan ${weeklyDeltaKg >= 0 ? "+" : ""}${weeklyDeltaKg} kg dalam periode ini. Pantau keseimbangan kalori & hidrasi Anda.`;
+    }
+  }
+  return {
+    logs,
+    evaluation: {
+      fitnessGoal,
+      currentWeightKg: latest.weightKg,
+      baselineWeightKg: baseline.weightKg,
+      weeklyDeltaKg,
+      status,
+      badge,
+      summary,
+      daysTracked: logs.length
+    }
+  };
+}
+
 // src/services/user.service.ts
 async function getOrCreateProfile(userId) {
   const db = getDb();
@@ -82308,6 +82698,18 @@ async function getOrCreateProfile(userId) {
     dailySleepGoalMinutes: 480,
     dailyExerciseGoalMinutes: 45,
     dailyCalorieGoal: 2000,
+    dailyPushupGoal: 20,
+    onboardingCompleted: false,
+    isAutoCalculated: true,
+    gender: "MALE",
+    age: 25,
+    weightKg: 65,
+    heightCm: 170,
+    neatLevel: "MODERATE",
+    fitnessGoal: "MAINTENANCE",
+    fitnessLevel: "BEGINNER",
+    medicalConditions: [],
+    customMedicalCondition: null,
     timezone: "UTC",
     notificationsEnabled: true,
     createdAt: new Date,
@@ -82334,9 +82736,23 @@ async function getUserWithProfile(userId) {
     return null;
   }
   const userProfile = await getOrCreateProfile(userId);
+  const biometrics = calculateDynamicMetrics({
+    gender: userProfile.gender,
+    age: userProfile.age,
+    weightKg: userProfile.weightKg,
+    heightCm: userProfile.heightCm,
+    neatLevel: userProfile.neatLevel,
+    fitnessGoal: userProfile.fitnessGoal,
+    fitnessLevel: userProfile.fitnessLevel,
+    medicalConditions: userProfile.medicalConditions,
+    customMedicalCondition: userProfile.customMedicalCondition
+  });
   return {
     ...foundUser,
-    profile: userProfile
+    profile: {
+      ...userProfile,
+      biometrics
+    }
   };
 }
 async function updateUserProfile(userId, input) {
@@ -82367,6 +82783,30 @@ async function updateUserProfile(userId, input) {
     profileUpdates.dailyExerciseGoalMinutes = input.dailyExerciseGoalMinutes;
   if (input.dailyCalorieGoal !== undefined)
     profileUpdates.dailyCalorieGoal = input.dailyCalorieGoal;
+  if (input.dailyPushupGoal !== undefined)
+    profileUpdates.dailyPushupGoal = input.dailyPushupGoal;
+  if (input.onboardingCompleted !== undefined)
+    profileUpdates.onboardingCompleted = input.onboardingCompleted;
+  if (input.isAutoCalculated !== undefined)
+    profileUpdates.isAutoCalculated = input.isAutoCalculated;
+  if (input.gender !== undefined)
+    profileUpdates.gender = input.gender;
+  if (input.age !== undefined)
+    profileUpdates.age = input.age;
+  if (input.weightKg !== undefined)
+    profileUpdates.weightKg = input.weightKg;
+  if (input.heightCm !== undefined)
+    profileUpdates.heightCm = input.heightCm;
+  if (input.neatLevel !== undefined)
+    profileUpdates.neatLevel = input.neatLevel;
+  if (input.fitnessGoal !== undefined)
+    profileUpdates.fitnessGoal = input.fitnessGoal;
+  if (input.fitnessLevel !== undefined)
+    profileUpdates.fitnessLevel = input.fitnessLevel;
+  if (input.medicalConditions !== undefined)
+    profileUpdates.medicalConditions = input.medicalConditions;
+  if (input.customMedicalCondition !== undefined)
+    profileUpdates.customMedicalCondition = input.customMedicalCondition;
   if (input.bio !== undefined)
     profileUpdates.bio = input.bio;
   if (input.timezone !== undefined)
@@ -82376,6 +82816,101 @@ async function updateUserProfile(userId, input) {
   await db.update(profile).set(profileUpdates).where(eq(profile.userId, userId));
   return getUserWithProfile(userId);
 }
+async function completeOnboarding(userId, input) {
+  const db = getDb();
+  await getOrCreateProfile(userId);
+  const cleanConditions = input.medicalConditions.filter((c) => c.trim().length > 0 && c !== "NONE");
+  const customCondition = input.customMedicalCondition?.trim() || null;
+  const calculated = calculateDynamicMetrics({
+    gender: input.gender,
+    age: input.age,
+    weightKg: input.weightKg,
+    heightCm: input.heightCm,
+    neatLevel: input.neatLevel,
+    fitnessGoal: input.fitnessGoal,
+    fitnessLevel: input.fitnessLevel,
+    medicalConditions: cleanConditions,
+    customMedicalCondition: customCondition
+  });
+  const primaryFocusMap = {
+    CUTTING: "Healthy Weight Loss & Metabolic Flow",
+    BULKING: "Strength & Lean Muscle Growth",
+    ENDURANCE: "Cardio Endurance & Stamina",
+    MAINTENANCE: "Optimal Sleep & Holistic Balance"
+  };
+  const profileUpdates = {
+    onboardingCompleted: true,
+    isAutoCalculated: true,
+    gender: input.gender,
+    age: input.age,
+    weightKg: input.weightKg,
+    heightCm: input.heightCm,
+    neatLevel: input.neatLevel,
+    fitnessGoal: input.fitnessGoal,
+    fitnessLevel: input.fitnessLevel,
+    medicalConditions: cleanConditions,
+    customMedicalCondition: customCondition,
+    primaryFocus: primaryFocusMap[input.fitnessGoal] ?? "Optimal Sleep & Holistic Balance",
+    dailyCalorieGoal: calculated.dailyCalorieGoal,
+    dailyWaterGoalMl: calculated.dailyWaterGoalMl,
+    dailyStepsGoal: calculated.dailyStepsGoal,
+    dailyExerciseGoalMinutes: calculated.dailyExerciseGoalMinutes,
+    dailyPushupGoal: calculated.dailyPushupGoal,
+    dailySleepGoalMinutes: calculated.dailySleepGoalMinutes,
+    updatedAt: new Date
+  };
+  if (input.targetWakeTime !== undefined) {
+    profileUpdates.targetWakeTime = input.targetWakeTime;
+  }
+  if (input.targetSleepTime !== undefined) {
+    profileUpdates.targetSleepTime = input.targetSleepTime;
+  }
+  await db.update(profile).set(profileUpdates).where(eq(profile.userId, userId));
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const existingToday = await db.select().from(weightLogs).where(and(eq(weightLogs.userId, userId), eq(weightLogs.date, todayStr))).limit(1);
+  if (!existingToday.length) {
+    await db.insert(weightLogs).values({
+      id: `wlog_${crypto.randomUUID()}`,
+      userId,
+      date: todayStr,
+      weightKg: input.weightKg,
+      previousWeightKg: null,
+      deltaKg: 0,
+      isAnomaly: false,
+      anomalyNote: null,
+      notes: "Berat badan awal (Onboarding Profil)",
+      loggedAt: new Date,
+      createdAt: new Date
+    });
+  }
+  return getUserWithProfile(userId);
+}
+async function recalculateUserGoals(userId) {
+  const db = getDb();
+  const userProfile = await getOrCreateProfile(userId);
+  const calculated = calculateDynamicMetrics({
+    gender: userProfile.gender,
+    age: userProfile.age,
+    weightKg: userProfile.weightKg,
+    heightCm: userProfile.heightCm,
+    neatLevel: userProfile.neatLevel,
+    fitnessGoal: userProfile.fitnessGoal,
+    fitnessLevel: userProfile.fitnessLevel,
+    medicalConditions: userProfile.medicalConditions,
+    customMedicalCondition: userProfile.customMedicalCondition
+  });
+  await db.update(profile).set({
+    isAutoCalculated: true,
+    dailyCalorieGoal: calculated.dailyCalorieGoal,
+    dailyWaterGoalMl: calculated.dailyWaterGoalMl,
+    dailyStepsGoal: calculated.dailyStepsGoal,
+    dailyExerciseGoalMinutes: calculated.dailyExerciseGoalMinutes,
+    dailyPushupGoal: calculated.dailyPushupGoal,
+    dailySleepGoalMinutes: calculated.dailySleepGoalMinutes,
+    updatedAt: new Date
+  }).where(eq(profile.userId, userId));
+  return getUserWithProfile(userId);
+}
 async function deleteUserAccount(userId) {
   const db = getDb();
   await db.delete(dailySchedules).where(eq(dailySchedules.userId, userId));
@@ -82383,6 +82918,7 @@ async function deleteUserAccount(userId) {
   await db.delete(waterLogs).where(eq(waterLogs.userId, userId));
   await db.delete(healthLogs).where(eq(healthLogs.userId, userId));
   await db.delete(dailyCheckins).where(eq(dailyCheckins.userId, userId));
+  await db.delete(weightLogs).where(eq(weightLogs.userId, userId));
   await db.delete(profile).where(eq(profile.userId, userId));
   await db.delete(session).where(eq(session.userId, userId));
   await db.delete(account).where(eq(account.userId, userId));
@@ -82415,6 +82951,65 @@ async function updateMeController(req, res, next) {
     }
     const updated = await updateUserProfile(req.user.id, req.body);
     sendSuccess(res, updated);
+  } catch (err) {
+    next(err);
+  }
+}
+async function completeOnboardingController(req, res, next) {
+  try {
+    if (!req.user) {
+      sendError(res, 401, "UNAUTHORIZED", "Authentication required");
+      return;
+    }
+    const updated = await completeOnboarding(req.user.id, req.body);
+    sendSuccess(res, updated);
+  } catch (err) {
+    next(err);
+  }
+}
+async function recalculateGoalsController(req, res, next) {
+  try {
+    if (!req.user) {
+      sendError(res, 401, "UNAUTHORIZED", "Authentication required");
+      return;
+    }
+    const updated = await recalculateUserGoals(req.user.id);
+    sendSuccess(res, updated);
+  } catch (err) {
+    next(err);
+  }
+}
+async function getWeightHistoryController(req, res, next) {
+  try {
+    if (!req.user) {
+      sendError(res, 401, "UNAUTHORIZED", "Authentication required");
+      return;
+    }
+    const data = await getWeightEvaluation(req.user.id);
+    sendSuccess(res, data);
+  } catch (err) {
+    next(err);
+  }
+}
+async function logWeightController(req, res, next) {
+  try {
+    if (!req.user) {
+      sendError(res, 401, "UNAUTHORIZED", "Authentication required");
+      return;
+    }
+    const result = await logUserWeight(req.user.id, req.body);
+    if (result.requiresConfirmation) {
+      sendError(res, 409, "WEIGHT_ANOMALY_CONFIRMATION_REQUIRED", result.message ?? "Perubahan berat badan >= 10 kg terdeteksi. Mohon konfirmasi dan berikan catatan.", result);
+      return;
+    }
+    const evaluation = await getWeightEvaluation(req.user.id);
+    const userProfile = await getUserWithProfile(req.user.id);
+    sendSuccess(res, {
+      ...result,
+      evaluation: evaluation.evaluation,
+      logs: evaluation.logs,
+      user: userProfile
+    }, 201);
   } catch (err) {
     next(err);
   }
@@ -82465,6 +83060,10 @@ userRouter.get("/me", getMeController);
 userRouter.patch("/me", validateBody(updateProfileSchema), updateMeController);
 userRouter.put("/me", validateBody(updateProfileSchema), updateMeController);
 userRouter.delete("/me", deleteMeController);
+userRouter.post("/me/onboarding", validateBody(onboardingProfileSchema), completeOnboardingController);
+userRouter.post("/me/recalculate-goals", recalculateGoalsController);
+userRouter.get("/me/weight", getWeightHistoryController);
+userRouter.post("/me/weight", validateBody(weightLogSchema), logWeightController);
 userRouter.get("/:id", getUserByIdController);
 
 // src/routes/activity.routes.ts

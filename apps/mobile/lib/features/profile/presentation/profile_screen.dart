@@ -301,6 +301,10 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 22),
 
+            // 1.5 Biometric & Metabolic Profile Bento Card
+            _buildBiometricsCard(context, ref, profile, theme),
+            const SizedBox(height: 22),
+
             // 2. Target Kebugaran Personal Section
             Text(
               'Target Kebugaran Personal',
@@ -411,6 +415,26 @@ class ProfileScreen extends ConsumerWidget {
                     subtitle: 'Ketuk untuk ubah di Pelacak Nutrisi',
                     value: '${nutrition.targetCalories} kkal',
                     onTap: () => context.push('/calorie-tracker'),
+                  ),
+                  _buildDivider(),
+                  _buildGoalRow(
+                    icon: Icons.accessibility_new_rounded,
+                    iconColor: AppColors.primary,
+                    iconBg: AppColors.secondaryFixed.withValues(alpha: 0.45),
+                    label: 'Target Push-Up Harian',
+                    subtitle: 'Minimum repetisi adaptif (ketuk untuk ubah)',
+                    value: '${profile?.dailyPushupGoal ?? 20} rep',
+                    onTap: () => _openEditGoalDialog(
+                      context,
+                      ref,
+                      title: 'Target Push-Up Harian',
+                      fieldKey: 'dailyPushupGoal',
+                      unit: 'rep',
+                      initialValue: profile?.dailyPushupGoal ?? 20,
+                      presets: [10, 20, 30, 50, 75],
+                      minValue: 1,
+                      maxValue: 1000,
+                    ),
                   ),
                 ],
               ),
@@ -728,6 +752,217 @@ class ProfileScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBiometricsCard(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic profile,
+    ThemeData theme,
+  ) {
+    final biometrics = profile?.biometrics;
+    final weight = (profile?.weightKg as num?)?.toDouble() ?? 65.0;
+    final height = (profile?.heightCm as num?)?.toDouble() ?? 170.0;
+    final neat = profile?.neatLevel?.toString() ?? 'MODERATE';
+    final goal = profile?.fitnessGoal?.toString() ?? 'MAINTENANCE';
+    final conditions = (profile?.medicalConditions as List?)
+            ?.map((e) => e.toString())
+            .where((e) => e.isNotEmpty && e != 'NONE')
+            .toList() ??
+        [];
+    final customCond = profile?.customMedicalCondition?.toString().trim() ?? '';
+
+    const conditionLabels = {
+      'ASTHMA': 'Asma',
+      'JOINT_PAIN': 'Nyeri Sendi',
+      'BACK_INJURY': 'Cedera Punggung',
+      'HEART_CONDITION': 'Jantung',
+      'HYPERTENSION': 'Hipertensi',
+      'DIABETES': 'Diabetes',
+      'VERTIGO': 'Vertigo',
+      'PREGNANCY': 'Kehamilan',
+    };
+
+    const goalLabels = {
+      'CUTTING': 'Cutting (Turun BB)',
+      'MAINTENANCE': 'Maintenance',
+      'BULKING': 'Bulking (Bentuk Otot)',
+      'ENDURANCE': 'Endurance',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Profil Biometrik & Metabolisme',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: AppColors.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: AppColors.bentoShadow,
+            border: Border.all(
+              color: AppColors.outlineVariant.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  _buildStatPill(
+                    label: 'Berat / Tinggi',
+                    value: '${weight.toStringAsFixed(1)} kg / ${height.toInt()} cm',
+                  ),
+                  const SizedBox(width: 8),
+                  _buildStatPill(
+                    label: 'BMI Tubuh',
+                    value: biometrics != null
+                        ? '${biometrics.bmi.toStringAsFixed(1)} (${biometrics.bmiCategory})'
+                        : '-',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildStatPill(
+                    label: 'BMR / TDEE',
+                    value: biometrics != null
+                        ? '${biometrics.bmr} / ${biometrics.tdee} kkal'
+                        : '-',
+                  ),
+                  const SizedBox(width: 8),
+                  _buildStatPill(
+                    label: 'NEAT & Fokus',
+                    value: '$neat • ${goalLabels[goal] ?? goal}',
+                  ),
+                ],
+              ),
+              if (conditions.isNotEmpty || customCond.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Kondisi Medis Tercatat:',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ...conditions.map(
+                      (c) => Chip(
+                        visualDensity: VisualDensity.compact,
+                        backgroundColor: const Color(0xFFFEF3C7),
+                        label: Text(
+                          conditionLabels[c] ?? c,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF92400E),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (customCond.isNotEmpty)
+                      Chip(
+                        visualDensity: VisualDensity.compact,
+                        backgroundColor: const Color(0xFFE0F2FE),
+                        label: Text(
+                          customCond,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0369A1),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.push('/onboarding'),
+                      icon: const Icon(Icons.tune_rounded, size: 16),
+                      label: const Text(
+                        'Atur Biometrik',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        try {
+                          final updated = await ref
+                              .read(authStateProvider.notifier)
+                              .recalculateGoals();
+                          final newCal = updated.profile?.dailyCalorieGoal;
+                          if (newCal != null) {
+                            await ref
+                                .read(dailyNutritionProvider.notifier)
+                                .updateCalorieGoal(newCal);
+                          }
+                          ref.invalidate(dailyAnalyticsProvider);
+                          ref.invalidate(weeklyAnalyticsProvider);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Seluruh target harian dihitung ulang dari biometrik Anda!'),
+                                backgroundColor: AppColors.primary,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Gagal menghitung ulang: $e'),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                      ),
+                      icon: const Icon(Icons.auto_fix_high_rounded, size: 16),
+                      label: const Text(
+                        'Hitung Ulang Target',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

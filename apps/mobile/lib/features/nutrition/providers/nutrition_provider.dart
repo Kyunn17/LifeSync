@@ -56,15 +56,20 @@ class DailyNutritionState {
 
 class DailyNutritionNotifier extends StateNotifier<DailyNutritionState> {
   final NutritionRepository _repo;
+  final int? _profileGoal;
 
-  DailyNutritionNotifier(this._repo, String initialDate)
-      : super(DailyNutritionState(date: initialDate)) {
+  DailyNutritionNotifier(this._repo, String initialDate, [this._profileGoal])
+      : super(DailyNutritionState(
+          date: initialDate,
+          targetCalories: _profileGoal ?? 2000,
+        )) {
     loadDailyMeals(initialDate);
   }
 
   Future<void> loadDailyMeals(String date) async {
     state = state.copyWith(date: date, isLoading: true);
-    final target = await _repo.getDailyCalorieGoal();
+    final localTarget = await _repo.getDailyCalorieGoal();
+    final target = _profileGoal ?? localTarget;
     final meals = await _repo.getMealsForDate(date);
     state = DailyNutritionState(
       date: date,
@@ -115,5 +120,8 @@ final dailyNutritionProvider =
     StateNotifierProvider<DailyNutritionNotifier, DailyNutritionState>((ref) {
   final repo = ref.watch(nutritionRepositoryProvider);
   final selectedDate = ref.watch(selectedDateProvider);
-  return DailyNutritionNotifier(repo, selectedDate);
+  final profileCalorieGoal = ref.watch(
+    authStateProvider.select((s) => s.user?.profile?.dailyCalorieGoal),
+  );
+  return DailyNutritionNotifier(repo, selectedDate, profileCalorieGoal);
 });

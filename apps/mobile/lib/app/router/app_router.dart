@@ -11,6 +11,7 @@ import '../../features/navigation/main_navigation_shell.dart';
 import '../../features/planner/presentation/planner_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/nutrition/presentation/calorie_tracker_screen.dart';
+import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/wellness/presentation/pushup_counter_screen.dart';
 import '../../features/wellness/presentation/wellness_screen.dart';
 
@@ -48,7 +49,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (status == AuthStatus.authenticated) {
-        if (isAuthRoute) return '/dashboard';
+        final needsOnboarding =
+            authState.user?.profile != null &&
+            !authState.user!.profile!.onboardingCompleted;
+        if (needsOnboarding && path != '/onboarding') {
+          return '/onboarding';
+        }
+        if (isAuthRoute) {
+          return needsOnboarding ? '/onboarding' : '/dashboard';
+        }
         return null;
       }
 
@@ -66,6 +75,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/verify-otp',
         builder: (context, state) => const VerifyOtpScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
       ),
       GoRoute(
         path: '/pushup-counter',

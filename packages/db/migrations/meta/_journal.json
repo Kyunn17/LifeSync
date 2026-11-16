@@ -15,6 +15,13 @@
       "when": 1794540056257,
       "tag": "0001_chemical_toad",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794797597068,
+      "tag": "0002_rapid_mac_gargan",
+      "breakpoints": true
     }
   ]
 }

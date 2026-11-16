@@ -9,6 +9,9 @@ class ApiEndpoints {
 
   // User
   static const String me = '/api/users/me';
+  static const String onboarding = '/api/users/me/onboarding';
+  static const String recalculateGoals = '/api/users/me/recalculate-goals';
+  static const String userWeight = '/api/users/me/weight';
 
   // Activities & Schedules
   static const String activities = '/api/activities';

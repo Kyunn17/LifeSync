@@ -3,6 +3,47 @@ import { z } from "zod";
 export const USER_ROLES = ["USER", "ADMIN"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
+export const GENDERS = ["MALE", "FEMALE"] as const;
+export type Gender = (typeof GENDERS)[number];
+
+export const NEAT_LEVELS = [
+  "SEDENTARY",
+  "LIGHT",
+  "MODERATE",
+  "ACTIVE",
+  "VERY_ACTIVE",
+] as const;
+export type NeatLevel = (typeof NEAT_LEVELS)[number];
+
+export const FITNESS_GOALS = [
+  "CUTTING",
+  "MAINTENANCE",
+  "BULKING",
+  "ENDURANCE",
+] as const;
+export type FitnessGoal = (typeof FITNESS_GOALS)[number];
+
+export const FITNESS_LEVELS = [
+  "BEGINNER",
+  "INTERMEDIATE",
+  "ADVANCED",
+] as const;
+export type FitnessLevel = (typeof FITNESS_LEVELS)[number];
+
+export const MEDICAL_CONDITION_TEMPLATES = [
+  "NONE",
+  "ASTHMA",
+  "HEART_CONDITION",
+  "JOINT_PAIN",
+  "DIABETES",
+  "HYPERTENSION",
+  "BACK_INJURY",
+  "VERTIGO",
+  "PREGNANCY",
+] as const;
+export type MedicalConditionTemplate =
+  (typeof MEDICAL_CONDITION_TEMPLATES)[number];
+
 export const DEFAULT_ACTIVITY_CATEGORIES = [
   {
     name: "Sleep",
@@ -184,12 +225,50 @@ export const updateProfileSchema = z.object({
   dailySleepGoalMinutes: z.number().int().min(120).max(960).optional(),
   dailyExerciseGoalMinutes: z.number().int().min(0).max(600).optional(),
   dailyCalorieGoal: z.number().int().min(500).max(10000).optional(),
+  dailyPushupGoal: z.number().int().min(1).max(1000).optional(),
+  onboardingCompleted: z.boolean().optional(),
+  isAutoCalculated: z.boolean().optional(),
+  gender: z.enum(GENDERS).optional(),
+  age: z.number().int().min(10).max(120).optional(),
+  weightKg: z.number().min(20).max(350).optional(),
+  heightCm: z.number().min(80).max(260).optional(),
+  neatLevel: z.enum(NEAT_LEVELS).optional(),
+  fitnessGoal: z.enum(FITNESS_GOALS).optional(),
+  fitnessLevel: z.enum(FITNESS_LEVELS).optional(),
+  medicalConditions: z.array(z.string().max(80)).max(20).optional(),
+  customMedicalCondition: z.string().max(300).optional().nullable(),
   bio: z.string().max(500).optional().nullable(),
   timezone: z.string().max(64).optional(),
   notificationsEnabled: z.boolean().optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+export const onboardingProfileSchema = z.object({
+  gender: z.enum(GENDERS),
+  age: z.number().int().min(10).max(120),
+  weightKg: z.number().min(20).max(350),
+  heightCm: z.number().min(80).max(260),
+  neatLevel: z.enum(NEAT_LEVELS),
+  fitnessGoal: z.enum(FITNESS_GOALS),
+  fitnessLevel: z.enum(FITNESS_LEVELS).default("BEGINNER"),
+  medicalConditions: z.array(z.string().max(80)).default([]),
+  customMedicalCondition: z.string().max(300).optional().nullable(),
+  targetWakeTime: timeStringSchema.optional(),
+  targetSleepTime: timeStringSchema.optional(),
+});
+
+export type OnboardingProfileInput = z.infer<typeof onboardingProfileSchema>;
+
+export const weightLogSchema = z.object({
+  date: dateStringSchema,
+  weightKg: z.number().min(20).max(350),
+  confirmAnomaly: z.boolean().optional().default(false),
+  anomalyNote: z.string().max(500).optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+});
+
+export type WeightLogInput = z.infer<typeof weightLogSchema>;
 
 export const adminUpdateUserSchema = z.object({
   role: z.enum(USER_ROLES).optional(),

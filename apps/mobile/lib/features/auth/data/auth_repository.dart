@@ -150,6 +150,40 @@ class AuthRepository {
     }
   }
 
+  Future<UserModel> completeOnboarding(Map<String, dynamic> payload) async {
+    try {
+      final response = await apiClient.dio.post(
+        ApiEndpoints.onboarding,
+        data: payload,
+      );
+      final data = response.data?['data'];
+      if (data is Map<String, dynamic>) {
+        return UserModel.fromJson(data);
+      }
+      return await getMe();
+    } on DioException catch (e) {
+      final msg = e.response?.data?['error']?['message'] ?? 'Gagal menyimpan data biometrik onboarding.';
+      throw AuthFailure(msg.toString());
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw const AuthFailure('Gagal menyimpan onboarding.');
+    }
+  }
+
+  Future<UserModel> recalculateGoals() async {
+    try {
+      final response = await apiClient.dio.post(ApiEndpoints.recalculateGoals);
+      final data = response.data?['data'];
+      if (data is Map<String, dynamic>) {
+        return UserModel.fromJson(data);
+      }
+      return await getMe();
+    } on DioException catch (e) {
+      final msg = e.response?.data?['error']?['message'] ?? 'Gagal menghitung ulang target harian.';
+      throw AuthFailure(msg.toString());
+    }
+  }
+
   Future<void> signOut() async {
     try {
       await apiClient.dio.post(ApiEndpoints.signOut);
