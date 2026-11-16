@@ -218,3 +218,4 @@ final weightTrackerProvider =
   final apiClient = ref.watch(apiClientProvider);
   return WeightNotifier(ref, apiClient);
 });
+
