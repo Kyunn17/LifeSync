@@ -352,6 +352,24 @@ export const openApiDocument: Record<string, unknown> = {
           servingSize: { type: "string", example: "1 gelas" },
         },
       },
+      AiMealScanInput: {
+        type: "object",
+        properties: {
+          imageBase64: {
+            type: "string",
+            description: "Foto makanan dalam format Base64 (opsional jika notes diisi)",
+          },
+          mimeType: {
+            type: "string",
+            example: "image/jpeg",
+            default: "image/jpeg",
+          },
+          notes: {
+            type: "string",
+            example: "Nasi padang lauk rendang sapi, daun singkong, dan es teh manis",
+          },
+        },
+      },
     },
   },
   security: [{ bearerAuth: [] }, { cookieAuth: [] }],
@@ -834,6 +852,26 @@ export const openApiDocument: Record<string, unknown> = {
           { name: "id", in: "path", required: true, schema: { type: "string" } },
         ],
         responses: { "200": { description: "Catatan makan dihapus" } },
+      },
+    },
+    "/api/nutrition/meals/ai-scan": {
+      post: {
+        tags: ["Nutrition"],
+        summary: "Analisis kalori & makronutrisi makanan via AI (n8n + Gemini Vision)",
+        description:
+          "Mengirim foto makanan (Base64) dan/atau deskripsi teks ke workflow n8n untuk dianalisis oleh Gemini AI dan mengembalikan estimasi kalori serta makronutrisi terstruktur.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/AiMealScanInput" },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Hasil analisis nutrisi makanan" },
+          "503": { description: "Server AI n8n belum dikonfigurasi atau tidak dapat dihubungi" },
+        },
       },
     },
     "/api/nutrition/custom-foods": {

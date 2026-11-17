@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { mealLogSchema, customFoodSchema } from "@lifesync/shared";
+import { mealLogSchema, customFoodSchema, aiMealScanSchema } from "@lifesync/shared";
 import { requireAuth } from "../middleware/auth";
 import { validateBody } from "../middleware/validate";
 import {
@@ -10,6 +10,7 @@ import {
   createCustomFoodController,
   deleteCustomFoodController,
   updateCalorieGoalController,
+  scanMealWithAiController,
 } from "../controllers/nutrition.controller";
 
 export const nutritionRouter = Router();
@@ -19,6 +20,11 @@ nutritionRouter.use(requireAuth);
 // Meals
 nutritionRouter.get("/meals", getMealLogsController);
 nutritionRouter.post("/meals", validateBody(mealLogSchema), createMealLogController);
+nutritionRouter.post(
+  "/meals/ai-scan",
+  validateBody(aiMealScanSchema),
+  scanMealWithAiController
+);
 nutritionRouter.delete("/meals/:id", deleteMealLogController);
 
 // Custom Foods

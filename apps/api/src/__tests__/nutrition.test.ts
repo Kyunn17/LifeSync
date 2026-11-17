@@ -3,7 +3,10 @@ import {
   mealLogSchema,
   customFoodSchema,
   updateProfileSchema,
+  aiMealScanSchema,
 } from "@lifesync/shared";
+import { env } from "../config/env";
+import { scanMealWithAi, AiScannerError } from "../services/nutrition.service";
 
 describe("Nutrition & Calorie Schema Tests", () => {
   test("validates valid meal log input", () => {
@@ -76,6 +79,83 @@ describe("Nutrition & Calorie Schema Tests", () => {
 
     const parsedHigh = updateProfileSchema.safeParse({ dailyCalorieGoal: 20000 });
     expect(parsedHigh.success).toBe(false);
+  });
+
+  test("validates aiMealScanSchema with notes or imageBase64", () => {
+    const withNotes = aiMealScanSchema.safeParse({
+      notes: "Nasi goreng telur ceplok",
+    });
+    expect(withNotes.success).toBe(true);
+
+    const withImage = aiMealScanSchema.safeParse({
+      imageBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ",
+      mimeType: "image/png",
+    });
+    expect(withImage.success).toBe(true);
+
+    const empty = aiMealScanSchema.safeParse({});
+    expect(empty.success).toBe(false);
+  });
+
+  test("scanMealWithAi throws 503 when N8N_WEBHOOK_URL is not configured", async () => {
+    const originalUrl = env.N8N_WEBHOOK_URL;
+    env.N8N_WEBHOOK_URL = "";
+    try {
+      await expect(
+        scanMealWithAi({ notes: "Ayam bakar", mimeType: "image/jpeg" })
+      ).rejects.toBeInstanceOf(AiScannerError);
+    } finally {
+      env.N8N_WEBHOOK_URL = originalUrl;
+    }
+  });
+
+  test("scanMealWithAi parses n8n structured JSON response", async () => {
+    const originalUrl = env.N8N_WEBHOOK_URL;
+    const originalFetch = globalThis.fetch;
+    env.N8N_WEBHOOK_URL = "https://example.n8n.local/webhook/lifesync-scan-meal";
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            foodName: "Nasi Ayam Bakar",
+            calories: 520.4,
+            proteins: 35.12,
+            carbohydrates: 58.3,
+            fat: 14.2,
+            servingSize: "1 porsi",
+            servings: 1,
+            confidence: "high",
+            breakdown: [
+              {
+                item: "Nasi Putih",
+                portion: "150g",
+                calories: 195,
+                proteins: 4,
+                carbohydrates: 43,
+                fat: 0.5,
+              },
+            ],
+            notes: "Protein tinggi, seimbang",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )) as unknown as typeof fetch;
+
+    try {
+      const result = await scanMealWithAi({
+        notes: "Nasi ayam bakar",
+        mimeType: "image/jpeg",
+      });
+      expect(result.foodName).toBe("Nasi Ayam Bakar");
+      expect(result.calories).toBe(520);
+      expect(result.proteins).toBe(35.1);
+      expect(result.confidence).toBe("high");
+      expect(result.breakdown.length).toBe(1);
+    } finally {
+      env.N8N_WEBHOOK_URL = originalUrl;
+      globalThis.fetch = originalFetch;
+    }
   });
 });
 

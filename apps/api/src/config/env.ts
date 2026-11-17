@@ -62,6 +62,9 @@ const envSchema = z.object({
     .optional()
     .default("true")
     .transform((val) => cleanString(val).toLowerCase() !== "false"),
+
+  // n8n AI Calorie Scanner Webhook URL
+  N8N_WEBHOOK_URL: z.string().optional().default("").transform(cleanString),
 });
 
 export const env = envSchema.parse(process.env);

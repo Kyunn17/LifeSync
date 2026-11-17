@@ -1,0 +1,131 @@
+{
+  "name": "LifeSync AI Calorie Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lifesync-scan-meal",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "webhook-lifesync-meal",
+      "name": "Webhook (LifeSync Meal Scan)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare prompt and image data for Gemini Vision\nconst body = $input.first().json.body || $input.first().json;\nconst base64Image = body.imageBase64 || body.image || '';\nconst mimeType = body.mimeType || 'image/jpeg';\nconst userNotes = body.notes || body.text || '';\n\nconst prompt = `Anda adalah seorang ahli gizi (clinical nutritionist) dan pakar kuliner nusantara dan internasional.\nTugas Anda adalah menganalisis foto makanan atau deskripsi makanan berikut untuk fitur Calorie Tracker di aplikasi LifeSync.\n\nCatatan tambahan dari user: \"${userNotes}\"\n\nInstruksi:\n1. Identifikasi semua komponen makanan dalam piring/kemasan.\n2. Berikan estimasi porsi (gram/ukuran rumah tangga), total kalori (kkal), protein (g), karbohidrat (g), dan lemak (g).\n3. Berikan rincian (breakdown) per item makanan.\n4. Output WAJIB berupa JSON murni tanpa markdown, tanpa backtick, dengan format:\n{\n  \"foodName\": \"Nama makanan utama ringkas\",\n  \"calories\": 600,\n  \"proteins\": 25.0,\n  \"carbohydrates\": 70.0,\n  \"fat\": 20.0,\n  \"servingSize\": \"1 porsi\",\n  \"servings\": 1,\n  \"confidence\": \"high\" | \"medium\" | \"low\",\n  \"breakdown\": [\n    {\n      \"item\": \"Nama item\",\n      \"portion\": \"100g\",\n      \"calories\": 200,\n      \"proteins\": 5.0,\n      \"carbohydrates\": 40.0,\n      \"fat\": 2.0\n    }\n  ],\n  \"notes\": \"Saran nutrisi singkat (contoh: tinggi protein, kontrol porsi karbo)\"\n}`;\n\nconst parts = [{ text: prompt }];\n\nif (base64Image) {\n  // Clean base64 string if data URI scheme was included\n  const cleanBase64 = base64Image.replace(/^data:image\\/\\w+;base64,/, '');\n  parts.push({\n    inlineData: {\n      mimeType: mimeType,\n      data: cleanBase64\n    }\n  });\n}\n\nreturn {\n  json: {\n    contents: [\n      {\n        parts: parts\n      }\n    ],\n    generationConfig: {\n      temperature: 0.2,\n      responseMimeType: \"application/json\"\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "prepare-gemini-payload",
+      "name": "Prepare Gemini Payload"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={{ $('Webhook (LifeSync Meal Scan)').item.json.body.apiKey || $env.GEMINI_API_KEY }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "gemini-api-request",
+      "name": "Call Gemini 2.5 Flash"
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  const response = $input.first().json;\n  const candidate = response.candidates?.[0];\n  const text = candidate?.content?.parts?.[0]?.text || '{}';\n  \n  // Parse JSON from text\n  const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();\n  const parsedData = JSON.parse(cleanText);\n  \n  return {\n    json: {\n      success: true,\n      data: parsedData\n    }\n  };\n} catch (err) {\n  return {\n    json: {\n      success: false,\n      error: err.message || 'Gagal memproses analisis nutrisi dari Gemini',\n      raw: $input.first().json\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "id": "parse-gemini-response",
+      "name": "Parse Gemini Output"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ],
+      "id": "respond-to-lifesync",
+      "name": "Respond to LifeSync"
+    }
+  ],
+  "connections": {
+    "Webhook (LifeSync Meal Scan)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Gemini Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Gemini Payload": {
+      "main": [
+        [
+          {
+            "node": "Call Gemini 2.5 Flash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Gemini 2.5 Flash": {
+      "main": [
+        [
+          {
+            "node": "Parse Gemini Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Gemini Output": {
+      "main": [
+        [
+          {
+            "node": "Respond to LifeSync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

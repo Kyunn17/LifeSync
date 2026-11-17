@@ -51739,7 +51739,8 @@ var envSchema = objectType({
   NODE_ENV: stringType().optional().default("development").transform(cleanString).pipe(enumType(["development", "production", "test"]).catch("development")),
   BREVO_API_KEY: stringType().optional().default("").transform(cleanString),
   EMAIL_FROM: stringType().optional().default("LifeSync Wellness <arulxxds@gmail.com>").transform((val) => cleanString(val) || "LifeSync Wellness <arulxxds@gmail.com>"),
-  REQUIRE_EMAIL_VERIFICATION: stringType().optional().default("true").transform((val) => cleanString(val).toLowerCase() !== "false")
+  REQUIRE_EMAIL_VERIFICATION: stringType().optional().default("true").transform((val) => cleanString(val).toLowerCase() !== "false"),
+  N8N_WEBHOOK_URL: stringType().optional().default("").transform(cleanString)
 });
 var env = envSchema.parse(process.env);
 // ../../node_modules/.bun/@better-auth+core@1.7.18+116e9b0f1456a0ae/node_modules/@better-auth/core/dist/db/index.mjs
@@ -82459,6 +82460,13 @@ var customFoodSchema = objectType({
   servingSize: stringType().max(80).default("1 porsi"),
   imageUrl: stringType().optional().nullable()
 });
+var aiMealScanSchema = objectType({
+  imageBase64: stringType().optional(),
+  mimeType: stringType().regex(/^image\/(jpeg|jpg|png|webp|heic)$/i, "Format gambar harus jpeg, png, webp, atau heic").optional().default("image/jpeg"),
+  notes: stringType().max(500).optional()
+}).refine((data) => Boolean(data.imageBase64 && data.imageBase64.trim().length > 0) || Boolean(data.notes && data.notes.trim().length > 0), {
+  message: "Minimal kirimkan foto makanan (imageBase64) atau deskripsi makanan (notes)"
+});
 
 // src/routes/user.routes.ts
 var import_express = __toESM(require_express2());
@@ -84988,6 +84996,16 @@ adminRouter.delete("/tips/:id", deleteAdminTipController);
 var import_express7 = __toESM(require_express2());
 
 // src/services/nutrition.service.ts
+class AiScannerError extends Error {
+  statusCode;
+  code;
+  constructor(statusCode, code, message) {
+    super(message);
+    this.statusCode = statusCode;
+    this.code = code;
+    this.name = "AiScannerError";
+  }
+}
 async function listMealLogs(userId, date) {
   const db = getDb();
   const [meals, userProfile] = await Promise.all([
@@ -85074,6 +85092,70 @@ async function updateDailyCalorieGoal(userId, goalKcal) {
   const db = getDb();
   const [updated] = await db.update(profile).set({ dailyCalorieGoal: goalKcal, updatedAt: new Date }).where(eq(profile.userId, userId)).returning({ dailyCalorieGoal: profile.dailyCalorieGoal });
   return updated?.dailyCalorieGoal ?? goalKcal;
+}
+async function scanMealWithAi(input) {
+  const webhookUrl = env.N8N_WEBHOOK_URL;
+  if (!webhookUrl) {
+    throw new AiScannerError(503, "AI_SCANNER_NOT_CONFIGURED", "Layanan AI Calorie Scanner belum dikonfigurasi (N8N_WEBHOOK_URL kosong)");
+  }
+  let response;
+  try {
+    response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Bypass-Tunnel-Reminder": "1"
+      },
+      body: JSON.stringify({
+        imageBase64: input.imageBase64 ?? "",
+        mimeType: input.mimeType ?? "image/jpeg",
+        notes: input.notes ?? ""
+      }),
+      signal: AbortSignal.timeout(25000)
+    });
+  } catch (err) {
+    const isTimeout = err instanceof Error && err.name === "TimeoutError";
+    throw new AiScannerError(503, "AI_SCANNER_UNAVAILABLE", isTimeout ? "Server AI n8n timeout saat menganalisis makanan. Silakan coba lagi." : "Tidak dapat terhubung ke server AI n8n. Pastikan n8n & tunnel sedang aktif.");
+  }
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new AiScannerError(502, "AI_SCANNER_UPSTREAM_ERROR", `Server AI n8n mengembalikan status ${response.status}${errorText ? `: ${errorText.slice(0, 200)}` : ""}`);
+  }
+  const rawBody = await response.json();
+  if (rawBody.success === false) {
+    throw new AiScannerError(502, "AI_ANALYSIS_FAILED", typeof rawBody.error === "string" ? rawBody.error : "AI gagal menganalisis gambar/deskripsi makanan");
+  }
+  const payload = rawBody.data && typeof rawBody.data === "object" ? rawBody.data : rawBody;
+  const toNum = (val, fallback = 0) => {
+    const n = Number(val);
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+  };
+  const rawBreakdown = Array.isArray(payload.breakdown) ? payload.breakdown : [];
+  const breakdown = rawBreakdown.map((item) => {
+    const obj = item && typeof item === "object" ? item : {};
+    return {
+      item: typeof obj.item === "string" ? obj.item : "Item makanan",
+      portion: typeof obj.portion === "string" ? obj.portion : "1 porsi",
+      calories: Math.round(toNum(obj.calories)),
+      proteins: Math.round(toNum(obj.proteins) * 10) / 10,
+      carbohydrates: Math.round(toNum(obj.carbohydrates) * 10) / 10,
+      fat: Math.round(toNum(obj.fat) * 10) / 10
+    };
+  });
+  const confidenceVal = payload.confidence;
+  const confidence = confidenceVal === "high" || confidenceVal === "medium" || confidenceVal === "low" ? confidenceVal : "medium";
+  return {
+    foodName: typeof payload.foodName === "string" && payload.foodName.trim().length > 0 ? payload.foodName.trim() : "Makanan Terdeteksi AI",
+    calories: Math.round(toNum(payload.calories)),
+    proteins: Math.round(toNum(payload.proteins) * 10) / 10,
+    carbohydrates: Math.round(toNum(payload.carbohydrates) * 10) / 10,
+    fat: Math.round(toNum(payload.fat) * 10) / 10,
+    servingSize: typeof payload.servingSize === "string" && payload.servingSize.trim() ? payload.servingSize.trim() : "1 porsi",
+    servings: Math.max(0.1, toNum(payload.servings, 1)),
+    confidence,
+    breakdown,
+    notes: typeof payload.notes === "string" ? payload.notes : undefined
+  };
 }
 
 // src/controllers/nutrition.controller.ts
@@ -85188,12 +85270,29 @@ async function updateCalorieGoalController(req, res, next) {
     next(err);
   }
 }
+async function scanMealWithAiController(req, res, next) {
+  try {
+    if (!req.user) {
+      sendError(res, 401, "UNAUTHORIZED", "Authentication required");
+      return;
+    }
+    const result = await scanMealWithAi(req.body);
+    sendSuccess(res, result);
+  } catch (err) {
+    if (err instanceof AiScannerError) {
+      sendError(res, err.statusCode, err.code, err.message);
+      return;
+    }
+    next(err);
+  }
+}
 
 // src/routes/nutrition.routes.ts
 var nutritionRouter = import_express7.Router();
 nutritionRouter.use(requireAuth);
 nutritionRouter.get("/meals", getMealLogsController);
 nutritionRouter.post("/meals", validateBody(mealLogSchema), createMealLogController);
+nutritionRouter.post("/meals/ai-scan", validateBody(aiMealScanSchema), scanMealWithAiController);
 nutritionRouter.delete("/meals/:id", deleteMealLogController);
 nutritionRouter.get("/custom-foods", getCustomFoodsController);
 nutritionRouter.post("/custom-foods", validateBody(customFoodSchema), createCustomFoodController);
@@ -85657,6 +85756,24 @@ var openApiDocument = {
           carbohydrates: { type: "number", example: 46 },
           fat: { type: "number", example: 6 },
           servingSize: { type: "string", example: "1 gelas" }
+        }
+      },
+      AiMealScanInput: {
+        type: "object",
+        properties: {
+          imageBase64: {
+            type: "string",
+            description: "Foto makanan dalam format Base64 (opsional jika notes diisi)"
+          },
+          mimeType: {
+            type: "string",
+            example: "image/jpeg",
+            default: "image/jpeg"
+          },
+          notes: {
+            type: "string",
+            example: "Nasi padang lauk rendang sapi, daun singkong, dan es teh manis"
+          }
         }
       }
     }
@@ -86140,6 +86257,25 @@ var openApiDocument = {
         responses: { "200": { description: "Catatan makan dihapus" } }
       }
     },
+    "/api/nutrition/meals/ai-scan": {
+      post: {
+        tags: ["Nutrition"],
+        summary: "Analisis kalori & makronutrisi makanan via AI (n8n + Gemini Vision)",
+        description: "Mengirim foto makanan (Base64) dan/atau deskripsi teks ke workflow n8n untuk dianalisis oleh Gemini AI dan mengembalikan estimasi kalori serta makronutrisi terstruktur.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/AiMealScanInput" }
+            }
+          }
+        },
+        responses: {
+          "200": { description: "Hasil analisis nutrisi makanan" },
+          "503": { description: "Server AI n8n belum dikonfigurasi atau tidak dapat dihubungi" }
+        }
+      }
+    },
     "/api/nutrition/custom-foods": {
       get: {
         tags: ["Nutrition"],
@@ -86313,7 +86449,7 @@ function createApp() {
   app.all("/api/auth/*", (req, res) => {
     authHandler(req, res);
   });
-  app.use(import_express9.default.json({ limit: "1mb" }));
+  app.use(import_express9.default.json({ limit: "4mb" }));
   app.use(import_express9.default.urlencoded({ extended: true }));
   const rootHandler = (_req, res) => {
     res.json({

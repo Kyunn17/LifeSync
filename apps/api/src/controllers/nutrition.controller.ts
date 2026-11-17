@@ -7,6 +7,8 @@ import {
   createCustomFood,
   deleteCustomFoodById,
   updateDailyCalorieGoal,
+  scanMealWithAi,
+  AiScannerError,
 } from "../services/nutrition.service";
 import { sendSuccess, sendError } from "../utils/response";
 
@@ -166,6 +168,28 @@ export async function updateCalorieGoalController(
     const newGoal = await updateDailyCalorieGoal(req.user.id, goal);
     sendSuccess(res, { dailyCalorieGoal: newGoal });
   } catch (err) {
+    next(err);
+  }
+}
+
+export async function scanMealWithAiController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      sendError(res, 401, "UNAUTHORIZED", "Authentication required");
+      return;
+    }
+
+    const result = await scanMealWithAi(req.body);
+    sendSuccess(res, result);
+  } catch (err) {
+    if (err instanceof AiScannerError) {
+      sendError(res, err.statusCode, err.code, err.message);
+      return;
+    }
     next(err);
   }
 }

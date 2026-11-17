@@ -332,6 +332,27 @@ export const customFoodSchema = z.object({
 
 export type CustomFoodInput = z.infer<typeof customFoodSchema>;
 
+export const aiMealScanSchema = z
+  .object({
+    imageBase64: z.string().optional(),
+    mimeType: z
+      .string()
+      .regex(/^image\/(jpeg|jpg|png|webp|heic)$/i, "Format gambar harus jpeg, png, webp, atau heic")
+      .optional()
+      .default("image/jpeg"),
+    notes: z.string().max(500).optional(),
+  })
+  .refine(
+    (data) =>
+      Boolean(data.imageBase64 && data.imageBase64.trim().length > 0) ||
+      Boolean(data.notes && data.notes.trim().length > 0),
+    {
+      message: "Minimal kirimkan foto makanan (imageBase64) atau deskripsi makanan (notes)",
+    }
+  );
+
+export type AiMealScanInput = z.infer<typeof aiMealScanSchema>;
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;

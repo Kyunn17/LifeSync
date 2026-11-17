@@ -17,7 +17,8 @@
     "db:migrate": "bun run --cwd packages/db db:migrate",
     "db:seed": "bun run --cwd packages/db db:seed",
     "db:push": "bun run --cwd packages/db db:push",
-    "db:studio": "bun run --cwd packages/db db:studio"
+    "db:studio": "bun run --cwd packages/db db:studio",
+    "n8n": "npx n8n"
   },
   "devDependencies": {
     "@types/bun": "^1.2.4",
