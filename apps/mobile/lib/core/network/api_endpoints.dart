@@ -25,6 +25,7 @@ class ApiEndpoints {
 
   // Nutrition
   static const String nutritionMeals = '/api/nutrition/meals';
+  static const String nutritionAiScan = '/api/nutrition/meals/ai-scan';
   static const String nutritionCustomFoods = '/api/nutrition/custom-foods';
   static const String nutritionGoal = '/api/nutrition/goal';
 

@@ -7,6 +7,7 @@ import '../../data/katalog_nusantara.dart';
 import '../../data/models/food_item_model.dart';
 import '../../data/models/meal_entry_model.dart';
 import '../../providers/nutrition_provider.dart';
+import 'ai_meal_scan_sheet.dart';
 import 'manual_food_dialog.dart';
 
 class AddFoodSheet extends ConsumerStatefulWidget {
@@ -151,22 +152,50 @@ class _AddFoodSheetState extends ConsumerState<AddFoodSheet> {
                     ),
                   ],
                 ),
-                TextButton.icon(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => ManualFoodDialog(
-                        initialMealType: _selectedMealType,
-                        onFoodCreated: (food, mealType, servings) {
-                          ref.read(nutritionRepositoryProvider).saveCustomFood(food);
-                          _handleAddFood(food, servings);
-                        },
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Scan Makanan dengan AI',
+                      onPressed: () {
+                        final nav = Navigator.of(context);
+                        final mealType = _selectedMealType;
+                        nav.pop();
+                        showModalBottomSheet(
+                          context: nav.context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) =>
+                              AiMealScanSheet(initialMealType: mealType),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: AppColors.primary,
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Input Manual'),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => ManualFoodDialog(
+                            initialMealType: _selectedMealType,
+                            onFoodCreated: (food, mealType, servings) {
+                              ref
+                                  .read(nutritionRepositoryProvider)
+                                  .saveCustomFood(food);
+                              _handleAddFood(food, servings);
+                            },
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Manual'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

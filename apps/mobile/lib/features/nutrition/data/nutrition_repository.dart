@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import 'katalog_nusantara.dart';
+import 'models/ai_meal_scan_model.dart';
 import 'models/food_item_model.dart';
 import 'models/meal_entry_model.dart';
 
@@ -304,6 +305,54 @@ class NutritionRepository {
           data: {'goal': goalKcal},
         );
       } catch (_) {}
+    }
+  }
+
+  // 6. AI Calorie & Nutrition Scan (via Backend -> n8n -> Gemini)
+  Future<AiMealScanResult> scanMealWithAi({
+    String? imageBase64,
+    String mimeType = 'image/jpeg',
+    String? notes,
+  }) async {
+    if (apiClient == null) {
+      throw Exception('Koneksi API tidak tersedia. Pastikan Anda sudah login.');
+    }
+
+    try {
+      final response = await apiClient!.dio.post(
+        ApiEndpoints.nutritionAiScan,
+        data: {
+          if (imageBase64 != null && imageBase64.isNotEmpty)
+            'imageBase64': imageBase64,
+          'mimeType': mimeType,
+          if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+        },
+        options: Options(
+          receiveTimeout: const Duration(seconds: 35),
+          sendTimeout: const Duration(seconds: 30),
+        ),
+      );
+
+      final data = response.data?['data'];
+      if (data is Map<String, dynamic>) {
+        return AiMealScanResult.fromJson(data);
+      }
+      throw Exception('Format respon AI tidak valid');
+    } on DioException catch (e) {
+      final serverMsg = e.response?.data is Map
+          ? (e.response?.data['error']?['message'] ??
+              e.response?.data['message'])
+          : null;
+      if (serverMsg != null) {
+        throw Exception(serverMsg.toString());
+      }
+      if (e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionTimeout) {
+        throw Exception(
+          'Analisis AI melebihi batas waktu. Coba lagi atau gunakan foto yang lebih ringan.',
+        );
+      }
+      throw Exception('Gagal menghubungi server AI Calorie Tracker.');
     }
   }
 }

@@ -6,6 +6,7 @@ import '../../dashboard/providers/dashboard_provider.dart';
 import '../data/models/meal_entry_model.dart';
 import '../providers/nutrition_provider.dart';
 import 'widgets/add_food_sheet.dart';
+import 'widgets/ai_meal_scan_sheet.dart';
 import 'widgets/macro_progress_bar.dart';
 
 class CalorieTrackerScreen extends ConsumerWidget {
@@ -97,6 +98,18 @@ class CalorieTrackerScreen extends ConsumerWidget {
     );
   }
 
+  void _openAiScanSheet(
+    BuildContext context, [
+    MealType mealType = MealType.lunch,
+  ]) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AiMealScanSheet(initialMealType: mealType),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -171,8 +184,18 @@ class CalorieTrackerScreen extends ConsumerWidget {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openAiScanSheet(context),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.auto_awesome_rounded),
+        label: const Text(
+          'Scan AI',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 88),
         children: [
           // 0. Interactive Pill Date Navigator Bar (Stitch Design)
           Container(
