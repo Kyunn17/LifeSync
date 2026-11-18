@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { mealLogSchema, customFoodSchema, aiMealScanSchema } from "@lifesync/shared";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 import { validateBody } from "../middleware/validate";
 import {
   getMealLogsController,
@@ -22,6 +22,7 @@ nutritionRouter.get("/meals", getMealLogsController);
 nutritionRouter.post("/meals", validateBody(mealLogSchema), createMealLogController);
 nutritionRouter.post(
   "/meals/ai-scan",
+  requireRole("ADMIN"),
   validateBody(aiMealScanSchema),
   scanMealWithAiController
 );

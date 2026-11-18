@@ -857,9 +857,9 @@ export const openApiDocument: Record<string, unknown> = {
     "/api/nutrition/meals/ai-scan": {
       post: {
         tags: ["Nutrition"],
-        summary: "Analisis kalori & makronutrisi makanan via AI (n8n + Gemini Vision)",
+        summary: "[ADMIN ONLY] Analisis kalori & makronutrisi makanan via AI (n8n + Gemini Vision)",
         description:
-          "Mengirim foto makanan (Base64) dan/atau deskripsi teks ke workflow n8n untuk dianalisis oleh Gemini AI dan mengembalikan estimasi kalori serta makronutrisi terstruktur.",
+          "Khusus akun ADMIN. Mengirim foto makanan (Base64) dan/atau deskripsi teks ke workflow n8n untuk dianalisis oleh Gemini AI dan mengembalikan estimasi kalori serta makronutrisi terstruktur.",
         requestBody: {
           required: true,
           content: {
@@ -870,6 +870,7 @@ export const openApiDocument: Record<string, unknown> = {
         },
         responses: {
           "200": { description: "Hasil analisis nutrisi makanan" },
+          "403": { description: "Akses ditolak — hanya tersedia untuk role ADMIN" },
           "503": { description: "Server AI n8n belum dikonfigurasi atau tidak dapat dihubungi" },
         },
       },

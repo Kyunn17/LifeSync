@@ -85276,6 +85276,10 @@ async function scanMealWithAiController(req, res, next) {
       sendError(res, 401, "UNAUTHORIZED", "Authentication required");
       return;
     }
+    if (req.user.role !== "ADMIN") {
+      sendError(res, 403, "FORBIDDEN", "Fitur AI Calorie Scanner hanya tersedia untuk Admin");
+      return;
+    }
     const result = await scanMealWithAi(req.body);
     sendSuccess(res, result);
   } catch (err) {
@@ -85292,7 +85296,7 @@ var nutritionRouter = import_express7.Router();
 nutritionRouter.use(requireAuth);
 nutritionRouter.get("/meals", getMealLogsController);
 nutritionRouter.post("/meals", validateBody(mealLogSchema), createMealLogController);
-nutritionRouter.post("/meals/ai-scan", validateBody(aiMealScanSchema), scanMealWithAiController);
+nutritionRouter.post("/meals/ai-scan", requireRole("ADMIN"), validateBody(aiMealScanSchema), scanMealWithAiController);
 nutritionRouter.delete("/meals/:id", deleteMealLogController);
 nutritionRouter.get("/custom-foods", getCustomFoodsController);
 nutritionRouter.post("/custom-foods", validateBody(customFoodSchema), createCustomFoodController);
@@ -86260,8 +86264,8 @@ var openApiDocument = {
     "/api/nutrition/meals/ai-scan": {
       post: {
         tags: ["Nutrition"],
-        summary: "Analisis kalori & makronutrisi makanan via AI (n8n + Gemini Vision)",
-        description: "Mengirim foto makanan (Base64) dan/atau deskripsi teks ke workflow n8n untuk dianalisis oleh Gemini AI dan mengembalikan estimasi kalori serta makronutrisi terstruktur.",
+        summary: "[ADMIN ONLY] Analisis kalori & makronutrisi makanan via AI (n8n + Gemini Vision)",
+        description: "Khusus akun ADMIN. Mengirim foto makanan (Base64) dan/atau deskripsi teks ke workflow n8n untuk dianalisis oleh Gemini AI dan mengembalikan estimasi kalori serta makronutrisi terstruktur.",
         requestBody: {
           required: true,
           content: {
@@ -86272,6 +86276,7 @@ var openApiDocument = {
         },
         responses: {
           "200": { description: "Hasil analisis nutrisi makanan" },
+          "403": { description: "Akses ditolak — hanya tersedia untuk role ADMIN" },
           "503": { description: "Server AI n8n belum dikonfigurasi atau tidak dapat dihubungi" }
         }
       }

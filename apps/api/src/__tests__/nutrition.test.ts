@@ -7,6 +7,7 @@ import {
 } from "@lifesync/shared";
 import { env } from "../config/env";
 import { scanMealWithAi, AiScannerError } from "../services/nutrition.service";
+import { scanMealWithAiController } from "../controllers/nutrition.controller";
 
 describe("Nutrition & Calorie Schema Tests", () => {
   test("validates valid meal log input", () => {
@@ -156,6 +157,37 @@ describe("Nutrition & Calorie Schema Tests", () => {
       env.N8N_WEBHOOK_URL = originalUrl;
       globalThis.fetch = originalFetch;
     }
+  });
+
+  test("scanMealWithAiController rejects non-ADMIN users with 403 FORBIDDEN", async () => {
+    let capturedStatus = 0;
+    let capturedBody: Record<string, unknown> = {};
+
+    const req = {
+      user: {
+        id: "user_1",
+        name: "Regular User",
+        email: "user@example.com",
+        emailVerified: true,
+        role: "USER",
+      },
+      body: { notes: "Nasi uduk" },
+    } as unknown as Parameters<typeof scanMealWithAiController>[0];
+
+    const res = {
+      status(code: number) {
+        capturedStatus = code;
+        return this;
+      },
+      json(payload: Record<string, unknown>) {
+        capturedBody = payload;
+        return this;
+      },
+    } as unknown as Parameters<typeof scanMealWithAiController>[1];
+
+    await scanMealWithAiController(req, res, () => {});
+    expect(capturedStatus).toBe(403);
+    expect(capturedBody.success).toBe(false);
   });
 });
 

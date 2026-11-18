@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../../dashboard/providers/dashboard_provider.dart';
 import '../../data/katalog_nusantara.dart';
 import '../../data/models/food_item_model.dart';
@@ -102,6 +103,9 @@ class _AddFoodSheetState extends ConsumerState<AddFoodSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isAdmin = ref.watch(
+      authStateProvider.select((s) => s.user?.isAdmin ?? false),
+    );
 
     // Apply active filter
     final filteredResults = _results.where((item) {
@@ -155,25 +159,26 @@ class _AddFoodSheetState extends ConsumerState<AddFoodSheet> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      tooltip: 'Scan Makanan dengan AI',
-                      onPressed: () {
-                        final nav = Navigator.of(context);
-                        final mealType = _selectedMealType;
-                        nav.pop();
-                        showModalBottomSheet(
-                          context: nav.context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) =>
-                              AiMealScanSheet(initialMealType: mealType),
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.auto_awesome_rounded,
-                        color: AppColors.primary,
+                    if (isAdmin)
+                      IconButton(
+                        tooltip: 'Scan Makanan dengan AI (Admin)',
+                        onPressed: () {
+                          final nav = Navigator.of(context);
+                          final mealType = _selectedMealType;
+                          nav.pop();
+                          showModalBottomSheet(
+                            context: nav.context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) =>
+                                AiMealScanSheet(initialMealType: mealType),
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
                     TextButton.icon(
                       onPressed: () {
                         showDialog(

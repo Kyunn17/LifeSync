@@ -73,6 +73,8 @@ class UserModel {
     this.profile,
   });
 
+  bool get isAdmin => role.toUpperCase() == 'ADMIN';
+
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id']?.toString() ?? '',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
 import '../data/models/meal_entry_model.dart';
 import '../providers/nutrition_provider.dart';
@@ -115,6 +116,9 @@ class CalorieTrackerScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final selectedDate = ref.watch(selectedDateProvider);
     final nutrition = ref.watch(dailyNutritionProvider);
+    final isAdmin = ref.watch(
+      authStateProvider.select((s) => s.user?.isAdmin ?? false),
+    );
 
     final displayDate = DateFormat('EEE, d MMM yyyy', 'id_ID').format(
       DateTime.tryParse(selectedDate) ?? DateTime.now(),
@@ -184,16 +188,18 @@ class CalorieTrackerScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAiScanSheet(context),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.auto_awesome_rounded),
-        label: const Text(
-          'Scan AI',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
+      floatingActionButton: isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: () => _openAiScanSheet(context),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.auto_awesome_rounded),
+              label: const Text(
+                'Scan AI',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            )
+          : null,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 88),
         children: [

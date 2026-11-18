@@ -183,6 +183,16 @@ export async function scanMealWithAiController(
       return;
     }
 
+    if (req.user.role !== "ADMIN") {
+      sendError(
+        res,
+        403,
+        "FORBIDDEN",
+        "Fitur AI Calorie Scanner hanya tersedia untuk Admin"
+      );
+      return;
+    }
+
     const result = await scanMealWithAi(req.body);
     sendSuccess(res, result);
   } catch (err) {
