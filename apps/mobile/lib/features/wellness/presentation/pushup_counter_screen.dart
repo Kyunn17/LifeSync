@@ -370,7 +370,7 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
           _downStartTime = now;
           HapticFeedback.selectionClick();
         }
-        guidance = 'Posisi bawah tercapai! Dorong naik ⬆️';
+        guidance = 'Posisi bawah tercapai! Dorong naik';
       } else if (smoothedAngle >= upThreshold) {
         _consecutiveUpFrames++;
         _consecutiveDownFrames = 0;
@@ -390,20 +390,20 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
             _lastRepTime = now;
             _downStartTime = null;
             HapticFeedback.heavyImpact();
-            guidance = 'Mantap! +1 Repetisi 🔥';
+            guidance = 'Mantap! +1 Repetisi';
           } else {
             // Rapid camera shake rejected
             downState = false;
           }
         } else if (!downState) {
-          guidance = 'Siap! Turunkan badan hingga siku menekuk ⬇️';
+          guidance = 'Siap! Turunkan badan hingga siku menekuk';
         }
       } else {
         // Between up and down thresholds
         if (downState) {
           guidance = 'Dorong lengan sampai lurus ke atas...';
         } else if (progress > 0.4) {
-          guidance = 'Bagus, turun lebih rendah lagi ⬇️';
+          guidance = 'Bagus, turun lebih rendah lagi';
         } else {
           guidance = 'Mulai turunkan badan perlahan...';
         }
@@ -463,7 +463,7 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
           _downStartTime = now;
           HapticFeedback.selectionClick();
         }
-        guidance = 'Dekat lantai tercapai! Dorong naik ⬆️';
+        guidance = 'Dekat lantai tercapai! Dorong naik';
       } else if (smoothedRatio <= upRatio) {
         _consecutiveUpFrames++;
         _consecutiveDownFrames = 0;
@@ -476,12 +476,12 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
             _lastRepTime = now;
             _downStartTime = null;
             HapticFeedback.heavyImpact();
-            guidance = 'Mantap! +1 Repetisi 🔥';
+            guidance = 'Mantap! +1 Repetisi';
           } else {
             downState = false;
           }
         } else if (!downState) {
-          guidance = 'Siap! Turunkan dada mendekati kamera HP ⬇️';
+          guidance = 'Siap! Turunkan dada mendekati kamera HP';
         }
       } else {
         guidance = downState ? 'Dorong naik kembali ke posisi plank...' : 'Dekatkan dada ke arah kamera...';
@@ -534,7 +534,7 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Keren! $_repCount push-up disimpan • Streak: $newStreak Hari 🔥'),
+              'Keren! $_repCount push-up disimpan • Streak: $newStreak Hari'),
           backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
         ),
@@ -728,7 +728,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildModeTab(
-                        label: '📐 Sandaran (Sudut Siku)',
+                        icon: Icons.architecture_rounded,
+                        label: 'Sandaran (Sudut Siku)',
                         selected: _mode == PushupDetectionMode.sideAngle,
                         onTap: () => setState(() {
                           _mode = PushupDetectionMode.sideAngle;
@@ -738,7 +739,8 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                         }),
                       ),
                       _buildModeTab(
-                        label: '📱 Lantai (Dada/Wajah)',
+                        icon: Icons.smartphone_rounded,
+                        label: 'Lantai (Dada/Wajah)',
                         selected: _mode == PushupDetectionMode.floorProximity,
                         onTap: () => setState(() {
                           _mode = PushupDetectionMode.floorProximity;
@@ -771,7 +773,7 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
                   ),
                   child: Text(
                     _isDown
-                        ? 'POSISI BAWAH VALID • DORONG NAIK ⬆️'
+                        ? 'POSISI BAWAH VALID • DORONG NAIK'
                         : 'SIAP • ${_activeArmLabel.toUpperCase()}',
                     style: TextStyle(
                       fontSize: 10,
@@ -1213,6 +1215,7 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
   }
 
   Widget _buildModeTab({
+    required IconData icon,
     required String label,
     required bool selected,
     required VoidCallback onTap,
@@ -1225,13 +1228,24 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
           color: selected ? AppColors.primaryContainer : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.white : Colors.white70,
-            fontSize: 11,
-            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 13,
+              color: selected ? Colors.white : Colors.white70,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.white : Colors.white70,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

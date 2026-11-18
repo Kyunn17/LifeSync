@@ -250,7 +250,7 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                                 size: 16,
                               ),
                               label: Text(
-                                'Push-Up (${pushupStats.currentStreak}🔥)',
+                                'Push-Up (${pushupStats.currentStreak} Hari)',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,

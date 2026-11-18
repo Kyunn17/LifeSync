@@ -577,9 +577,10 @@ class CalorieTrackerScreen extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Center(
-                            child: Text(
+                            child: Icon(
                               mealType.icon,
-                              style: const TextStyle(fontSize: 22),
+                              size: 22,
+                              color: AppColors.primary,
                             ),
                           ),
                         ),

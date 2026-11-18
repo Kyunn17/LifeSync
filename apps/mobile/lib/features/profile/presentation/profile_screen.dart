@@ -281,18 +281,21 @@ class ProfileScreen extends ConsumerWidget {
                   Row(
                     children: [
                       _buildStatPill(
+                        icon: Icons.local_fire_department_rounded,
                         label: 'Push-Up Streak',
-                        value: '🔥 ${pushupStats.currentStreak} Hari',
+                        value: '${pushupStats.currentStreak} Hari',
                       ),
                       const SizedBox(width: 8),
                       _buildStatPill(
+                        icon: Icons.directions_walk_rounded,
                         label: 'Langkah Hari Ini',
-                        value: '👟 ${stepState.todaySteps}',
+                        value: '${stepState.todaySteps}',
                       ),
                       const SizedBox(width: 8),
                       _buildStatPill(
+                        icon: Icons.bolt_rounded,
                         label: 'Pagu Kalori',
-                        value: '⚡ ${nutrition.targetCalories}',
+                        value: '${nutrition.targetCalories}',
                       ),
                     ],
                   ),
@@ -966,7 +969,11 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatPill({required String label, required String value}) {
+  Widget _buildStatPill({
+    IconData? icon,
+    required String label,
+    required String value,
+  }) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
@@ -976,15 +983,27 @@ class ProfileScreen extends ConsumerWidget {
         ),
         child: Column(
           children: [
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w900,
-                color: AppColors.onSurface,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                ],
+                Flexible(
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 2),
             Text(

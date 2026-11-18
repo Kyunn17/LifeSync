@@ -505,19 +505,37 @@ class WeightTrackerCard extends ConsumerWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      entry.isAnomaly && entry.anomalyNote != null
-                          ? '⚠ ${entry.anomalyNote}'
-                          : (entry.notes ?? ''),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: entry.isAnomaly
-                            ? const Color(0xFFB45309)
-                            : AppColors.outline,
-                      ),
-                    ),
+                    child: entry.isAnomaly && entry.anomalyNote != null
+                        ? Row(
+                            children: [
+                              const Icon(
+                                Icons.warning_amber_rounded,
+                                size: 13,
+                                color: Color(0xFFB45309),
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  entry.anomalyNote!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: Color(0xFFB45309),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            entry.notes ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: AppColors.outline,
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 8),
                   Text(

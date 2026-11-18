@@ -68,7 +68,7 @@ class DashboardScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Halo, ${user?.name ?? 'Sobat'} 👋',
+                    'Halo, ${user?.name ?? 'Sobat'}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleLarge?.copyWith(
@@ -226,13 +226,24 @@ class DashboardScreen extends ConsumerWidget {
                           color: AppColors.surfaceContainerLow,
                           borderRadius: BorderRadius.circular(999),
                         ),
-                        child: const Text(
-                          'Ketuk kartu untuk atur ✏️',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 12,
+                              color: AppColors.primary,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Ketuk kartu untuk atur',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -527,10 +538,10 @@ class DashboardScreen extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Text(
                       score >= 75
-                          ? 'Tubuh dalam Ritme Sinkron ✨'
+                          ? 'Tubuh dalam Ritme Sinkron'
                           : score >= 50
-                              ? 'Ritme Stabil, Terus Jaga 🌱'
-                              : 'Mari Bangun Ritme Hari Ini 🍃',
+                              ? 'Ritme Stabil, Terus Jaga'
+                              : 'Mari Bangun Ritme Hari Ini',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                         color: AppColors.onSurface,
@@ -1095,13 +1106,24 @@ class DashboardScreen extends ConsumerWidget {
                     color: Colors.white.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text(
-                    '🔥 ${stats.currentStreak} Hari Streak',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.local_fire_department_rounded,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${stats.currentStreak} Hari Streak',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Text(

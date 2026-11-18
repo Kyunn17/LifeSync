@@ -1,14 +1,15 @@
+import 'package:flutter/material.dart';
 import 'food_item_model.dart';
 
 enum MealType {
-  breakfast('breakfast', 'Sarapan', '🌅'),
-  lunch('lunch', 'Makan Siang', '☀️'),
-  dinner('dinner', 'Makan Malam', '🌙'),
-  snack('snack', 'Camilan', '🍎');
+  breakfast('breakfast', 'Sarapan', Icons.wb_twilight_rounded),
+  lunch('lunch', 'Makan Siang', Icons.wb_sunny_rounded),
+  dinner('dinner', 'Makan Malam', Icons.nights_stay_rounded),
+  snack('snack', 'Camilan', Icons.cookie_outlined);
 
   final String key;
   final String label;
-  final String icon;
+  final IconData icon;
 
   const MealType(this.key, this.label, this.icon);
 

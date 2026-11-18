@@ -118,7 +118,12 @@ class _ManualFoodDialogState extends State<ManualFoodDialog> {
                     return Padding(
                       padding: const EdgeInsets.only(right: 6),
                       child: ChoiceChip(
-                        label: Text('${type.icon} ${type.label}'),
+                        avatar: Icon(
+                          type.icon,
+                          size: 14,
+                          color: isSel ? AppColors.primary : AppColors.onSurfaceVariant,
+                        ),
+                        label: Text(type.label),
                         selected: isSel,
                         selectedColor: AppColors.primary.withValues(alpha: 0.2),
                         labelStyle: TextStyle(

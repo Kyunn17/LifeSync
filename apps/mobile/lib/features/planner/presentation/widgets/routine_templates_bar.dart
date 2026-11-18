@@ -117,21 +117,21 @@ class _RoutineTemplatesBarState extends ConsumerState<RoutineTemplatesBar> {
           child: Row(
             children: [
               _buildTemplatePill(
-                label: '⚡ Salin Kemarin',
+                label: 'Salin Kemarin',
                 icon: Icons.history_rounded,
                 isPrimary: true,
                 onTap: () => _applyTemplate('yesterday', 'Jadwal Kemarin'),
               ),
               const SizedBox(width: 8),
               _buildTemplatePill(
-                label: '💼 Hari Kerja',
+                label: 'Hari Kerja',
                 icon: Icons.work_outline_rounded,
                 isPrimary: false,
                 onTap: () => _applyTemplate('workday', 'Template Hari Kerja'),
               ),
               const SizedBox(width: 8),
               _buildTemplatePill(
-                label: '🏖️ Akhir Pekan',
+                label: 'Akhir Pekan',
                 icon: Icons.weekend_outlined,
                 isPrimary: false,
                 onTap: () => _applyTemplate('weekend', 'Template Akhir Pekan'),

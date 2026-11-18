@@ -792,13 +792,24 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                                                   borderRadius:
                                                       BorderRadius.circular(6),
                                                 ),
-                                                child: const Text(
-                                                  '🌙 Lintas Hari',
-                                                  style: TextStyle(
-                                                    fontSize: 9.5,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: AppColors.tertiary,
-                                                  ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: const [
+                                                    Icon(
+                                                      Icons.nights_stay_rounded,
+                                                      size: 11,
+                                                      color: AppColors.tertiary,
+                                                    ),
+                                                    SizedBox(width: 3),
+                                                    Text(
+                                                      'Lintas Hari',
+                                                      style: TextStyle(
+                                                        fontSize: 9.5,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: AppColors.tertiary,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                           ],

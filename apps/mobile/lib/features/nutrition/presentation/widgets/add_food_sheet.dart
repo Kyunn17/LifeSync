@@ -218,7 +218,12 @@ class _AddFoodSheetState extends ConsumerState<AddFoodSheet> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text('${type.icon} ${type.label}'),
+                      avatar: Icon(
+                        type.icon,
+                        size: 15,
+                        color: isSel ? AppColors.primary : AppColors.onSurfaceVariant,
+                      ),
+                      label: Text(type.label),
                       selected: isSel,
                       selectedColor: AppColors.primary.withValues(alpha: 0.18),
                       side: BorderSide(
@@ -276,11 +281,11 @@ class _AddFoodSheetState extends ConsumerState<AddFoodSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                _buildFilterChip('Semua', 'all'),
+                _buildFilterChip('Semua', 'all', Icons.apps_rounded),
                 const SizedBox(width: 8),
-                _buildFilterChip('🇮🇩 Nusantara', 'local'),
+                _buildFilterChip('Nusantara', 'local', Icons.restaurant_rounded),
                 const SizedBox(width: 8),
-                _buildFilterChip('🌐 Open Food Facts', 'openfoodfacts'),
+                _buildFilterChip('Open Food Facts', 'openfoodfacts', Icons.public_rounded),
               ],
             ),
           ),
@@ -556,7 +561,7 @@ class _AddFoodSheetState extends ConsumerState<AddFoodSheet> {
     );
   }
 
-  Widget _buildFilterChip(String label, String key) {
+  Widget _buildFilterChip(String label, String key, [IconData? icon]) {
     final isSel = _filterType == key;
     return InkWell(
       onTap: () => setState(() => _filterType = key),
@@ -570,13 +575,26 @@ class _AddFoodSheetState extends ConsumerState<AddFoodSheet> {
             color: isSel ? AppColors.primary : Colors.transparent,
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-            color: isSel ? AppColors.primary : AppColors.onSurface,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 13,
+                color: isSel ? AppColors.primary : AppColors.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                color: isSel ? AppColors.primary : AppColors.onSurface,
+              ),
+            ),
+          ],
         ),
       ),
     );
