@@ -929,17 +929,20 @@ class DashboardScreen extends ConsumerWidget {
                         const SizedBox(width: 5),
                         Expanded(
                           child: Text(
-                            stepState.hasPermission
-                                ? (isWalking
-                                    ? 'Berjalan • Hardware Pedometer'
-                                    : 'Aktif (Hardware Pedometer)')
-                                : 'Ketuk Aktifkan untuk hitung otomatis',
+                            stepState.errorMessage ??
+                                (stepState.hasPermission
+                                    ? (isWalking
+                                        ? 'Berjalan • Hardware Pedometer'
+                                        : 'Aktif (Hardware Pedometer)')
+                                    : 'Ketuk Aktifkan untuk hitung otomatis'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
+                              color: stepState.errorMessage != null
+                                  ? AppColors.error
+                                  : AppColors.primary,
                             ),
                           ),
                         ),
@@ -950,9 +953,23 @@ class DashboardScreen extends ConsumerWidget {
               ),
               if (!stepState.hasPermission)
                 FilledButton(
-                  onPressed: () => ref
-                      .read(stepCounterProvider.notifier)
-                      .requestPermissionAndStart(),
+                  onPressed: () async {
+                    final ok = await ref
+                        .read(stepCounterProvider.notifier)
+                        .requestPermissionAndStart();
+                    if (!ok && context.mounted) {
+                      final err = ref.read(stepCounterProvider).errorMessage;
+                      if (err != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(err),
+                            backgroundColor: AppColors.error,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
+                  },
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     padding: const EdgeInsets.symmetric(

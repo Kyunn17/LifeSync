@@ -125,44 +125,51 @@ class CircadianRibbonBar extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: AppColors.secondaryFixed.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: const Icon(
-                      Icons.timelapse_rounded,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Pita Sirkadian 24 Jam',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.onSurface,
-                        ),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryFixed.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(11),
                       ),
-                      const Text(
-                        'Ketuk celah kosong untuk isi jadwal',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          color: AppColors.onSurfaceVariant,
-                        ),
+                      child: const Icon(
+                        Icons.timelapse_rounded,
+                        size: 18,
+                        color: AppColors.primary,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Pita Sirkadian 24 Jam',
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.onSurface,
+                            ),
+                          ),
+                          const Text(
+                            'Ketuk celah kosong untuk isi jadwal',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              if (isToday)
+              if (isToday) ...[
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -195,6 +202,7 @@ class CircadianRibbonBar extends StatelessWidget {
                     ],
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -206,122 +214,126 @@ class CircadianRibbonBar extends StatelessWidget {
               color: AppColors.surfaceContainerLow,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: SizedBox(
-                    height: 34,
-                    child: Row(
-                      children: intervals.map((interval) {
-                        final flex = interval.durationMin.clamp(1, 1440);
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final maxWidth = constraints.maxWidth;
+                final maxLeft = maxWidth > 3.5 ? maxWidth - 3.5 : 0.0;
+                final markerLeft =
+                    ((nowMinutes / 1440.0) * maxWidth).clamp(0.0, maxLeft);
 
-                        if (interval.isFree) {
-                          return Expanded(
-                            flex: flex,
-                            child: InkWell(
-                              onTap: () {
-                                final startStr =
-                                    _formatMinutes(interval.startMin);
-                                final suggestedEnd = (interval.startMin + 60)
-                                    .clamp(0, interval.endMin);
-                                final endStr = suggestedEnd == 1440
-                                    ? '00:00'
-                                    : _formatMinutes(suggestedEnd);
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (_) => AddScheduleSheet(
-                                    date: selectedDate,
-                                    prefillStartTime: startStr,
-                                    prefillEndTime: endStr,
-                                  ),
-                                ).then((_) => onScheduleChanged?.call());
-                              },
-                              child: Container(
-                                color: AppColors.surfaceContainerLow,
-                                child: Center(
-                                  child: interval.durationMin >= 120
-                                      ? Text(
-                                          'Luang ${(interval.durationMin / 60).toStringAsFixed(0)}j',
-                                          style: TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.outline
-                                                .withValues(alpha: 0.7),
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                              ),
-                            ),
-                          );
-                        }
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: SizedBox(
+                        height: 34,
+                        child: Row(
+                          children: intervals.map((interval) {
+                            final flex = interval.durationMin.clamp(1, 1440);
 
-                        final catColor =
-                            interval.block?.category?.color ?? AppColors.primary;
-                        return Expanded(
-                          flex: flex,
-                          child: InkWell(
-                            onTap: () {
-                              if (interval.block != null) {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (_) => AddScheduleSheet(
-                                    date: selectedDate,
-                                    initialBlock: interval.block,
-                                  ),
-                                ).then((_) => onScheduleChanged?.call());
-                              }
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: catColor,
-                                border: Border(
-                                  right: BorderSide(
-                                    color: Colors.white.withValues(alpha: 0.35),
-                                    width: 1.2,
+                            if (interval.isFree) {
+                              return Expanded(
+                                flex: flex,
+                                child: InkWell(
+                                  onTap: () {
+                                    final startStr =
+                                        _formatMinutes(interval.startMin);
+                                    final suggestedEnd = (interval.startMin + 60)
+                                        .clamp(0, interval.endMin);
+                                    final endStr = suggestedEnd == 1440
+                                        ? '00:00'
+                                        : _formatMinutes(suggestedEnd);
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (_) => AddScheduleSheet(
+                                        date: selectedDate,
+                                        prefillStartTime: startStr,
+                                        prefillEndTime: endStr,
+                                      ),
+                                    ).then((_) => onScheduleChanged?.call());
+                                  },
+                                  child: Container(
+                                    color: AppColors.surfaceContainerLow,
+                                    child: Center(
+                                      child: interval.durationMin >= 120
+                                          ? Text(
+                                              'Luang ${(interval.durationMin / 60).toStringAsFixed(0)}j',
+                                              style: TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.outline
+                                                    .withValues(alpha: 0.7),
+                                              ),
+                                            )
+                                          : null,
+                                    ),
                                   ),
                                 ),
+                              );
+                            }
+
+                            final catColor = interval.block?.category?.color ??
+                                AppColors.primary;
+                            return Expanded(
+                              flex: flex,
+                              child: InkWell(
+                                onTap: () {
+                                  if (interval.block != null) {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (_) => AddScheduleSheet(
+                                        date: selectedDate,
+                                        initialBlock: interval.block,
+                                      ),
+                                    ).then((_) => onScheduleChanged?.call());
+                                  }
+                                },
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: catColor,
+                                    border: Border(
+                                      right: BorderSide(
+                                        color:
+                                            Colors.white.withValues(alpha: 0.35),
+                                        width: 1.2,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: interval.durationMin >= 75
+                                        ? Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 3,
+                                            ),
+                                            child: Text(
+                                              interval.block?.title ?? '',
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w800,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
                               ),
-                              child: Center(
-                                child: interval.durationMin >= 75
-                                    ? Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 3,
-                                        ),
-                                        child: Text(
-                                          interval.block?.title ?? '',
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.w800,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      )
-                                    : null,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                            );
+                          }).toList(),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
 
-                // Live Time Marker Pin
-                if (isToday)
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final markerLeft =
-                          (nowMinutes / 1440.0) * constraints.maxWidth;
-                      return Positioned(
-                        left: markerLeft.clamp(0.0, constraints.maxWidth - 3),
+                    // Live Time Marker Pin
+                    if (isToday)
+                      Positioned(
+                        left: markerLeft,
                         top: -5,
                         bottom: -5,
                         child: Container(
@@ -337,10 +349,10 @@ class CircadianRibbonBar extends StatelessWidget {
                             ],
                           ),
                         ),
-                      );
-                    },
-                  ),
-              ],
+                      ),
+                  ],
+                );
+              },
             ),
           ),
           const SizedBox(height: 8),

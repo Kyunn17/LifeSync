@@ -9,7 +9,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Indonesian locale date formatting
-  await initializeDateFormatting('id_ID', null);
+  try {
+    await initializeDateFormatting('id_ID', null);
+  } catch (_) {}
 
   // Initialize persistent key-value store
   final sharedPreferences = await SharedPreferences.getInstance();

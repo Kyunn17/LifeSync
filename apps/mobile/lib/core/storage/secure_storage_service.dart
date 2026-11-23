@@ -13,34 +13,47 @@ class SecureStorageService {
   static const String _cookieKey = 'lifesync_session_cookie';
   static const String _userKey = 'lifesync_user_cache';
 
-  Future<void> saveToken(String token) async {
-    await _storage.write(key: _tokenKey, value: token);
+  Future<String?> _safeRead(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } catch (_) {
+      // Recover from corrupted Android KeyStore keys after reinstall/restore.
+      try {
+        await _storage.deleteAll();
+      } catch (_) {}
+      return null;
+    }
   }
 
-  Future<String?> getToken() async {
-    return await _storage.read(key: _tokenKey);
+  Future<void> _safeWrite(String key, String value) async {
+    try {
+      await _storage.write(key: key, value: value);
+    } catch (_) {}
   }
 
-  Future<void> saveCookie(String cookie) async {
-    await _storage.write(key: _cookieKey, value: cookie);
+  Future<void> _safeDelete(String key) async {
+    try {
+      await _storage.delete(key: key);
+    } catch (_) {}
   }
 
-  Future<String?> getCookie() async {
-    return await _storage.read(key: _cookieKey);
-  }
+  Future<void> saveToken(String token) => _safeWrite(_tokenKey, token);
 
-  Future<void> saveUserData(String jsonString) async {
-    await _storage.write(key: _userKey, value: jsonString);
-  }
+  Future<String?> getToken() => _safeRead(_tokenKey);
 
-  Future<String?> getUserData() async {
-    return await _storage.read(key: _userKey);
-  }
+  Future<void> saveCookie(String cookie) => _safeWrite(_cookieKey, cookie);
+
+  Future<String?> getCookie() => _safeRead(_cookieKey);
+
+  Future<void> saveUserData(String jsonString) =>
+      _safeWrite(_userKey, jsonString);
+
+  Future<String?> getUserData() => _safeRead(_userKey);
 
   Future<void> clearAuthData() async {
-    await _storage.delete(key: _tokenKey);
-    await _storage.delete(key: _cookieKey);
-    await _storage.delete(key: _userKey);
+    await _safeDelete(_tokenKey);
+    await _safeDelete(_cookieKey);
+    await _safeDelete(_userKey);
   }
 }
 

@@ -15,9 +15,9 @@ import 'widgets/pose_painter.dart';
 enum PushupDetectionMode { sideAngle, floorProximity }
 
 enum PushupDifficulty {
-  easy('Mudah / Santai', 120.0, 138.0, 0.40, 0.28),
-  standard('Standar', 110.0, 142.0, 0.46, 0.32),
-  strict('Ketat (Strict)', 95.0, 155.0, 0.54, 0.35);
+  easy('Mudah / Santai', 115.0, 132.0, 0.40, 0.28),
+  standard('Standar', 104.0, 138.0, 0.48, 0.32),
+  strict('Ketat (Strict)', 90.0, 150.0, 0.54, 0.36);
 
   final String label;
   final double downAngle;
@@ -72,15 +72,12 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
   String _guidanceText = 'Posisikan tubuh dalam bingkai kamera';
   String _activeArmLabel = 'Mencari pose tubuh...';
 
-  // State timers to reject camera shake / fast noise
-  DateTime? _downStartTime;
+  // State timer to prevent spamming
   DateTime _lastRepTime = DateTime.now();
-  int _consecutiveDownFrames = 0;
-  int _consecutiveUpFrames = 0;
 
-  // Smoothing filter
+  // Smoothing filter (small 2-frame window to avoid dampening bottom-of-rep peaks)
   final List<double> _metricHistory = [];
-  static const int _historySize = 4;
+  static const int _historySize = 2;
 
   int _elapsedSeconds = 0;
   Timer? _sessionTimer;
@@ -307,7 +304,7 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
       double leftConf = 0;
       if (lShoulder != null && lElbow != null && lWrist != null) {
         leftConf = (lShoulder.likelihood + lElbow.likelihood + lWrist.likelihood) / 3;
-        if (leftConf >= 0.50) {
+        if (leftConf >= 0.28) {
           leftAngle = _calculateAngle(lShoulder, lElbow, lWrist);
         }
       }
@@ -316,7 +313,7 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
       double rightConf = 0;
       if (rShoulder != null && rElbow != null && rWrist != null) {
         rightConf = (rShoulder.likelihood + rElbow.likelihood + rWrist.likelihood) / 3;
-        if (rightConf >= 0.50) {
+        if (rightConf >= 0.28) {
           rightAngle = _calculateAngle(rShoulder, rElbow, rWrist);
         }
       }
@@ -324,10 +321,10 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
       // Pick the arm with higher visibility/confidence
       double? rawAngle;
       String armLabel;
-      if (leftConf >= 0.50 && leftConf >= rightConf) {
+      if (leftConf >= 0.28 && leftConf >= rightConf) {
         rawAngle = leftAngle;
         armLabel = 'Lengan Kiri (${(leftConf * 100).toInt()}%)';
-      } else if (rightConf >= 0.50) {
+      } else if (rightConf >= 0.28) {
         rawAngle = rightAngle;
         armLabel = 'Lengan Kanan (${(rightConf * 100).toInt()}%)';
       } else {
@@ -342,7 +339,6 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
           _imageRotation = rotation;
           _guidanceText = 'Pastikan bahu, siku & tangan tampak di kamera';
           _activeArmLabel = 'Lengan terhalang';
-          _depthProgress = 0.0;
         });
         return;
       }
@@ -359,47 +355,31 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
       bool downState = _isDown;
       int reps = _repCount;
 
-      // State Machine with Anti-Shake Debouncing
+      // Responsive State Machine with Debounced Rep Counting
       if (smoothedAngle <= downThreshold) {
-        _consecutiveDownFrames++;
-        _consecutiveUpFrames = 0;
-
-        // Require at least 2 consecutive frames in DOWN position to reject single-frame noise
-        if (_consecutiveDownFrames >= 2 && !downState) {
+        if (!downState) {
           downState = true;
-          _downStartTime = now;
           HapticFeedback.selectionClick();
         }
         guidance = 'Posisi bawah tercapai! Dorong naik';
       } else if (smoothedAngle >= upThreshold) {
-        _consecutiveUpFrames++;
-        _consecutiveDownFrames = 0;
-
-        // Transition from DOWN -> UP = 1 Real Pushup
-        if (downState && _consecutiveUpFrames >= 2) {
+        // Transition from DOWN -> UP = 1 Repetisi Valid
+        if (downState) {
           final timeSinceLastRep = now.difference(_lastRepTime).inMilliseconds;
-          final timeInDown = _downStartTime != null
-              ? now.difference(_downStartTime!).inMilliseconds
-              : 500;
 
-          // Anti-cheat & anti-camera-shake:
-          // A real human push-up takes at least 650ms total, and at least 100ms at bottom!
-          if (timeSinceLastRep >= 650 && timeInDown >= 100) {
+          // Prevent rapid multi-counts: minimum 400ms between completed reps
+          if (timeSinceLastRep >= 400) {
             reps += 1;
             downState = false;
             _lastRepTime = now;
-            _downStartTime = null;
             HapticFeedback.heavyImpact();
             guidance = 'Mantap! +1 Repetisi';
-          } else {
-            // Rapid camera shake rejected
-            downState = false;
           }
-        } else if (!downState) {
+        } else {
           guidance = 'Siap! Turunkan badan hingga siku menekuk';
         }
       } else {
-        // Between up and down thresholds
+        // In intermediate depth range
         if (downState) {
           guidance = 'Dorong lengan sampai lurus ke atas...';
         } else if (progress > 0.4) {
@@ -426,14 +406,13 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
       final rShoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
       final nose = pose.landmarks[PoseLandmarkType.nose];
 
-      if (lShoulder == null || rShoulder == null || lShoulder.likelihood < 0.45 || rShoulder.likelihood < 0.45) {
+      if (lShoulder == null || rShoulder == null || lShoulder.likelihood < 0.30 || rShoulder.likelihood < 0.30) {
         setState(() {
           _detectedPoses = poses;
           _imageSize = imgSize;
           _imageRotation = rotation;
           _guidanceText = 'Letakkan HP terlentang di lantai tepat di bawah dada/wajah';
           _activeArmLabel = 'Bahu belum terlihat';
-          _depthProgress = 0.0;
         });
         return;
       }
@@ -455,32 +434,22 @@ class _PushupCounterScreenState extends ConsumerState<PushupCounterScreen>
       int reps = _repCount;
 
       if (smoothedRatio >= downRatio) {
-        _consecutiveDownFrames++;
-        _consecutiveUpFrames = 0;
-
-        if (_consecutiveDownFrames >= 2 && !downState) {
+        if (!downState) {
           downState = true;
-          _downStartTime = now;
           HapticFeedback.selectionClick();
         }
         guidance = 'Dekat lantai tercapai! Dorong naik';
       } else if (smoothedRatio <= upRatio) {
-        _consecutiveUpFrames++;
-        _consecutiveDownFrames = 0;
-
-        if (downState && _consecutiveUpFrames >= 2) {
+        if (downState) {
           final timeSinceLastRep = now.difference(_lastRepTime).inMilliseconds;
-          if (timeSinceLastRep >= 650) {
+          if (timeSinceLastRep >= 400) {
             reps += 1;
             downState = false;
             _lastRepTime = now;
-            _downStartTime = null;
             HapticFeedback.heavyImpact();
             guidance = 'Mantap! +1 Repetisi';
-          } else {
-            downState = false;
           }
-        } else if (!downState) {
+        } else {
           guidance = 'Siap! Turunkan dada mendekati kamera HP';
         }
       } else {

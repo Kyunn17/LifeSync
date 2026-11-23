@@ -215,9 +215,21 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                             child: OutlinedButton.icon(
                               onPressed: () async {
                                 if (!stepState.hasPermission) {
-                                  await ref
+                                  final ok = await ref
                                       .read(stepCounterProvider.notifier)
                                       .requestPermissionAndStart();
+                                  if (!ok && context.mounted) {
+                                    final err = ref.read(stepCounterProvider).errorMessage;
+                                    if (err != null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(err),
+                                          backgroundColor: AppColors.error,
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  }
                                 } else {
                                   setState(() {
                                     if (stepState.todaySteps > _dailySteps) {
