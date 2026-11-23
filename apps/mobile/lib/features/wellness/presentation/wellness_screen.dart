@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
@@ -8,6 +9,7 @@ import '../../../shared/widgets/status_banner.dart';
 import '../../dashboard/providers/dashboard_provider.dart';
 import '../../insights/providers/insights_provider.dart';
 import '../../nutrition/providers/nutrition_provider.dart';
+import '../../planner/providers/planner_provider.dart';
 import '../providers/pushup_provider.dart';
 import '../providers/step_counter_provider.dart';
 import '../providers/wellness_provider.dart';
@@ -32,25 +34,49 @@ class WellnessScreen extends ConsumerStatefulWidget {
 }
 
 class _WellnessScreenState extends ConsumerState<WellnessScreen> {
-  double _sleepHours = 7.5;
   double _sleepQuality = 85;
-  int _exerciseMinutes = 30;
-  int _dailySteps = 6000;
+  int _dailySteps = 0;
   String _selectedMood = 'Calm';
   double _energyLevel = 75;
   bool _isSaving = false;
   String? _statusMessage;
   String? _lastSyncedDate;
   String? _lastSyncedHash;
+  final TextEditingController _stepsController = TextEditingController(text: '0');
+
+  @override
+  void dispose() {
+    _stepsController.dispose();
+    super.dispose();
+  }
+
+  void _setDailySteps(int steps, {bool updateController = true}) {
+    final clamped = steps.clamp(0, 200000);
+    setState(() {
+      _dailySteps = clamped;
+      if (updateController) {
+        final text = '$clamped';
+        _stepsController.value = TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final selectedDate = ref.watch(selectedDateProvider);
     final healthLogAsync = ref.watch(todayHealthLogProvider);
+    final scheduleAsync = ref.watch(scheduleSummaryProvider);
     final stepState = ref.watch(stepCounterProvider);
     final pushupStats = ref.watch(pushupStatsProvider);
     final nutrition = ref.watch(dailyNutritionProvider);
+    final scheduledSleepMinutes =
+        scheduleAsync.valueOrNull?.scheduledSleepMinutes ?? 0;
+    final scheduledExerciseMinutes =
+        scheduleAsync.valueOrNull?.scheduledExerciseMinutes ?? 0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -92,20 +118,22 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
             _lastSyncedDate = selectedDate;
             _lastSyncedHash = currentHash;
             if (log != null) {
-              _sleepHours = (log.sleepDurationMinutes / 60.0).clamp(0.0, 14.0);
               _sleepQuality = (log.sleepQuality ?? 85).toDouble().clamp(10.0, 100.0);
-              _exerciseMinutes = log.exerciseDurationMinutes.clamp(0, 180);
-              _dailySteps = log.dailySteps;
+              _dailySteps =
+                  log.dailySteps > 0 ? log.dailySteps : stepState.todaySteps;
               _selectedMood = kMoodTypes.contains(log.mood) ? log.mood : 'Calm';
               _energyLevel = log.energyLevel.toDouble().clamp(10.0, 100.0);
             } else {
-              _sleepHours = 7.5;
               _sleepQuality = 85;
-              _exerciseMinutes = 30;
-              _dailySteps = 6000;
+              _dailySteps = stepState.todaySteps;
               _selectedMood = 'Calm';
               _energyLevel = 75;
             }
+            final stepText = '$_dailySteps';
+            _stepsController.value = TextEditingValue(
+              text: stepText,
+              selection: TextSelection.collapsed(offset: stepText.length),
+            );
           }
 
           return SingleChildScrollView(
@@ -129,27 +157,23 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                 _buildCard(
                   context,
                   title: 'Tidur & Pemulihan Sel',
-                  subtitle: 'Durasi & efisiensi istirahat malam',
+                  subtitle: 'Durasi mengikuti Jadwal 24 Jam',
                   icon: Icons.bedtime_rounded,
                   iconColor: AppColors.tertiary,
                   iconBg: AppColors.tertiaryFixed,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildValueHeader(
-                        'Durasi Tidur Semalam',
-                        '${_sleepHours.toStringAsFixed(1)} Jam',
-                        AppColors.tertiary,
+                      _buildScheduleSyncedMetric(
+                        label: 'Durasi Tidur (Jadwal 24 Jam)',
+                        value:
+                            '${(scheduledSleepMinutes / 60).toStringAsFixed(1)} Jam',
+                        helperText:
+                            'Mengikuti Jadwal 24 Jam ($scheduledSleepMinutes menit)',
+                        accentColor: AppColors.tertiary,
+                        onOpenPlanner: () => context.go('/planner'),
                       ),
-                      Slider(
-                        value: _sleepHours,
-                        min: 0,
-                        max: 14,
-                        divisions: 28,
-                        activeColor: AppColors.tertiary,
-                        onChanged: (val) => setState(() => _sleepHours = val),
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 14),
                       _buildValueHeader(
                         'Kualitas Tidur',
                         '${_sleepQuality.toInt()}%',
@@ -171,33 +195,56 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                 // 2. Physical Activity & AI Push-Up Bento Card
                 _buildCard(
                   context,
-                  title: 'Aktivitas Fisik & Sensor',
-                  subtitle: 'Latihan harian, pedometer, & AI Push-Up',
+                  title: 'Aktivitas Fisik & Olahraga',
+                  subtitle: 'Durasi dari Jadwal 24 Jam • Langkah & Push-Up',
                   icon: Icons.directions_run_rounded,
                   iconColor: AppColors.primary,
                   iconBg: AppColors.secondaryFixed.withValues(alpha: 0.5),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildValueHeader(
-                        'Durasi Olahraga',
-                        '$_exerciseMinutes Menit',
-                        AppColors.primary,
+                      _buildScheduleSyncedMetric(
+                        label: 'Durasi Olahraga (Jadwal 24 Jam)',
+                        value: '$scheduledExerciseMinutes Menit',
+                        helperText: 'Otomatis dari Jadwal 24 Jam',
+                        accentColor: AppColors.primary,
+                        onOpenPlanner: () => context.go('/planner'),
                       ),
-                      Slider(
-                        value: _exerciseMinutes.toDouble(),
-                        min: 0,
-                        max: 180,
-                        divisions: 36,
-                        activeColor: AppColors.primary,
-                        onChanged: (val) =>
-                            setState(() => _exerciseMinutes = val.toInt()),
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 14),
                       _buildValueHeader(
                         'Langkah Harian',
                         '$_dailySteps langkah',
                         AppColors.primaryContainer,
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _stepsController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        decoration: InputDecoration(
+                          isDense: true,
+                          filled: true,
+                          fillColor: AppColors.surfaceContainerLow,
+                          hintText: 'Masukkan jumlah langkah',
+                          suffixText: 'langkah',
+                          prefixIcon: const Icon(
+                            Icons.directions_walk_rounded,
+                            size: 18,
+                            color: AppColors.primaryContainer,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          final parsed = int.tryParse(value) ?? 0;
+                          setState(() {
+                            _dailySteps = parsed.clamp(0, 200000);
+                          });
+                        },
                       ),
                       Slider(
                         value: _dailySteps.toDouble().clamp(0.0, 30000.0),
@@ -205,10 +252,61 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                         max: 30000,
                         divisions: 60,
                         activeColor: AppColors.primaryContainer,
-                        onChanged: (val) =>
-                            setState(() => _dailySteps = val.toInt()),
+                        onChanged: (val) => _setDailySteps(val.toInt()),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.fitness_center_rounded,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Jumlah Push-Up Hari Ini',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Streak ${pushupStats.currentStreak} hari • Total ${pushupStats.totalAllTimeReps} reps',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.outline,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              '${pushupStats.todayReps} Reps',
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
@@ -231,11 +329,9 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                                     }
                                   }
                                 } else {
-                                  setState(() {
-                                    if (stepState.todaySteps > _dailySteps) {
-                                      _dailySteps = stepState.todaySteps;
-                                    }
-                                  });
+                                  if (stepState.todaySteps > _dailySteps) {
+                                    _setDailySteps(stepState.todaySteps);
+                                  }
                                 }
                               },
                               icon: const Icon(Icons.sensors_rounded, size: 16),
@@ -262,7 +358,7 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                                 size: 16,
                               ),
                               label: Text(
-                                'Push-Up (${pushupStats.currentStreak} Hari)',
+                                'Push-Up (${pushupStats.todayReps}x)',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
@@ -402,9 +498,9 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                           .read(wellnessRepositoryProvider)
                           .upsertHealthLog(
                             date: selectedDate,
-                            sleepDurationMinutes: (_sleepHours * 60).round(),
+                            sleepDurationMinutes: scheduledSleepMinutes,
                             sleepQuality: _sleepQuality.toInt(),
-                            exerciseDurationMinutes: _exerciseMinutes,
+                            exerciseDurationMinutes: scheduledExerciseMinutes,
                             dailySteps: _dailySteps,
                             waterIntakeMl: log?.waterIntakeMl ?? 0,
                             mood: _selectedMood,
@@ -437,6 +533,67 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildScheduleSyncedMetric({
+    required String label,
+    required String value,
+    required String helperText,
+    required Color accentColor,
+    required VoidCallback onOpenPlanner,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildValueHeader(label, value, accentColor),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(
+                Icons.lock_clock_rounded,
+                size: 14,
+                color: AppColors.outline,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  helperText,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: onOpenPlanner,
+                borderRadius: BorderRadius.circular(999),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: Text(
+                    'Atur di Jadwal',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: accentColor,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

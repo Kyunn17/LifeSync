@@ -89,6 +89,18 @@ class DailyScheduleSummaryModel {
     required this.categoryDistribution,
   });
 
+  int minutesForSlug(String slug) {
+    for (final dist in categoryDistribution) {
+      if (dist.slug == slug) {
+        return dist.allocatedMinutes;
+      }
+    }
+    return 0;
+  }
+
+  int get scheduledSleepMinutes => minutesForSlug('sleep');
+  int get scheduledExerciseMinutes => minutesForSlug('exercise');
+
   factory DailyScheduleSummaryModel.fromJson(Map<String, dynamic> json) {
     final rawBlocks = json['blocks'] as List? ?? [];
     final rawDist = json['categoryDistribution'] as List? ?? [];

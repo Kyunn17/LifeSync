@@ -14,8 +14,6 @@ import '../providers/dashboard_provider.dart';
 import 'widgets/breathing_exercise_dialog.dart';
 import 'widgets/circadian_ring_chart.dart';
 import 'widgets/quick_checkin_sheet.dart';
-import 'widgets/quick_exercise_sheet.dart';
-import 'widgets/quick_sleep_sheet.dart';
 import 'widgets/quick_water_sheet.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -251,142 +249,133 @@ class DashboardScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
 
                   // 4. Quick Vitals 2x2 Bento Grid (Row 1: Sleep & Water)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (_) => QuickSleepSheet(
-                                date: selectedDate,
-                                currentMinutes: wellness.sleepDurationMinutes,
-                                currentQuality: wellness.sleepQuality ?? 85,
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(24),
-                          child: _buildVitalCard(
-                            context,
-                            title: 'Tidur Semalam',
-                            icon: Icons.bedtime_rounded,
-                            accentColor: AppColors.tertiary,
-                            badgeBg: AppColors.tertiaryFixed,
-                            value:
-                                '${(wellness.sleepDurationMinutes / 60).toStringAsFixed(1)} Jam',
-                            target:
-                                'Target ${(goals.dailySleepGoalMinutes / 60).toStringAsFixed(0)} Jam',
-                            progress: goals.dailySleepGoalMinutes > 0
-                                ? (wellness.sleepDurationMinutes /
-                                        goals.dailySleepGoalMinutes)
-                                    .clamp(0.0, 1.0)
-                                : 0.0,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (_) => QuickWaterSheet(
-                                date: selectedDate,
-                                currentMl: wellness.waterIntakeMl,
-                                goalMl: goals.dailyWaterGoalMl,
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(24),
-                          child: _buildWaterCard(
-                            context,
-                            ref,
-                            selectedDate,
-                            wellness.waterIntakeMl,
-                            goals.dailyWaterGoalMl,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+                  Builder(
+                    builder: (context) {
+                      final scheduledSleepMinutes =
+                          schedule.scheduledSleepMinutes;
+                      final scheduledExerciseMinutes =
+                          schedule.scheduledExerciseMinutes;
+                      final combinedSteps =
+                          stepState.todaySteps > wellness.dailySteps
+                              ? stepState.todaySteps
+                              : wellness.dailySteps;
 
-                  // 5. Quick Vitals 2x2 Bento Grid (Row 2: Exercise & Mood)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            final combinedSteps =
-                                stepState.todaySteps > wellness.dailySteps
-                                    ? stepState.todaySteps
-                                    : wellness.dailySteps;
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (_) => QuickExerciseSheet(
-                                date: selectedDate,
-                                currentExerciseMinutes:
-                                    wellness.exerciseDurationMinutes,
-                                currentSteps: combinedSteps,
-                                goalMinutes: goals.dailyExerciseGoalMinutes,
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => context.go('/planner'),
+                                  borderRadius: BorderRadius.circular(24),
+                                  child: _buildVitalCard(
+                                    context,
+                                    title: 'Tidur Semalam',
+                                    icon: Icons.bedtime_rounded,
+                                    accentColor: AppColors.tertiary,
+                                    badgeBg: AppColors.tertiaryFixed,
+                                    value:
+                                        '${(scheduledSleepMinutes / 60).toStringAsFixed(1)} Jam',
+                                    target:
+                                        'Target ${(goals.dailySleepGoalMinutes / 60).toStringAsFixed(0)} Jam • Jadwal 24J',
+                                    progress: goals.dailySleepGoalMinutes > 0
+                                        ? (scheduledSleepMinutes /
+                                                goals.dailySleepGoalMinutes)
+                                            .clamp(0.0, 1.0)
+                                        : 0.0,
+                                  ),
+                                ),
                               ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(24),
-                          child: _buildVitalCard(
-                            context,
-                            title: 'Latihan & Fisik',
-                            icon: Icons.directions_run_rounded,
-                            accentColor: AppColors.primaryContainer,
-                            badgeBg:
-                                AppColors.secondaryFixed.withValues(alpha: 0.5),
-                            value: '${wellness.exerciseDurationMinutes} Menit',
-                            target:
-                                'Target ${goals.dailyExerciseGoalMinutes}m • ${stepState.todaySteps > wellness.dailySteps ? stepState.todaySteps : wellness.dailySteps} lkg',
-                            progress: goals.dailyExerciseGoalMinutes > 0
-                                ? (wellness.exerciseDurationMinutes /
-                                        goals.dailyExerciseGoalMinutes)
-                                    .clamp(0.0, 1.0)
-                                : 0.0,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (_) => QuickCheckinSheet(
-                                date: selectedDate,
-                                currentMood: wellness.mood,
-                                currentEnergy: wellness.energyLevel,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (_) => QuickWaterSheet(
+                                        date: selectedDate,
+                                        currentMl: wellness.waterIntakeMl,
+                                        goalMl: goals.dailyWaterGoalMl,
+                                      ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(24),
+                                  child: _buildWaterCard(
+                                    context,
+                                    ref,
+                                    selectedDate,
+                                    wellness.waterIntakeMl,
+                                    goals.dailyWaterGoalMl,
+                                  ),
+                                ),
                               ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(24),
-                          child: _buildVitalCard(
-                            context,
-                            title: 'Mood & Fokus',
-                            icon: Icons.sentiment_very_satisfied_rounded,
-                            accentColor: const Color(0xFFD97706),
-                            badgeBg: const Color(0xFFFEF3C7),
-                            value: wellness.mood,
-                            target: 'Energi ${wellness.energyLevel}%',
-                            progress:
-                                (wellness.energyLevel / 100.0).clamp(0.0, 1.0),
+                            ],
                           ),
-                        ),
-                      ),
-                    ],
+                          const SizedBox(height: 12),
+
+                          // 5. Quick Vitals 2x2 Bento Grid (Row 2: Exercise & Mood)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => context.go('/planner'),
+                                  borderRadius: BorderRadius.circular(24),
+                                  child: _buildVitalCard(
+                                    context,
+                                    title: 'Latihan & Fisik',
+                                    icon: Icons.directions_run_rounded,
+                                    accentColor: AppColors.primaryContainer,
+                                    badgeBg: AppColors.secondaryFixed
+                                        .withValues(alpha: 0.5),
+                                    value: '$scheduledExerciseMinutes Menit',
+                                    target: 'Jadwal 24J • $combinedSteps lkg',
+                                    progress:
+                                        goals.dailyExerciseGoalMinutes > 0
+                                            ? (scheduledExerciseMinutes /
+                                                    goals
+                                                        .dailyExerciseGoalMinutes)
+                                                .clamp(0.0, 1.0)
+                                            : 0.0,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (_) => QuickCheckinSheet(
+                                        date: selectedDate,
+                                        currentMood: wellness.mood,
+                                        currentEnergy: wellness.energyLevel,
+                                      ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(24),
+                                  child: _buildVitalCard(
+                                    context,
+                                    title: 'Mood & Fokus',
+                                    icon:
+                                        Icons.sentiment_very_satisfied_rounded,
+                                    accentColor: const Color(0xFFD97706),
+                                    badgeBg: const Color(0xFFFEF3C7),
+                                    value: wellness.mood,
+                                    target: 'Energi ${wellness.energyLevel}%',
+                                    progress: (wellness.energyLevel / 100.0)
+                                        .clamp(0.0, 1.0),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
 

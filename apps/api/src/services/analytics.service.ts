@@ -60,7 +60,7 @@ export async function getDailyAnalytics(userId: string, date: string) {
     targetSleepTime: "22:30",
   };
 
-  // Compute sleep and exercise from either explicit health_logs OR scheduled blocks
+  // Compute sleep and exercise strictly from 24-hour scheduled blocks
   const sleepCategory = scheduleSummary.categoryDistribution.find(
     (c) => c.slug === "sleep"
   );
@@ -68,12 +68,8 @@ export async function getDailyAnalytics(userId: string, date: string) {
     (c) => c.slug === "exercise"
   );
 
-  const sleepMinutes =
-    todayHealth?.sleepDurationMinutes ?? sleepCategory?.allocatedMinutes ?? 0;
-  const exerciseMinutes =
-    todayHealth?.exerciseDurationMinutes ??
-    exerciseCategory?.allocatedMinutes ??
-    0;
+  const sleepMinutes = sleepCategory?.allocatedMinutes ?? 0;
+  const exerciseMinutes = exerciseCategory?.allocatedMinutes ?? 0;
   const waterIntakeMl = Math.max(
     waterSummary.totalWaterMl,
     todayHealth?.waterIntakeMl ?? 0
@@ -176,20 +172,28 @@ async function aggregateWindowMetrics(
 
   const loggedDaysCount = healthRows.length;
 
+  const activeDates = new Set<string>([
+    ...healthRows.map((r) => r.date),
+    ...scheduleRows.map((r) => r.schedule.date),
+  ]);
+  const activeDaysCount = activeDates.size;
+
+  const totalScheduledSleepMinutes = scheduleRows
+    .filter((r) => r.category.slug === "sleep")
+    .reduce((s, r) => s + r.schedule.durationMinutes, 0);
+
+  const totalScheduledExerciseMinutes = scheduleRows
+    .filter((r) => r.category.slug === "exercise")
+    .reduce((s, r) => s + r.schedule.durationMinutes, 0);
+
   const avgSleepMinutes =
-    loggedDaysCount > 0
-      ? Math.round(
-          healthRows.reduce((s, r) => s + r.sleepDurationMinutes, 0) /
-            loggedDaysCount
-        )
+    activeDaysCount > 0
+      ? Math.round(totalScheduledSleepMinutes / activeDaysCount)
       : 0;
 
   const avgExerciseMinutes =
-    loggedDaysCount > 0
-      ? Math.round(
-          healthRows.reduce((s, r) => s + r.exerciseDurationMinutes, 0) /
-            loggedDaysCount
-        )
+    activeDaysCount > 0
+      ? Math.round(totalScheduledExerciseMinutes / activeDaysCount)
       : 0;
 
   const avgWaterIntakeMl =
@@ -293,15 +297,25 @@ export async function getWeeklyAnalytics(userId: string, endDate: string) {
   for (let i = 6; i >= 0; i--) {
     const d = shiftDateString(endDate, -i);
     const h = healthByDate.get(d);
-    const daySchedMins = currentWindow.scheduleRows
-      .filter((s) => s.schedule.date === d)
+    const daySchedule = currentWindow.scheduleRows.filter(
+      (s) => s.schedule.date === d
+    );
+    const daySchedMins = daySchedule.reduce(
+      (sum, s) => sum + s.schedule.durationMinutes,
+      0
+    );
+    const daySleepMins = daySchedule
+      .filter((s) => s.category.slug === "sleep")
+      .reduce((sum, s) => sum + s.schedule.durationMinutes, 0);
+    const dayExerciseMins = daySchedule
+      .filter((s) => s.category.slug === "exercise")
       .reduce((sum, s) => sum + s.schedule.durationMinutes, 0);
 
     dailySeries.push({
       date: d,
-      sleepMinutes: h?.sleepDurationMinutes ?? 0,
+      sleepMinutes: daySleepMins,
       sleepQuality: h?.sleepQuality ?? null,
-      exerciseMinutes: h?.exerciseDurationMinutes ?? 0,
+      exerciseMinutes: dayExerciseMins,
       waterIntakeMl: h?.waterIntakeMl ?? 0,
       dailySteps: h?.dailySteps ?? 0,
       mood: h?.mood ?? null,
