@@ -412,6 +412,10 @@ class _WellnessScreenState extends ConsumerState<WellnessScreen> {
                             notes: log?.notes,
                           );
 
+                      await ref
+                          .read(stepCounterProvider.notifier)
+                          .adoptExternalSteps(_dailySteps, date: selectedDate);
+
                       ref.invalidate(todayHealthLogProvider);
                       ref.invalidate(dailyAnalyticsProvider);
                       ref.invalidate(weeklyAnalyticsProvider);
