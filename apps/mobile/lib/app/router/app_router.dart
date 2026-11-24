@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/verify_otp_screen.dart';
@@ -32,7 +33,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final status = authState.status;
       final path = state.uri.path;
 
-      final isAuthRoute = path == '/login' || path == '/register' || path == '/verify-otp';
+      final isAuthRoute = path == '/login' ||
+          path == '/register' ||
+          path == '/verify-otp' ||
+          path == '/forgot-password';
 
       if (status == AuthStatus.initial) {
         return null;
@@ -75,6 +79,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/verify-otp',
         builder: (context, state) => const VerifyOtpScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => ForgotPasswordScreen(
+          initialEmail: state.extra as String?,
+        ),
       ),
       GoRoute(
         path: '/onboarding',

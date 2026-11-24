@@ -116,6 +116,79 @@ class AuthRepository {
     }
   }
 
+  Future<void> requestPasswordResetOtp({required String email}) async {
+    try {
+      await apiClient.dio.post(
+        ApiEndpoints.forgotPasswordRequest,
+        data: {'email': email.trim().toLowerCase()},
+      );
+    } on DioException catch (e) {
+      final msg =
+          e.response?.data?['error']?['message'] ??
+          'Gagal mengirim kode OTP reset kata sandi.';
+      throw AuthFailure(msg.toString());
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw const AuthFailure('Gagal mengirim kode OTP reset kata sandi.');
+    }
+  }
+
+  Future<String> verifyPasswordResetOtp({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final response = await apiClient.dio.post(
+        ApiEndpoints.forgotPasswordVerifyOtp,
+        data: {
+          'email': email.trim().toLowerCase(),
+          'code': code.trim(),
+        },
+      );
+
+      final data = response.data?['data'];
+      final resetToken =
+          data is Map<String, dynamic> ? data['resetToken']?.toString() : null;
+      if (resetToken == null || resetToken.isEmpty) {
+        throw const AuthFailure('Token reset kata sandi tidak ditemukan.');
+      }
+      return resetToken;
+    } on DioException catch (e) {
+      final msg =
+          e.response?.data?['error']?['message'] ??
+          'Kode OTP salah atau sudah kedaluwarsa.';
+      throw AuthFailure(msg.toString());
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw const AuthFailure('Gagal memverifikasi kode OTP.');
+    }
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String resetToken,
+    required String newPassword,
+  }) async {
+    try {
+      await apiClient.dio.post(
+        ApiEndpoints.forgotPasswordReset,
+        data: {
+          'email': email.trim().toLowerCase(),
+          'resetToken': resetToken,
+          'newPassword': newPassword,
+        },
+      );
+    } on DioException catch (e) {
+      final msg =
+          e.response?.data?['error']?['message'] ??
+          'Gagal memperbarui kata sandi baru.';
+      throw AuthFailure(msg.toString());
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw const AuthFailure('Gagal memperbarui kata sandi baru.');
+    }
+  }
+
   Future<UserModel> getMe() async {
     try {
       final response = await apiClient.dio.get(ApiEndpoints.me);

@@ -307,11 +307,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                                 Align(
                                   alignment: Alignment.centerRight,
-                                  child: Text(
-                                    'Minimal 8 karakter terenkripsi',
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: AppColors.outline,
-                                      fontWeight: FontWeight.w600,
+                                  child: InkWell(
+                                    onTap: () => context.push(
+                                      '/forgot-password',
+                                      extra: _emailController.text.trim(),
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 4,
+                                      ),
+                                      child: Text(
+                                        'Lupa Kata Sandi?',
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),

@@ -1,3 +1,4 @@
+import { randomBytes, randomInt } from "node:crypto";
 import { env } from "../config/env";
 import { getDb, user, verification, eq, and, gte } from "@lifesync/db";
 
@@ -353,5 +354,247 @@ export async function sendPasswordResetEmail({
   } catch (e) {
     console.error("[EmailService] Brevo reset error:", e);
     return false;
+  }
+}
+
+const resetOtpIdentifier = (email: string) =>
+  `reset:${email.trim().toLowerCase()}`;
+
+const resetTokenIdentifier = (email: string) =>
+  `reset_token:${email.trim().toLowerCase()}`;
+
+export async function generateAndSavePasswordResetCode(
+  email: string
+): Promise<string> {
+  const identifier = resetOtpIdentifier(email);
+  const code = randomInt(10000, 100000).toString(); // 5 digit code (10000 - 99999)
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 menit
+
+  const db = getDb();
+  await db.delete(verification).where(eq(verification.identifier, identifier));
+  await db.insert(verification).values({
+    id: `reset_otp_${Date.now()}_${randomBytes(4).toString("hex")}`,
+    identifier,
+    value: code,
+    expiresAt,
+  });
+
+  return code;
+}
+
+export async function sendPasswordResetOtpEmail({
+  email,
+  name,
+}: {
+  email: string;
+  name?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const displayName = name || normalizedEmail.split("@")[0] || "User";
+
+  const code = await generateAndSavePasswordResetCode(normalizedEmail);
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kode Reset Kata Sandi LifeSync</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f7faf8; margin: 0; padding: 24px; color: #1e2924; }
+    .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(13, 122, 83, 0.06); border: 1px solid #e2ebe6; }
+    .header { background: linear-gradient(135deg, #0d7a53 0%, #159367 100%); padding: 36px 32px; text-align: center; color: #ffffff; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+    .header p { margin: 8px 0 0; opacity: 0.9; font-size: 14px; }
+    .content { padding: 36px 32px; text-align: center; }
+    .greeting { font-size: 18px; font-weight: 600; margin-bottom: 12px; color: #0f382a; text-align: left; }
+    .text { font-size: 15px; line-height: 1.6; color: #3b4d45; margin-bottom: 24px; text-align: left; }
+    .otp-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #0d7a53; margin-bottom: 8px; }
+    .otp-box { display: inline-block; font-size: 44px; font-weight: 800; letter-spacing: 14px; color: #0d7a53; background: #eaf5f0; padding: 18px 36px; border-radius: 16px; border: 2px dashed #0d7a53; font-family: monospace; }
+    .otp-hint { font-size: 13px; color: #6f8078; margin-top: 14px; }
+    .footer { background: #f7faf8; padding: 20px 32px; text-align: center; font-size: 12px; color: #8a9c94; border-top: 1px solid #eef3f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>LifeSync Wellness</h1>
+      <p>Reset Kata Sandi Akun</p>
+    </div>
+    <div class="content">
+      <div class="greeting">Halo ${displayName},</div>
+      <div class="text">
+        Kami menerima permintaan untuk mengatur ulang kata sandi akun <strong>LifeSync Wellness</strong> Anda. Masukkan kode OTP 5-digit di bawah ini pada aplikasi untuk melanjutkan:
+      </div>
+
+      <div class="otp-label">KODE OTP RESET KATA SANDI</div>
+      <div class="otp-box">${code}</div>
+      <div class="otp-hint">Kode ini berlaku selama 15 menit. Jangan bagikan kode ini kepada siapa pun.</div>
+    </div>
+    <div class="footer">
+      Jika Anda tidak meminta pengaturan ulang kata sandi, abaikan email ini dan akun Anda tetap aman.
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  if (!env.BREVO_API_KEY) {
+    console.warn(
+      `[EmailService] BREVO_API_KEY is not configured. Password reset code for ${normalizedEmail}: ${code}`
+    );
+    return {
+      ok: false,
+      error: "BREVO_API_KEY belum dikonfigurasi.",
+    };
+  }
+
+  try {
+    const result = await sendViaBrevo({
+      to: normalizedEmail,
+      name: displayName,
+      subject: `Kode Reset Kata Sandi LifeSync: ${code}`,
+      html: htmlContent,
+    });
+
+    if (result.ok) {
+      console.log(
+        `[EmailService] Password reset OTP sent to ${normalizedEmail} via Brevo (ID: ${result.messageId})`
+      );
+      return { ok: true };
+    }
+
+    console.error("[EmailService] Brevo reset OTP send failed:", result.error);
+    return {
+      ok: false,
+      error: result.error || "Gagal mengirim kode OTP via Brevo.",
+    };
+  } catch (err) {
+    console.error("[EmailService] Exception sending reset OTP:", err);
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Gagal mengirim email.",
+    };
+  }
+}
+
+export async function verifyPasswordResetOtp({
+  email,
+  code,
+}: {
+  email: string;
+  code: string;
+}): Promise<{ success: boolean; resetToken?: string; error?: string }> {
+  const otpId = resetOtpIdentifier(email);
+  const tokenId = resetTokenIdentifier(email);
+  const cleanCode = code.trim();
+
+  if (!/^\d{5}$/.test(cleanCode)) {
+    return {
+      success: false,
+      error: "Kode OTP harus terdiri dari 5 digit angka.",
+    };
+  }
+
+  try {
+    const db = getDb();
+    const now = new Date();
+
+    const records = await db
+      .select()
+      .from(verification)
+      .where(
+        and(
+          eq(verification.identifier, otpId),
+          eq(verification.value, cleanCode),
+          gte(verification.expiresAt, now)
+        )
+      );
+
+    if (!records.length) {
+      return {
+        success: false,
+        error: "Kode OTP salah atau sudah kadaluarsa (berlaku 15 menit).",
+      };
+    }
+
+    // Consume OTP and issue short-lived resetToken (10 minutes)
+    await db.delete(verification).where(eq(verification.identifier, otpId));
+    await db.delete(verification).where(eq(verification.identifier, tokenId));
+
+    const resetToken = randomBytes(32).toString("hex");
+    await db.insert(verification).values({
+      id: `reset_tok_${Date.now()}_${randomBytes(4).toString("hex")}`,
+      identifier: tokenId,
+      value: resetToken,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    });
+
+    return { success: true, resetToken };
+  } catch (err) {
+    console.error("[EmailService] Error verifying reset OTP:", err);
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan sistem saat verifikasi OTP.",
+    };
+  }
+}
+
+export async function consumePasswordResetToken({
+  email,
+  resetToken,
+}: {
+  email: string;
+  resetToken: string;
+}): Promise<{ valid: boolean; error?: string }> {
+  const tokenId = resetTokenIdentifier(email);
+  const cleanToken = resetToken.trim();
+
+  if (!cleanToken) {
+    return {
+      valid: false,
+      error:
+        "Sesi reset kata sandi tidak valid atau sudah kadaluarsa. Silakan ulangi permintaan OTP.",
+    };
+  }
+
+  try {
+    const db = getDb();
+    const now = new Date();
+
+    const records = await db
+      .select()
+      .from(verification)
+      .where(
+        and(
+          eq(verification.identifier, tokenId),
+          eq(verification.value, cleanToken),
+          gte(verification.expiresAt, now)
+        )
+      );
+
+    if (!records.length) {
+      return {
+        valid: false,
+        error:
+          "Sesi reset kata sandi tidak valid atau sudah kadaluarsa. Silakan ulangi permintaan OTP.",
+      };
+    }
+
+    await db.delete(verification).where(eq(verification.identifier, tokenId));
+    return { valid: true };
+  } catch (err) {
+    console.error("[EmailService] Error consuming reset token:", err);
+    return {
+      valid: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan sistem saat memvalidasi sesi reset.",
+    };
   }
 }
